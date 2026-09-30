@@ -51,19 +51,21 @@ When they answer the Chinese New Year question, write the date down. It sets you
 
 ## Reorder planner
 
-`tools/reorder.py` works out when each product runs out and the last day to order so the restock lands in time. It allows for Golden Week and Chinese New Year automatically.
+`tools/reorder.py` works out when each product runs out and the last day to order so the restock lands in time. It allows for Golden Week and Chinese New Year automatically, but only on stock that comes from China.
 
 ```bash
 cp tools/stock.example.csv stock.csv   # fill in your real numbers
 python3 tools/reorder.py stock.csv
 ```
 
-- `sold_last_30d`: from Shopify, Analytics → Reports → Sales by product
-- `lead_time_days`: order to door in a normal month (air ~21, sea ~45)
+- `sold_last_30d`: from your shop's sales report (Shopify: Analytics → Reports → Sales by product)
+- `lead_time_days`: order to door in a normal month (China air ~21, sea ~45, UK wholesale 1–2)
+- `on_order`: units you've ordered that haven't arrived. **Keep this up to date**, or the planner tells you to order the same stock twice
+- `origin`: `China` or `UK`. Leave it blank for China
 - `--safety-days` (default 7): buffer so stock lands before you run out
 - `--cover-days` (default 30): how many days of sales each order should cover
 
-Run it every Monday. Anything marked `LATE - ORDER NOW` or `ORDER THIS WEEK` gets ordered that day. Before Chinese New Year it automatically raises the order quantity so the December order lasts through the shutdown.
+Run it every Monday. Anything marked `LATE - ORDER NOW` or `ORDER THIS WEEK` gets ordered that day: add the quantity to `on_order`, then move it to `on_hand` when it arrives. If the order after this one would run into Chinese New Year, it raises this order's quantity so it lasts through the shutdown.
 
 ## Stop waiting on China for pouches and vapes
 

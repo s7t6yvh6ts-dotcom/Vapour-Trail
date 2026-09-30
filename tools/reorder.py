@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Reorder planner: tells you what to order from China, and by when.
+"""Reorder planner: tells you what to order, how much, and by when.
 
-Input CSV columns: sku,name,on_hand,sold_last_30d,lead_time_days
+Input CSV columns: sku,name,on_hand,sold_last_30d,lead_time_days[,on_order][,origin]
   - on_hand:        units in stock right now
-  - sold_last_30d:  units sold in the last 30 days (Shopify: Analytics > Reports > Sales by product)
-  - lead_time_days: order-to-your-door days in a normal month (air ~21, sea ~45)
+  - sold_last_30d:  units sold in the last 30 days (from your shop's sales-by-product report)
+  - lead_time_days: order-to-your-door days in a normal month (China air ~21, sea ~45, UK wholesale 1-2)
+  - on_order:       optional. Units already ordered that haven't arrived yet. Fill this in,
+                    or the planner will tell you to order the same stock twice.
+  - origin:         optional. "China" (the default if blank) or anything else, e.g. "UK".
+                    Chinese shutdowns only delay stock that comes from China.
 
 Usage:
   python3 tools/reorder.py stock.csv                 # plan from today
@@ -12,7 +16,8 @@ Usage:
 
 Chinese shutdowns (Golden Week, Chinese New Year) are added to the lead time
 whenever an order placed on the order-by date would still be in the pipeline
-during one, so the order-by date moves earlier automatically.
+during one, so the order-by date moves earlier automatically. If the next order
+after this one runs into a shutdown, this order is made bigger to carry you through.
 """
 import argparse
 import csv
@@ -20,47 +25,69 @@ import math
 import sys
 from datetime import date, timedelta
 
-# (name, first day factories stop, last day of disruption, extra days it adds to lead time)
+# (name, first day of disruption, last day of disruption, extra days it adds to lead time).
+# Windows run from about a week before the official holiday to a week or two after it.
+# Check each year's official dates when the State Council publishes them (usually November).
 CHINA_SHUTDOWNS = [
     ("Golden Week 2026", date(2026, 10, 1), date(2026, 10, 9), 10),
     ("Chinese New Year 2027", date(2027, 1, 30), date(2027, 2, 21), 25),
     ("Golden Week 2027", date(2027, 10, 1), date(2027, 10, 9), 10),
+    ("Chinese New Year 2028", date(2028, 1, 19), date(2028, 2, 10), 25),
 ]
 
+STATUS_ORDER = {"LATE - ORDER NOW": 0, "ORDER THIS WEEK": 1, "OK": 2, "NO SALES": 3}
 
-def effective_lead_time(order_date, base_lead):
+
+def effective_lead_time(order_date, base_lead, shutdowns):
     """Lead time for an order placed on order_date, including any shutdown it runs into."""
     lead = base_lead
-    for _, start, end, extra in CHINA_SHUTDOWNS:
+    for _, start, end, extra in shutdowns:
         if order_date <= end and order_date + timedelta(days=lead) >= start:
             lead += extra
     return lead
 
 
-def plan_row(row, today, safety_days, cover_days):
-    on_hand = int(row["on_hand"])
-    daily = int(row["sold_last_30d"]) / 30
-    base_lead = int(row["lead_time_days"])
+def number(row, col, line, default=None):
+    raw = (row.get(col) or "").strip()
+    if raw == "" and default is not None:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        sys.exit(f"Line {line} ({row.get('sku') or 'no sku'}): {col} must be a number, got {raw!r}")
+    if value < 0:
+        sys.exit(f"Line {line} ({row.get('sku') or 'no sku'}): {col} can't be negative")
+    return value
+
+
+def plan_row(row, line, today, safety_days, cover_days):
+    on_hand = number(row, "on_hand", line)
+    on_order = number(row, "on_order", line, default=0)
+    daily = number(row, "sold_last_30d", line) / 30
+    base_lead = int(number(row, "lead_time_days", line))
+    origin = (row.get("origin") or "").strip().lower()
+    shutdowns = CHINA_SHUTDOWNS if origin in ("", "china", "cn") else []
 
     if daily == 0:
-        return dict(row, daily="0.0", stockout="never", order_by="-", lead="-", order_qty=0, status="NO SALES")
+        return dict(row, on_hand=f"{on_hand:g}", on_order=f"{on_order:g}", daily="0.0", stockout="never",
+                    order_by="-", lead="-", order_qty=0, status="NO SALES")
 
-    stockout = today + timedelta(days=math.floor(on_hand / daily))
+    # Counting stock already on order, as if it lands before you run out.
+    position = on_hand + on_order
+    stockout = today + timedelta(days=math.floor(position / daily))
 
     # Latest order date whose (shutdown-adjusted) delivery still lands `safety_days` before stockout.
     order_by = stockout - timedelta(days=base_lead + safety_days)
     while order_by > today - timedelta(days=365) and (
-        order_by + timedelta(days=effective_lead_time(order_by, base_lead) + safety_days) > stockout
+        order_by + timedelta(days=effective_lead_time(order_by, base_lead, shutdowns) + safety_days) > stockout
     ):
         order_by -= timedelta(days=1)
 
-    lead_if_today = effective_lead_time(today, base_lead)
-    # If the *next* order (placed ~cover_days from now) runs into a shutdown, this order
-    # has to carry you through that too - this is what stops you running dry over CNY.
-    next_order_delay = effective_lead_time(today + timedelta(days=cover_days), base_lead) - base_lead
-    order_qty = max(0, math.ceil(
-        daily * (lead_if_today + safety_days + cover_days + next_order_delay) - on_hand
-    ))
+    # Order enough to last until the *next* order (placed ~cover_days from now) lands, plus the
+    # safety buffer. If that next order runs into a shutdown, this one has to carry you through
+    # it: this is what stops you running dry over Chinese New Year.
+    lead_next = effective_lead_time(today + timedelta(days=cover_days), base_lead, shutdowns)
+    order_qty = max(0, math.ceil(daily * (cover_days + lead_next + safety_days) - position))
 
     if order_by < today:
         status = "LATE - ORDER NOW"
@@ -71,10 +98,12 @@ def plan_row(row, today, safety_days, cover_days):
 
     return dict(
         row,
+        on_hand=f"{on_hand:g}",
+        on_order=f"{on_order:g}",
         daily=f"{daily:.1f}",
         stockout=stockout.isoformat(),
         order_by=order_by.isoformat(),
-        lead=lead_if_today,
+        lead=effective_lead_time(today, base_lead, shutdowns),
         order_qty=order_qty,
         status=status,
     )
@@ -88,13 +117,17 @@ def main():
     p.add_argument("--cover-days", type=int, default=30, help="days of sales each order should cover")
     args = p.parse_args()
 
-    with open(args.csv_path, newline="") as f:
-        rows = [plan_row(r, args.today, args.safety_days, args.cover_days) for r in csv.DictReader(f)]
+    # utf-8-sig: Excel's "CSV UTF-8" puts an invisible marker at the start of the file.
+    with open(args.csv_path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        missing = {"sku", "name", "on_hand", "sold_last_30d", "lead_time_days"} - set(reader.fieldnames or [])
+        if missing:
+            sys.exit(f"{args.csv_path} is missing column(s): {', '.join(sorted(missing))}")
+        rows = [plan_row(r, reader.line_num, args.today, args.safety_days, args.cover_days) for r in reader]
 
-    order = {"LATE - ORDER NOW": 0, "ORDER THIS WEEK": 1, "OK": 2, "NO SALES": 3}
-    rows.sort(key=lambda r: (order[r["status"]], r["order_by"]))
+    rows.sort(key=lambda r: (STATUS_ORDER[r["status"]], r["order_by"]))
 
-    cols = [("status", 16), ("sku", 14), ("name", 24), ("on_hand", 7), ("daily", 6),
+    cols = [("status", 16), ("sku", 14), ("name", 24), ("on_hand", 7), ("on_order", 8), ("daily", 6),
             ("stockout", 10), ("order_by", 10), ("lead", 5), ("order_qty", 9)]
     print("  ".join(h.upper().ljust(w) for h, w in cols))
     for r in rows:
@@ -104,7 +137,10 @@ def main():
     if upcoming:
         name, start, end, _ = upcoming[0]
         print(f"\nNext China shutdown: {name}, {start:%d %b} - {end:%d %b %Y}.")
+    if CHINA_SHUTDOWNS[-1][2] < args.today + timedelta(days=180):
+        print(f"\nWARNING: shutdown dates in tools/reorder.py stop at {CHINA_SHUTDOWNS[-1][2]:%d %b %Y}. "
+              "Add next year's Golden Week and Chinese New Year to CHINA_SHUTDOWNS.")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
