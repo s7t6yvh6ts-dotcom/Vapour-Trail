@@ -1,10 +1,22 @@
-# Vapour Trail: Golden Week and Chinese New Year playbook
+# Vapour Trail playbook
+
+To-do list with deadlines: **Vapour Trail HQ** board in monday.com. This file explains the reasoning behind it.
+
+## Shopify has banned vapes
+
+Shopify told US merchants on 23–24 June 2026 to remove all e-cigarettes, e-liquids, pods, coils and refills by 7–8 July, and extended the ban worldwide, UK included, by mid-July. It applies even to MHRA-notified, fully legal products, and stores that don't comply risk termination. Pouches aren't named in the notice, but at least one UK agency reads it as covering every nicotine product. Shopify Payments has never allowed tobacco or e-cigarettes.
+
+1. **Today: export your customers and orders** (Shopify admin → Customers → Export, Orders → Export). If the store gets shut down, the customer list goes with it.
+2. **Move vapes to a platform that allows them.** WooCommerce (self-hosted, no blanket ban, cheapest), Swell or Shoplazza. Pair it with a high-risk merchant account (see *Taking payments*).
+3. **Don't build anything else on Shopify for nicotine.**
+
 
 ## The dates
 
 | When | What happens | What you do |
 |---|---|---|
 | **Wed 30 Sep 2026** | Last working day before the holiday in China | Confirm every open order and pay deposits **today** |
+| **1 Oct** | — | Export customers and orders from Shopify (backup before any suspension) |
 | 1–7 Oct | Golden Week (National Day). Factories and most sales reps are off | Sell what's in stock (below). Reps often still read WeChat, so chase anything unconfirmed |
 | 8–10 Oct | Back to work (Sat 10 Oct is a make-up workday) | Chase for dispatch dates and tracking on the 8th |
 | ~12–20 Oct | Backlog clears and orders ship | Air freight means UK arrival around late October |
@@ -74,9 +86,11 @@ The **Tobacco and Vapes Act 2026** got Royal Assent on 29 April 2026. From **29 
 
 **Online age checks that actually count:** an "Are you 18?" box on its own isn't enough. You need a real check against an independent source (Yoti facial age estimation, AgeChecked, or a credit-reference check) before dispatch, and "18+, ID on delivery" on the parcel. Get this live **before 29 October**.
 
+Plugins for WooCommerce: [AgeChecked](https://www.agechecked.com/woocommerce-plugin/) (UK-built; the plugin is free and you pay per check), [Yoti](https://developers.yoti.com/age-verification/woocommerce-integration) (selfie age estimation), and [Token of Trust](https://en-gb.wordpress.org/plugins/token-of-trust/).
+
 ## Taking payments
 
-Stripe, PayPal and Square prohibit vapes. Don't build the business on them. You need a **high-risk merchant account** that approves vape/nicotine in writing. UK brokers include [We Tranxact](https://www.wetranxact.co.uk/e-cig-and-vape-merchant-account/) (Birmingham) and [Merchant Advice Service](https://www.merchantadviceservice.co.uk/high-risk-merchant-accounts/electronic-cigarette-merchant-accounts/). Expect 3–6% fees and a rolling reserve. Put that fee % into `tools/margin.py`.
+Stripe, PayPal, Square and Shopify Payments prohibit vapes. Don't build the business on them. You need a **high-risk merchant account** that approves vape/nicotine in writing. UK brokers include [We Tranxact](https://www.wetranxact.co.uk/e-cig-and-vape-merchant-account/) (Birmingham) and [Merchant Advice Service](https://www.merchantadviceservice.co.uk/high-risk-merchant-accounts/electronic-cigarette-merchant-accounts/). Expect 3–6% fees and a rolling reserve. Put that fee % into `tools/margin.py`.
 
 ## What can shut the business down
 
@@ -87,3 +101,15 @@ A missed restock costs you a week of sales. These can close the business:
 - **Tobacco** needs UK duty paid, plus fiscal marks on cigarettes and hand-rolling tobacco. Importing from China and reselling without duty means HMRC seizure and penalties. Buy tobacco from a UK duty-paid wholesaler.
 - **Peptides** sold for human use are unlicensed medicines under MHRA rules.
 - **Age verification** on every order. 18+, checked against an independent source. Legally required for pouches from 29 Oct 2026 (see above).
+
+## Tools and plugins
+
+| What | Status | Use it for |
+|---|---|---|
+| monday.com | Connected (Pro trial) | **Vapour Trail HQ** board: every task with its deadline |
+| Google Calendar | Connected | Reminders on 8 Oct (chase suppliers), 22 Oct (age checks), 1 Dec (CNY order) |
+| Gmail / Google Drive | Connected | Supplier emails, backups of the Shopify export |
+| Canva | Connected | Promo graphics for pouch bundles |
+| Shopify | **Needs reconnecting** | Pull real sales and stock numbers for `tools/reorder.py` while you're still on it |
+| Stripe | Half set up | Don't use it for vape or nicotine sales |
+| Claude **Small Business** plugin (Anthropic) | Not installed | Inventory planner, restock, cash-flow snapshot, inbox manager, social content, tax prep. Install it from claude.ai → Plugins |
