@@ -9,6 +9,7 @@
   --bg-deep: #07100b;
   --line: #213228;
   --line-strong: #35503f;
+  --field-line: #5b7a66;
   --fg: #ece7d9;
   --muted: #9dab9f;
   --accent: #c68d52;
@@ -37,6 +38,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { scroll-padding-top: 84px; -webkit-text-size-adjust: 100%; }
+html.locked { overflow: hidden; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body {
   margin: 0;
@@ -109,9 +111,9 @@ button { font: inherit; color: inherit; }
 .basket-btn { display: inline-flex; align-items: center; gap: 10px; background: transparent; border: 1.5px solid var(--line-strong); color: var(--fg); border-radius: var(--radius); min-height: 42px; padding: 0 12px; cursor: pointer; font: 600 1rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; }
 .basket-btn:hover { border-color: var(--accent); }
 .count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); font-size: 0.8125rem; font-weight: 500; letter-spacing: 0; }
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .menu-btn { display: inline-flex; margin-left: auto; }
-  .nav { position: absolute; top: 100%; left: calc(var(--gutter) * -1); right: calc(var(--gutter) * -1); background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px; display: none; margin: 0; }
+  .nav { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px; display: none; margin: 0; }
   .nav.open { display: block; }
   .nav ul { flex-direction: column; }
   .nav a { padding: 14px 0; font-size: 1.25rem; border-bottom: 1px solid var(--line); }
@@ -159,6 +161,8 @@ button { font: inherit; color: inherit; }
 .stamp { display: inline-block; border: 2px solid var(--stamp); color: var(--stamp); padding: 1px 8px 0; transform: rotate(-4deg); font: 700 0.9375rem/1.2 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; }
 .ticket-foot { display: flex; justify-content: space-between; gap: 8px; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--tag-ink); }
 .ticket-foot a { color: var(--tag-ink); font-weight: 500; }
+.ticket-foot a:focus-visible { outline-color: var(--tag-ink); }
+@media (max-width: 480px) { .ticket-wrap { width: calc(100% - 24px); margin-inline: auto; } }
 
 /* Promise strip */
 .promise { background: var(--bg-deep); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: clamp(40px, 5vw, 64px); }
@@ -216,9 +220,10 @@ button { font: inherit; color: inherit; }
 .field .opt { text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-weight: 400; }
 input, select, textarea {
   font: 400 1rem/1.4 var(--font-body); color: var(--fg);
-  background: var(--bg); border: 1px solid var(--line-strong); border-radius: 2px;
+  background: var(--bg); border: 1px solid var(--field-line); border-radius: 2px;
   padding: 0.6em 0.75em; min-height: 46px; width: 100%; min-width: 0;
 }
+::placeholder { color: var(--muted); opacity: 1; }
 textarea { min-height: 96px; resize: vertical; }
 input:hover, select:hover, textarea:hover { border-color: var(--muted); }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--accent); }
@@ -249,6 +254,7 @@ legend { padding: 0; margin-bottom: 8px; }
 .finder-answer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
 .finder-size { font: 700 clamp(4rem, 9vw, 6.5rem)/0.85 var(--font-display); color: var(--accent); text-transform: uppercase; }
 .finder-detail { font-size: 1.125rem; }
+.finder-live { display: grid; gap: 14px; }
 .finder-reason { max-width: 52ch; }
 .finder-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .table-scroll { overflow-x: auto; margin-top: 8px; border-top: 1px solid var(--line); }
@@ -256,6 +262,7 @@ legend { padding: 0; margin-bottom: 8px; }
 .chart caption { text-align: left; padding-block: 12px 6px; color: var(--muted); font: 600 0.8125rem/1.2 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
 .chart th, .chart td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .chart th { color: var(--muted); font-weight: 400; }
+.chart td:last-child { white-space: normal; }
 .chart tr.hit td { color: var(--accent); }
 .chart tr.hit td:first-child::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; background: var(--accent); border-radius: 50%; vertical-align: middle; }
 .finder-note { margin-top: 28px; font: 600 1.25rem/1.3 var(--font-display); letter-spacing: 0.02em; max-width: 40ch; }
@@ -376,7 +383,7 @@ legend { padding: 0; margin-bottom: 8px; }
  </defs>
 </svg>
 
-<div class="banner"><div class="wrap"><strong>Prototype:</strong> placeholder stock and prices. Checkout and bookings aren't connected yet.</div></div>
+<div class="banner" id="top"><div class="wrap"><strong>Prototype:</strong> placeholder stock, prices and contact details. Checkout, bookings and offers aren't connected yet.</div></div>
 
 <header class="site-header">
  <div class="wrap header-row">
@@ -398,7 +405,7 @@ legend { padding: 0; margin-bottom: 8px; }
  </div>
 </header>
 
-<main id="top">
+<main>
  <section class="hero" aria-labelledby="hero-title">
   <div class="wrap hero-grid">
    <div class="hero-copy">
@@ -478,7 +485,7 @@ legend { padding: 0; margin-bottom: 8px; }
        <div><dt>Year</dt><dd>2021</dd></div>
        <div><dt>Size</dt><dd>Medium (17.5in)</dd></div>
        <div><dt>30-point check</dt><dd><span class="stamp">Passed</span></dd></div>
-       <div><dt>Frame number</dt><dd>Checked on BikeRegister: not stolen</dd></div>
+       <div><dt>Frame number</dt><dd>Checked on BikeRegister: not recorded as stolen</dd></div>
        <div><dt>Fitted</dt><dd>New chain and cassette</dd></div>
        <div><dt>Brakes</dt><dd>Bled</dd></div>
        <div><dt>Tyres</dt><dd>Schwalbe Marathon 700x35c</dd></div>
@@ -498,11 +505,11 @@ legend { padding: 0; margin-bottom: 8px; }
    </div>
    <ul>
     <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>30-point workshop check</h3><p>Frame, fork, wheels, brakes, gears and bearings. Every point is signed off on the bike's ticket.</p></li>
-    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Frame number checked</h3><p>We check every frame number on BikeRegister, so you're not buying a stolen bike.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Frame number checked</h3><p>We check every frame number on BikeRegister, so you know it hasn't been reported stolen there.</p></li>
     <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Worn parts replaced</h3><p>If a chain, pad, tyre or cable is worn, we fit a new one. Cleaning alone isn't enough.</p></li>
-    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>3-month warranty</h3><p>Parts and labour, from the day you collect the bike or it's delivered.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>3-month warranty</h3><p>Parts and labour, from the day you collect the bike or it's delivered. On top of your legal rights.</p></li>
     <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Free 6-week check-up</h3><p>New cables stretch as they bed in. Bring the bike back and we'll re-adjust gears and brakes.</p></li>
-    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Collect or delivered</h3><p>Collect from the workshop, or we send it anywhere in the UK, boxed and 90% built.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Collection or delivery</h3><p>Collect from the workshop, or we send it anywhere in the UK, boxed and 90% built.</p></li>
    </ul>
   </div>
  </section>
@@ -609,13 +616,15 @@ legend { padding: 0; margin-bottom: 8px; }
     </form>
    </div>
 
-   <div class="finder-result" aria-live="polite">
+   <div class="finder-result">
     <p class="eyebrow">Suggested size</p>
-    <div class="finder-answer">
-     <span class="finder-size" id="sf-size">M</span>
-     <span class="finder-detail" id="sf-detail">17–18in frame</span>
+    <div class="finder-live" aria-live="polite" aria-atomic="true">
+     <div class="finder-answer">
+      <span class="finder-size" id="sf-size">M</span>
+      <span class="finder-detail" id="sf-detail">17–18in frame</span>
+     </div>
+     <p class="finder-reason" id="sf-reason">172cm falls in the 165–177cm band for hybrid and e-bike frames.</p>
     </div>
-    <p class="finder-reason" id="sf-reason">172cm falls in the 165–177cm band for hybrid and e-bike frames.</p>
     <div class="finder-actions">
      <button type="button" class="btn btn-primary" id="sf-show">Show bikes in my size</button>
     </div>
@@ -654,7 +663,7 @@ legend { padding: 0; margin-bottom: 8px; }
    <form class="form-card" id="book" aria-labelledby="book-title">
     <h3 id="book-title">Book a service</h3>
     <div class="field"><label for="bk-name">Name</label><input id="bk-name" name="name" type="text" autocomplete="name" required></div>
-    <div class="field"><label for="bk-phone">Phone</label><input id="bk-phone" name="phone" type="tel" autocomplete="tel" required></div>
+    <div class="field"><label for="bk-phone">Phone</label><input id="bk-phone" name="phone" type="tel" autocomplete="tel" pattern="[0-9 +]{10,16}" title="A phone number, e.g. 07700 900000" required></div>
     <div class="field"><label for="bk-bike">Bike (make and model)</label><input id="bk-bike" name="bike" type="text" placeholder="e.g. Trek FX 2" required></div>
     <div class="field-row">
      <div class="field">
@@ -674,7 +683,7 @@ legend { padding: 0; margin-bottom: 8px; }
      <div class="field"><label for="bk-date">Preferred date</label><input id="bk-date" name="date" type="date" required></div>
     </div>
     <div class="field"><label for="bk-notes">Notes <span class="opt">(optional)</span></label><textarea id="bk-notes" name="notes" rows="3" placeholder="What's it doing? Noises, slipping gears, soft brakes..."></textarea></div>
-    <button type="submit" class="btn btn-primary">Request booking</button>
+    <button type="submit" class="btn btn-primary" id="bk-submit">Request booking</button>
     <div class="form-result" id="book-result" role="status" hidden></div>
    </form>
   </div>
@@ -687,7 +696,7 @@ legend { padding: 0; margin-bottom: 8px; }
      <p class="eyebrow">E-bike rules</p>
      <h2 id="ebike-title">What makes an e-bike legal</h2>
      <p class="lede">These are the rules in England, Scotland and Wales. The law calls a legal e-bike an electrically assisted pedal cycle (EAPC). Every e-bike we sell meets them.</p>
-     <p class="rules-then">If the bike and rider meet all four, you don't need a licence, insurance, tax or registration.</p>
+     <p class="rules-then">The bike also needs a maker's plate showing its motor power, and its battery voltage or top assisted speed. Meet all of that and you don't need a licence, insurance, tax or registration.</p>
     </div>
     <ul class="eapc">
      <li><span class="eapc-val">Pedals</span><span class="eapc-lab">that move it</span><p>It must have pedals that can propel the bike.</p></li>
@@ -699,7 +708,7 @@ legend { padding: 0; margin-bottom: 8px; }
    <div class="rules-notes">
     <div>
      <h3>Throttles</h3>
-     <p>A throttle that powers the bike above walking pace (about 4 mph / 6 km/h) without pedalling makes it a motor vehicle in law.</p>
+     <p>Without pedalling, a throttle can only power the bike up to 3.7 mph (6 km/h), as walk or start assist. A throttle that goes faster needs the bike to be type-approved, or in law it's a moped: registration, tax, insurance, licence and helmet.</p>
     </div>
     <div>
      <h3>What we won't sell or fit</h3>
@@ -730,6 +739,10 @@ legend { padding: 0; margin-bottom: 8px; }
    <form class="form-card" id="sell-form" aria-labelledby="sell-form-title">
     <h3 id="sell-form-title">Get an offer</h3>
     <div class="field-row">
+     <div class="field"><label for="sl-name">Name</label><input id="sl-name" name="name" type="text" autocomplete="name" required></div>
+     <div class="field"><label for="sl-email">Email</label><input id="sl-email" name="email" type="email" autocomplete="email" required></div>
+    </div>
+    <div class="field-row">
      <div class="field"><label for="sl-make">Make</label><input id="sl-make" name="make" type="text" placeholder="e.g. Giant" required></div>
      <div class="field"><label for="sl-model">Model</label><input id="sl-model" name="model" type="text" placeholder="e.g. Contend AR 2" required></div>
     </div>
@@ -748,7 +761,7 @@ legend { padding: 0; margin-bottom: 8px; }
      </select>
     </div>
     <div class="field"><label for="sl-notes">Anything else <span class="opt">(optional)</span></label><textarea id="sl-notes" name="notes" rows="3" placeholder="Upgrades, damage, service history"></textarea></div>
-    <button type="submit" class="btn btn-primary">Ask for an offer</button>
+    <button type="submit" class="btn btn-primary" id="sl-submit">Ask for an offer</button>
     <div class="form-result" id="sell-result" role="status" hidden></div>
    </form>
   </div>
@@ -773,6 +786,7 @@ legend { padding: 0; margin-bottom: 8px; }
      <div class="answer">
       <p>Three months on parts and labour from the day you collect the bike or it's delivered. If something we fitted or adjusted fails with normal use, we put it right.</p>
       <p>It doesn't cover crash damage, punctures or normal wear on tyres and brake pads.</p>
+      <p>The warranty is on top of your legal rights under the Consumer Rights Act 2015. A bike must be of satisfactory quality for its age and price, and if it's faulty you can reject it for a full refund within 30 days.</p>
      </div>
     </details>
     <details>
@@ -780,12 +794,15 @@ legend { padding: 0; margin-bottom: 8px; }
      <div class="answer">
       <p>UK delivery is £39 per bike. We box it 90% built. You fit the pedals and turn the bars straight, and the tools you need are in the box.</p>
       <p>Or collect it from the workshop for free and we'll set the saddle height with you.</p>
+      <p>E-bikes go by a specialist courier because of their batteries.</p>
      </div>
     </details>
     <details>
      <summary>Can I return a bike?</summary>
      <div class="answer">
-      <p>Yes. On delivered bikes you have 14 days from delivery to change your mind. Tell us, pack it back in its box, and we'll refund you when it reaches the workshop.</p>
+      <p>Yes. If you ordered online, you have 14 days from the day after you get the bike to change your mind, whether we delivered it or you collected it. Tell us, then send or bring it back within 14 days of telling us.</p>
+      <p>We refund the bike and the delivery charge within 14 days of getting it back, or of you showing us you've sent it. Sending it back is at your cost: we can collect it for £39. If it's been ridden more than a test ride needs, we may take something off the refund.</p>
+      <p>Bikes bought in person at the workshop can't be returned just for a change of mind, but your rights for faulty goods still apply.</p>
      </div>
     </details>
     <details>
@@ -820,12 +837,12 @@ legend { padding: 0; margin-bottom: 8px; }
  </div>
  <div class="wrap footer-base">
   <p>© 2026 Chainline Cycles</p>
-  <p>Prototype: placeholder stock and prices.</p>
+  <p>Prototype: placeholder stock, prices and contact details.</p>
  </div>
 </footer>
 
 <div class="scrim" id="scrim" hidden></div>
-<aside class="drawer" id="basket" role="dialog" aria-modal="true" aria-labelledby="basket-title">
+<div class="drawer" id="basket" role="dialog" aria-modal="true" aria-labelledby="basket-title">
  <div class="drawer-head">
   <h2 id="basket-title">Basket</h2>
   <button type="button" class="icon-btn" id="basket-close" aria-label="Close basket"><svg aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
@@ -848,11 +865,12 @@ legend { padding: 0; margin-bottom: 8px; }
   <button type="button" class="btn btn-primary" id="checkout">Checkout</button>
   <p class="form-result" id="checkout-msg" role="status" hidden><strong>Payments aren't connected yet.</strong>This is a prototype. No order has been placed and nothing has been charged.</p>
  </div>
-</aside>
+</div>
 
 <script>
 (function () {
   'use strict';
+  document.documentElement.lang = 'en-GB';
 
   var BIKES = [
     { id: 'allez-2020', no: '0398', make: 'Specialized', model: 'Allez', year: 2020, type: 'road', size: '54cm', band: 'M', gears: '2x8', tagLabel: 'Fitted', tag: 'New tyres + bar tape', price: 449 },
@@ -860,10 +878,10 @@ legend { padding: 0; margin-bottom: 8px; }
     { id: 'fx2-2021', no: '0412', make: 'Trek', model: 'FX 2', year: 2021, type: 'hybrid', size: 'M (17.5in)', band: 'M', gears: '2x9', tagLabel: 'Fitted', tag: 'New chain + cassette', price: 379 },
     { id: 'hyb86-2022', no: '0409', make: 'Boardman', model: 'HYB 8.6', year: 2022, type: 'hybrid', size: 'L', band: 'L', gears: '1x10', tagLabel: 'Work done', tag: 'Hubs serviced', price: 349 },
     { id: 'nuroad-2021', no: '0415', make: 'Cube', model: 'Nuroad', year: 2021, type: 'gravel', size: '56cm', band: 'L', gears: '2x9', tagLabel: 'Fitted', tag: 'New tubeless tyres', price: 649 },
-    { id: 'brompton-2019', no: '0401', make: 'Brompton', model: 'C Line Explore', year: 2019, type: 'folding', size: 'One size', band: 'ONE', gears: '6-speed', tagLabel: 'Fitted', tag: 'New chain + tyres', price: 899 },
+    { id: 'brompton-2022', no: '0401', make: 'Brompton', model: 'C Line Explore', year: 2022, type: 'folding', size: 'One size', band: 'ONE', gears: '6-speed', tagLabel: 'Fitted', tag: 'New chain + tyres', price: 899 },
     { id: 'crossfire-2023', no: '0417', make: 'Carrera', model: 'Crossfire-E', year: 2023, type: 'ebike', size: 'M', band: 'M', gears: '1x9', tagLabel: 'Tested', tag: 'Battery health 94%', price: 749 },
     { id: 'motus-2021', no: '0419', make: 'Raleigh', model: 'Motus Tour', year: 2021, type: 'ebike', size: 'M', band: 'M', gears: '8-speed hub', tagLabel: 'Tested', tag: 'Battery health 88%', price: 1149 },
-    { id: 'frog55-2022', no: '0411', make: 'Frog', model: '55', year: 2022, type: 'kids', size: '24in wheels', band: 'K24', gears: '1x8', tagLabel: 'Fitted', tag: 'New tyres', price: 219 },
+    { id: 'frog55-2022', no: '0411', make: 'Frog', model: '55', year: 2022, type: 'kids', size: '20in wheels', band: 'K20', gears: '1x8', tagLabel: 'Fitted', tag: 'New tyres', price: 219 },
     { id: 'beinn20-2020', no: '0414', make: 'Islabikes', model: 'Beinn 20', year: 2020, type: 'kids', size: '20in wheels', band: 'K20', gears: '1x8', tagLabel: 'Fitted', tag: 'New brake pads', price: 249 }
   ];
   var TYPE_LABEL = { road: 'Road', hybrid: 'Hybrid', gravel: 'Gravel', ebike: 'E-bike', folding: 'Folding', kids: 'Kids' };
@@ -872,7 +890,7 @@ legend { padding: 0; margin-bottom: 8px; }
 
   var money = (function () {
     var f = null;
-    try { f = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }); } catch (e) { f = null; }
+    try { f = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 }); } catch (e) { f = null; }
     return function (n) { return f ? f.format(n) : '£' + n; };
   })();
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -958,6 +976,7 @@ legend { padding: 0; margin-bottom: 8px; }
       var sizeOk = !bands || bands.indexOf(b.band) !== -1;
       return typeOk && sizeOk;
     });
+    if (state.sort === 'featured') list = list.slice().sort(function (a, b) { return Number(b.no) - Number(a.no); });
     if (state.sort === 'low') list = list.slice().sort(function (a, b) { return a.price - b.price; });
     if (state.sort === 'high') list = list.slice().sort(function (a, b) { return b.price - a.price; });
     return list;
@@ -973,18 +992,21 @@ legend { padding: 0; margin-bottom: 8px; }
       '<p class="fit"><b>' + esc(b.tagLabel) + '</b><span>' + esc(b.tag) + '</span></p>' +
       '<div class="card-foot"><span class="price">' + money(b.price) + '</span>' +
       '<button type="button" class="btn btn-sm ' + (inBasket ? 'btn-ghost' : 'btn-primary') + '" data-add="' + b.id + '" aria-label="' +
-      (inBasket ? esc(name) + ' is in your basket. Open basket' : 'Add ' + esc(name) + ' to basket') + '">' +
+      (inBasket ? 'In basket: ' + esc(name) + '. Open basket' : 'Add to basket: ' + esc(name)) + '">' +
       (inBasket ? 'In basket' : 'Add to basket') + '</button></div>' +
       '</li>';
   }
 
   function ensureSizeOption(value, text) {
     if (value === 'all') return;
+    // Only keep the finder's latest combined size ("14in or 16in wheels"), not every one tried.
+    $all('option[data-finder]', sizeSel).forEach(function (o) { if (o.value !== value) o.remove(); });
     var exists = $all('option', sizeSel).some(function (o) { return o.value === value; });
     if (!exists) {
       var opt = document.createElement('option');
       opt.value = value;
       opt.textContent = text || value;
+      opt.setAttribute('data-finder', '');
       $('#kids-sizes').appendChild(opt);
     }
   }
@@ -994,7 +1016,7 @@ legend { padding: 0; margin-bottom: 8px; }
     grid.innerHTML = list.map(cardHTML).join('');
     emptyEl.hidden = list.length > 0;
     countEl.textContent = list.length + (list.length === 1 ? ' bike' : ' bikes') +
-      (state.types.length || state.size !== 'all' ? ' match your filters' : ' in stock');
+      (state.types.length || state.size !== 'all' ? (list.length === 1 ? ' matches your filters' : ' match your filters') : ' in stock');
     clearBtn.hidden = !(state.types.length || state.size !== 'all');
     chips.forEach(function (chip) {
       var t = chip.getAttribute('data-type');
@@ -1009,6 +1031,7 @@ legend { padding: 0; margin-bottom: 8px; }
     state.types = [];
     state.size = 'all';
     renderShop();
+    $('#chip-all').focus();
   }
 
   chips.forEach(function (chip) {
@@ -1074,38 +1097,45 @@ legend { padding: 0; margin-bottom: 8px; }
   }
 
   function focusables() {
+    // Only the checked radio in a group can take focus with Tab.
     return $all('button:not([disabled]), input:not([disabled]), a[href]', drawer).filter(function (el) {
-      return el.offsetParent !== null;
+      return el.offsetParent !== null && (el.type !== 'radio' || el.checked);
     });
   }
   function openBasket(from) {
+    setMenu(false);
     lastFocus = from || document.activeElement;
+    document.documentElement.classList.add('locked');
     scrim.hidden = false;
     drawer.classList.add('open');
     drawer.removeAttribute('aria-hidden');
     openBtn.setAttribute('aria-expanded', 'true');
-    window.setTimeout(function () { $('#basket-close').focus(); }, 30);
+    // The drawer is fixed, so moving focus in and out of it should never scroll the page.
+    window.setTimeout(function () { $('#basket-close').focus({ preventScroll: true }); }, 30);
   }
   function closeBasket() {
+    document.documentElement.classList.remove('locked');
     drawer.classList.remove('open');
     drawer.setAttribute('aria-hidden', 'true');
     scrim.hidden = true;
     openBtn.setAttribute('aria-expanded', 'false');
-    if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
-    else openBtn.focus();
+    if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+    else openBtn.focus({ preventScroll: true });
   }
   drawer.setAttribute('aria-hidden', 'true');
   openBtn.setAttribute('aria-expanded', 'false');
   openBtn.addEventListener('click', function () { openBasket(openBtn); });
   $('#basket-close').addEventListener('click', closeBasket);
   scrim.addEventListener('click', closeBasket);
-  drawer.addEventListener('keydown', function (e) {
+  document.addEventListener('keydown', function (e) {
+    if (!drawer.classList.contains('open')) return;
     if (e.key === 'Escape') { closeBasket(); return; }
     if (e.key !== 'Tab') return;
     var f = focusables();
     if (!f.length) return;
     var first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    if (f.indexOf(document.activeElement) === -1) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
   linesEl.addEventListener('click', function (e) {
@@ -1116,7 +1146,7 @@ legend { padding: 0; margin-bottom: 8px; }
     persist();
     renderBasket();
     renderShop();
-    $('#basket-close').focus();
+    $('#basket-close').focus({ preventScroll: true });
   });
   $all('input[name="delivery"]').forEach(function (r) {
     r.addEventListener('change', function () {
@@ -1171,7 +1201,7 @@ legend { padding: 0; margin-bottom: 8px; }
         { min: 105, max: 120, range: '105–120cm', size: '16in', detail: '16in wheels', band: 'K16' },
         { min: 115, max: 135, range: '115–135cm', size: '20in', detail: '20in wheels', band: 'K20' },
         { min: 130, max: 150, range: '130–150cm', size: '24in', detail: '24in wheels', band: 'K24' },
-        { min: 145, max: Infinity, range: '145cm and over', size: '26in', detail: '26in wheels or adult XS', band: 'K26|XS' }
+        { min: 145, max: 160, range: '145–160cm', size: '26in', detail: '26in wheels or adult XS', band: 'K26|XS' }
       ]
     }
   };
@@ -1179,18 +1209,27 @@ legend { padding: 0; margin-bottom: 8px; }
   var sfSize = $('#sf-size'), sfDetail = $('#sf-detail'), sfReason = $('#sf-reason'), sfShow = $('#sf-show');
   var sfCm = $('#sf-cm'), sfFt = $('#sf-ft'), sfIn = $('#sf-in');
   var lastSuggestion = null;
+  var fromCm = null; // the cm value the ft/in fields were last filled from, so a round trip doesn't drift
 
   function finderType() { var r = $('input[name="sf-type"]:checked'); return r ? r.value : 'hybrid'; }
   function finderUnit() { var r = $('input[name="sf-unit"]:checked'); return r ? r.value : 'cm'; }
+  function ftInCm() {
+    if (fromCm && sfFt.value === fromCm.ft && sfIn.value === fromCm.inch) return fromCm.cm;
+    var ft = parseFloat(sfFt.value), inch = parseFloat(sfIn.value || '0');
+    if (!isFinite(ft)) return NaN;
+    if (!isFinite(inch)) inch = 0;
+    return Math.round((ft * 12 + inch) * 2.54);
+  }
+  function inchesBad() {
+    var inch = parseFloat(sfIn.value || '0');
+    return finderUnit() === 'ft' && isFinite(inch) && (inch < 0 || inch > 11);
+  }
   function heightCm() {
     if (finderUnit() === 'cm') {
       var v = parseFloat(sfCm.value);
       return isFinite(v) ? Math.round(v) : NaN;
     }
-    var ft = parseFloat(sfFt.value), inch = parseFloat(sfIn.value || '0');
-    if (!isFinite(ft)) return NaN;
-    if (!isFinite(inch)) inch = 0;
-    return Math.round((ft * 12 + inch) * 2.54);
+    return ftInCm();
   }
 
   function suggest(type, h) {
@@ -1200,6 +1239,7 @@ legend { padding: 0; margin-bottom: 8px; }
     }
     if (type === 'kids') {
       if (h < 95) return { error: 'Under 95cm, a balance bike is usually the best first bike.', hits: [] };
+      if (h > 160) return { error: "Over 160cm, an adult bike will fit better. Switch the bike type to Road / gravel or Hybrid / e-bike.", hits: [] };
       var hits = chart.rows.filter(function (r) { return h >= r.min && h <= r.max; });
       if (hits.length === 1) {
         var k = hits[0];
@@ -1208,24 +1248,28 @@ legend { padding: 0; margin-bottom: 8px; }
       }
       var a = hits[0], b = hits[1];
       return {
-        size: a.size.replace('in', '') + '/' + b.size, detail: a.size + ' or ' + b.size + ' wheels',
+        size: a.size.replace('in', '') + '/' + b.size,
+        detail: a.size + ' or ' + b.size + ' wheels' + (b.band.indexOf('XS') !== -1 ? ', or adult XS' : ''),
         bands: a.band + '|' + b.band, hits: hits, combo: true,
         reason: h + 'cm sits where two sizes overlap. Pick the one they can stand over with both feet flat on the ground.'
       };
     }
     if (h < 140) {
-      return { error: 'At ' + h + 'cm a kids’ bike will fit better. Switch the bike type to Kids.', hits: [] };
+      return { error: 'At ' + h + "cm a kids' bike will fit better. Switch the bike type to Kids.", hits: [] };
     }
     var row = null, prevMax = 0;
     for (var i = 0; i < chart.rows.length; i++) {
       if (h < chart.rows[i].max) { row = chart.rows[i]; break; }
       prevMax = chart.rows[i].max;
     }
-    var nearEdge = (isFinite(row.max) && row.max - h <= 1) || (prevMax && h - prevMax <= 1);
+    var at = chart.rows.indexOf(row);
+    var above = isFinite(row.max) && row.max - h <= 1 ? chart.rows[at + 1] : null;
+    var below = prevMax && h - prevMax <= 1 ? chart.rows[at - 1] : null;
+    var edge = below ? below.size + ' and ' + row.size : above ? row.size + ' and ' + above.size : '';
     return {
       size: row.size, detail: row.detail, bands: row.band, hits: [row],
       reason: h + 'cm falls in the ' + row.range.toLowerCase() + ' band for ' + chart.name + ' frames.' +
-        (nearEdge ? ' You’re on the edge of the next size, so try both.' : '')
+        (edge ? " You're on the edge between " + edge + ', so try both.' : '')
     };
   }
 
@@ -1242,7 +1286,7 @@ legend { padding: 0; margin-bottom: 8px; }
   function runFinder() {
     var type = finderType();
     var h = heightCm();
-    var s = suggest(type, h);
+    var s = inchesBad() ? { error: 'Inches go from 0 to 11.', hits: [] } : suggest(type, h);
     lastSuggestion = s.error ? null : { types: CHARTS[type].types, bands: s.bands, detail: s.detail };
     if (s.error) {
       sfSize.textContent = '–';
@@ -1269,17 +1313,22 @@ legend { padding: 0; margin-bottom: 8px; }
           var totalIn = Math.round(cm / 2.54);
           sfFt.value = String(Math.floor(totalIn / 12));
           sfIn.value = String(totalIn % 12);
+          fromCm = { cm: Math.round(cm), ft: sfFt.value, inch: sfIn.value };
         }
         cmWrap.hidden = true; ftWrap.hidden = false;
       } else {
-        var h = heightCm();
+        var h = ftInCm();
         if (isFinite(h)) sfCm.value = String(h);
         ftWrap.hidden = true; cmWrap.hidden = false;
       }
       runFinder();
     });
   });
-  [sfCm, sfFt, sfIn].forEach(function (el) { el.addEventListener('input', runFinder); });
+  [sfCm, sfFt, sfIn].forEach(function (el) {
+    el.addEventListener('input', runFinder);
+    // Enter would try to submit the finder form, which a sandboxed frame blocks with a console error.
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); runFinder(); } });
+  });
   $('#finder-form').addEventListener('submit', function (e) { e.preventDefault(); runFinder(); });
 
   sfShow.addEventListener('click', function () {
@@ -1300,9 +1349,19 @@ legend { padding: 0; margin-bottom: 8px; }
     var day = String(d.getDate()).padStart(2, '0');
     return d.getFullYear() + '-' + m + '-' + day;
   }
+  // Forms are handled on the submit button's click (Enter in a field clicks it too), not on submit:
+  // in a sandboxed frame without allow-forms, a submit is blocked before any submit handler runs.
+  function onSend(form, button, send) {
+    button.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (form.reportValidity()) send();
+    });
+    form.addEventListener('submit', function (e) { e.preventDefault(); if (form.reportValidity()) send(); });
+  }
   var bookForm = $('#book');
   var bkDate = $('#bk-date');
   bkDate.min = todayISO();
+  $('#sl-year').max = String(new Date().getFullYear());
 
   $all('.svc-book').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -1312,9 +1371,7 @@ legend { padding: 0; margin-bottom: 8px; }
     });
   });
 
-  bookForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (!bookForm.checkValidity()) { bookForm.reportValidity(); return; }
+  onSend(bookForm, $('#bk-submit'), function () {
     var sel = $('#bk-service');
     var service = sel.options[sel.selectedIndex].text.replace(/\s*\(.*\)$/, '');
     var when = bkDate.value;
@@ -1323,18 +1380,16 @@ legend { padding: 0; margin-bottom: 8px; }
       nice = new Date(when + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
     } catch (err) { nice = when; }
     var out = $('#book-result');
-    out.innerHTML = '<strong>Prototype: bookings aren’t sent anywhere yet.</strong>' +
+    out.innerHTML = "<strong>Prototype: bookings aren't sent anywhere yet.</strong>" +
       'Nothing has been booked. You asked for: ' + esc(service) + ' on ' + esc($('#bk-bike').value) + ', ' + esc(nice) + '.';
     out.hidden = false;
   });
 
   var sellForm = $('#sell-form');
-  sellForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (!sellForm.checkValidity()) { sellForm.reportValidity(); return; }
+  onSend(sellForm, $('#sl-submit'), function () {
     var out = $('#sell-result');
-    out.innerHTML = '<strong>Prototype: offers aren’t sent yet.</strong>' +
-      'Normally we reply with an offer within 2 working days. Your bike: ' +
+    out.innerHTML = "<strong>Prototype: offers aren't sent yet.</strong>" +
+      'Normally we email you an offer within 2 working days. Your bike: ' +
       esc(($('#sl-year').value ? $('#sl-year').value + ' ' : '') + $('#sl-make').value + ' ' + $('#sl-model').value) + '.';
     out.hidden = false;
   });
