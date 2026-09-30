@@ -8,7 +8,8 @@ Example (pouches, all money in GBP):
   --cost      supplier price per unit
   --ship      freight per unit to your door (0 for UK wholesale with free delivery)
   --duty      import duty % on (cost + ship)
-  --excise    UK excise duty per unit in £ that isn't already in --cost
+  --excise    UK excise duty per unit in £ that isn't already in --cost. Vaping Products Duty
+              (from 1 Oct 2026) is £2.20 per 10 ml of e-liquid; UK duty-paid prices include it
   --imported  the stock comes from outside the UK. If you're not VAT-registered, the 20% import
               VAT on (cost + ship + duties) is a cost you can't claim back, so it's added
   --price     your single-unit shelf price (incl. VAT if you're VAT-registered)
