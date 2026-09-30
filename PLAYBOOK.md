@@ -23,7 +23,7 @@ Shopify told US merchants on 23–24 June 2026 to remove all e-cigarettes, e-liq
 | **29 Oct** | UK law: nicotine pouches become 18+ only. Free samples and big promotional discounts on vapes and pouches become offences | Proper online age checks live before this date |
 | **by 1 Dec** | Last safe date for the Chinese New Year order | Order enough to get through to March |
 | 30 Jan – 21 Feb 2027 | Chinese New Year (Sat 6 Feb). Official holiday dates come out around November; this window allows for factories closing early and reopening late | Nothing moves. If you don't already have stock, you won't get any |
-| **31 Mar 2027** | Last day to sell unstamped vaping stock you held before 1 Oct | Sell it through before then |
+| **31 Mar 2027** | Last day to sell unstamped vaping stock made or imported before 1 Oct | Sell it through before then |
 | **1 Jun 2027** (planned) | Ban on advertising vapes and nicotine products, pouches included | No more pouch promos on social media |
 
 ## Message to send suppliers today (WeChat / Alibaba)
@@ -67,7 +67,8 @@ python3 tools/reorder.py stock.csv
 - `sold_last_30d`: from your shop's sales report (Shopify: Analytics → Reports → Sales by product)
 - `lead_time_days`: order to door in a normal month (China air ~21, sea ~45, UK wholesale 1–2)
 - `on_order`: units you've ordered that haven't arrived. **Keep this up to date**, or the planner tells you to order the same stock twice
-- `origin`: `China` or `UK`. Leave it blank for China
+- `origin`: `China`, `UK` or `EU`. Leave it blank for China. Anything else gets the China holidays, with a warning
+- `STOCKOUT` in the output is when the shelf runs empty, ignoring stock on order. `ORDER_BY` counts stock on order
 - `--safety-days` (default 7): buffer so stock lands before you run out
 - `--cover-days` (default 30): how many days of sales each order should cover
 
@@ -82,13 +83,13 @@ The big pouch brands (ZYN, Velo, Pablo, Killa) are made in Europe or the US, so 
 - [Nico Distribution](https://nicodistribution.com/): takes newer retailers
 - [Vape UK Wholesale](https://vapeukwholesale.co.uk/collections/wholesale-nicotine-pouches): Manchester, also sells compliant vapes. Check the minimum order and delivery charge
 
-Unit cost is higher than buying direct from China. But you restock in 24 hours, the products are genuine branded and UK-legal, and you never sit on dead stock waiting for a holiday to end. Run both prices through `tools/margin.py` before deciding. Check any wholesaler (company number, reviews) before your first order.
+Unit cost is higher than buying direct from China. But you restock in 24 hours, the products are genuine branded and UK-legal, and you never sit on dead stock waiting for a holiday to end. Run both prices through `tools/margin.py` before deciding, adding `--imported` for the China price if you pay import VAT at the border. Check any wholesaler (company number, reviews) before your first order.
 
 ## 1 October 2026: vaping duty starts
 
 - **Vaping Products Duty** is £2.20 per 10 ml of vaping liquid, with or without nicotine. That covers bottles, shortfills, pods, cartridges and prefilled devices. Empty devices, empty pods and coils aren't taxed.
 - Duty-paid products carry a **UK vaping duty stamp**. If you only buy duty-paid stock from UK suppliers, you don't need HMRC approval. Check new stock has stamps, and keep the invoices.
-- Unstamped stock you already hold can be sold until **31 March 2027**. Selling it after that is an offence.
+- Unstamped stock made or imported before 1 October can still be sold until **31 March 2027**. Selling it after that is an offence.
 - **Don't import e-liquid or prefilled pods yourself.** From 1 October it's illegal to bring them in without stamps, unless they go into an HMRC-approved duty warehouse. Shipments get seized.
 - Tobacco duty goes up the same day: RPI plus 2 points, plus £2.20 per 100 cigarettes or per 50 g of other tobacco.
 - UK wholesale prices will include the duty, so recheck your margins. If a quote leaves it out, add it with `--excise` in `tools/margin.py`: £2.20 for a 10 ml bottle, £0.88 for a 2-pack of 2 ml pods.
@@ -100,7 +101,7 @@ Source: [HMRC, handling wholesale or retail vaping products](https://www.gov.uk/
 The **Tobacco and Vapes Act 2026** got Royal Assent on 29 April 2026. From **29 October 2026**:
 
 - It's an offence to sell **nicotine pouches** (and zero-nicotine vapes) to under-18s, online included. Before this, pouches had no legal age limit.
-- It's also an offence to give vaping or nicotine products away, or sell them at a substantial discount, to promote them. A 5–10% bundle deal is unlikely to count. Free samples do.
+- It's also an offence to give vaping or nicotine products away, or sell them at a substantial discount, to promote them. The law doesn't set a figure. A small 5–10% bundle deal shouldn't count; free samples and giveaways do. If in doubt, ask Trading Standards.
 - Trading Standards can issue a £200 fixed penalty (28 days to pay), and a court can fine up to £2,500. Three offences in two years can get you banned from selling these products for up to 12 months.
 - **Retail licensing** for tobacco, vape and nicotine sellers (online included) is coming in England, Wales and Northern Ireland. There's no date yet; trade press expects a consultation in 2027.
 

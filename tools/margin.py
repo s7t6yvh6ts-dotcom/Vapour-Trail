@@ -5,13 +5,14 @@ Example (pouches, all money in GBP):
   python3 tools/margin.py --cost 3.80 --price 6.00 --postage 1.55
   python3 tools/margin.py --cost 1.20 --ship 0.40 --duty 4 --imported --price 6.00 --postage 1.55
 
-  --cost      supplier price per unit
+  --cost      what you pay the supplier per unit, including any VAT you can't claim back
   --ship      freight per unit to your door (0 for UK wholesale with free delivery)
   --duty      import duty % on (cost + ship)
   --excise    UK excise duty per unit in £ that isn't already in --cost. Vaping Products Duty
               (from 1 Oct 2026) is £2.20 per 10 ml of e-liquid; UK duty-paid prices include it
-  --imported  the stock comes from outside the UK. If you're not VAT-registered, the 20% import
-              VAT on (cost + ship + duties) is a cost you can't claim back, so it's added
+  --imported  you pay 20% import VAT at the border (goods from outside the UK). If you're not
+              VAT-registered you can't claim it back, so it's added. Leave it off if the
+              seller already charged UK VAT at checkout (usual for orders of £135 or less)
   --price     your single-unit shelf price (incl. VAT if you're VAT-registered)
   --vat       you're VAT-registered: 20% of the sale goes to HMRC, and you reclaim import VAT
   --fee       card processing % (high-risk vape/nicotine accounts are usually 3-6%)
@@ -21,6 +22,7 @@ Example (pouches, all money in GBP):
 Rows marked LOSS lose money on every order. Rows marked THIN are under --target.
 """
 import argparse
+import math
 
 
 def money(x):
@@ -57,6 +59,9 @@ def main():
         p.error(f"--sizes must be whole numbers separated by commas, e.g. 1,3,5,10 (got {a.sizes!r})")
     if a.price <= 0 or min(sizes) < 1:
         p.error("--price and every bundle size must be more than 0")
+    money_args = (a.cost, a.ship, a.duty, a.excise, a.price, a.fee, a.fee_fixed, a.postage, a.target)
+    if not all(math.isfinite(x) for x in money_args):
+        p.error("every amount must be a number")
     if min(a.cost, a.ship, a.duty, a.excise, a.fee, a.fee_fixed, a.postage) < 0:
         p.error("costs, duties, fees and postage can't be negative")
 
@@ -76,6 +81,9 @@ def main():
             flag = "LOSS" if profit < 0 else "THIN" if margin < a.target else ""
             print(f"{n:<8}{f'{disc}%':<10}{money(revenue):<14}{money(profit):<14}{f'{margin:.0f}%':<8}{flag}")
         print()
+    if any(n > 1 for n in sizes):
+        print("From 29 Oct 2026, a substantial discount to promote vapes or pouches is an offence. "
+              "Keep bundle deals small.")
 
 
 if __name__ == "__main__":

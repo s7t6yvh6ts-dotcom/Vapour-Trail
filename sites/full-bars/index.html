@@ -636,7 +636,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
                   <input type="email" id="lock-email" name="email" autocomplete="email" required>
                 </div>
                 <button class="btn btn-ghost" id="ti-hold" type="submit">Hold my quote</button>
-                <p class="msg" id="ti-lock-msg" role="status" hidden>Prototype: quotes aren't sent anywhere yet.</p>
+                <p class="msg" id="ti-lock-msg" role="status" hidden>Not sent. Quotes can't be held until the site is live.</p>
               </form>
             </div>
           </div>
@@ -997,12 +997,14 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
     if (next.length) next[0].focus();
   });
   $('#checkout').addEventListener('click', function () { checkoutMsg.hidden = false; });
-  drawer.addEventListener('keydown', function (e) {
-    if (e.key !== 'Tab') return;
+  // On the document, not the drawer: clicking a non-focusable part of the drawer moves focus to <body>.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab' || !drawer.classList.contains('open')) return;
     var f = focusables();
     if (!f.length) return;
     var first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    if (f.indexOf(document.activeElement) === -1) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
 

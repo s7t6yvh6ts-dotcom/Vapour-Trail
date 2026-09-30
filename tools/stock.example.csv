@@ -1,6 +1,7 @@
 sku,name,on_hand,sold_last_30d,lead_time_days,on_order,origin
 POUCH-MINT-12,Pouches Mint 12mg,120,150,2,0,UK
-POUCH-BERRY-6,Pouches Berry 6mg,40,90,21,0,China
+POUCH-BERRY-6,Pouches Berry 6mg,40,90,2,0,UK
 VAPE-KIT-01,Refillable pod kit,25,30,21,30,China
 PODS-2PK,Empty pods 2-pack,60,45,21,0,China
+COILS-5PK,Coils 5-pack,15,24,21,0,China
 TOB-50G,Hand-rolling tobacco 50g,0,60,2,0,UK

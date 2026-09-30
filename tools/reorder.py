@@ -7,8 +7,9 @@ Input CSV columns: sku,name,on_hand,sold_last_30d,lead_time_days[,on_order][,ori
   - lead_time_days: order-to-your-door days in a normal month (China air ~21, sea ~45, UK wholesale 1-2)
   - on_order:       optional. Units already ordered that haven't arrived yet. Fill this in,
                     or the planner will tell you to order the same stock twice.
-  - origin:         optional. "China" (the default if blank) or anything else, e.g. "UK".
-                    Chinese shutdowns only delay stock that comes from China.
+  - origin:         optional. "China" (the default if blank), "UK" or "EU". Chinese shutdowns
+                    only delay stock from China. Anything it doesn't recognise is treated as
+                    China, with a warning, so an order is never planned too late.
 
 Usage:
   python3 tools/reorder.py stock.csv                 # plan from today
@@ -21,6 +22,7 @@ after this one runs into a shutdown, this order is made bigger to carry you thro
 """
 import argparse
 import csv
+import io
 import math
 import sys
 from datetime import date, timedelta
@@ -36,6 +38,8 @@ CHINA_SHUTDOWNS = [
 ]
 
 STATUS_ORDER = {"LATE - ORDER NOW": 0, "ORDER THIS WEEK": 1, "OK": 2, "NO SALES": 3}
+NOT_CHINA = {"uk", "gb", "united kingdom", "great britain", "england", "scotland", "wales",
+             "northern ireland", "eu", "europe"}
 
 
 def effective_lead_time(order_date, base_lead, shutdowns):
@@ -54,32 +58,42 @@ def number(row, col, line, default=None):
     try:
         value = float(raw)
     except ValueError:
+        value = math.nan
+    if not math.isfinite(value):
         sys.exit(f"Line {line} ({row.get('sku') or 'no sku'}): {col} must be a number, got {raw!r}")
     if value < 0:
         sys.exit(f"Line {line} ({row.get('sku') or 'no sku'}): {col} can't be negative")
     return value
 
 
-def plan_row(row, line, today, safety_days, cover_days):
+def plan_row(row, line, today, safety_days, cover_days, warnings=None):
     on_hand = number(row, "on_hand", line)
     on_order = number(row, "on_order", line, default=0)
     daily = number(row, "sold_last_30d", line) / 30
-    base_lead = int(number(row, "lead_time_days", line))
+    base_lead = math.ceil(number(row, "lead_time_days", line))
     origin = (row.get("origin") or "").strip().lower()
-    shutdowns = CHINA_SHUTDOWNS if origin in ("", "china", "cn") else []
+    shutdowns = [] if origin in NOT_CHINA else CHINA_SHUTDOWNS
+    known_china = origin in ("", "cn", "hk") or "china" in origin or "hong kong" in origin
+    if origin not in NOT_CHINA and not known_china:
+        if warnings is not None:
+            warnings.append(f"Line {line} ({row.get('sku') or 'no sku'}): origin {row['origin'].strip()!r} "
+                            "isn't recognised, so China holidays were applied. Use China, UK or EU.")
 
     if daily == 0:
         return dict(row, on_hand=f"{on_hand:g}", on_order=f"{on_order:g}", daily="0.0", stockout="never",
                     order_by="-", lead="-", order_qty=0, status="NO SALES")
 
-    # Counting stock already on order, as if it lands before you run out.
+    # stockout: when the shelf is empty, ignoring stock on order.
+    # covered_until: when you'd run out counting stock on order, as if it lands in time.
+    # The next order is planned from covered_until, so stock already ordered isn't ordered twice.
+    stockout = today + timedelta(days=math.floor(on_hand / daily))
     position = on_hand + on_order
-    stockout = today + timedelta(days=math.floor(position / daily))
+    covered_until = today + timedelta(days=math.floor(position / daily))
 
-    # Latest order date whose (shutdown-adjusted) delivery still lands `safety_days` before stockout.
-    order_by = stockout - timedelta(days=base_lead + safety_days)
+    # Latest order date whose (shutdown-adjusted) delivery still lands `safety_days` before that.
+    order_by = covered_until - timedelta(days=base_lead + safety_days)
     while order_by > today - timedelta(days=365) and (
-        order_by + timedelta(days=effective_lead_time(order_by, base_lead, shutdowns) + safety_days) > stockout
+        order_by + timedelta(days=effective_lead_time(order_by, base_lead, shutdowns) + safety_days) > covered_until
     ):
         order_by -= timedelta(days=1)
 
@@ -118,12 +132,21 @@ def main():
     args = p.parse_args()
 
     # utf-8-sig: Excel's "CSV UTF-8" puts an invisible marker at the start of the file.
-    with open(args.csv_path, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        missing = {"sku", "name", "on_hand", "sold_last_30d", "lead_time_days"} - set(reader.fieldnames or [])
-        if missing:
-            sys.exit(f"{args.csv_path} is missing column(s): {', '.join(sorted(missing))}")
-        rows = [plan_row(r, reader.line_num, args.today, args.safety_days, args.cover_days) for r in reader]
+    # cp1252: Excel's plain "CSV" on Windows, e.g. for a name like "Crème brûlée". latin-1 never fails.
+    for encoding in ("utf-8-sig", "cp1252", "latin-1"):
+        try:
+            with open(args.csv_path, newline="", encoding=encoding) as f:
+                text = f.read()
+            break
+        except UnicodeDecodeError:
+            continue
+    reader = csv.DictReader(io.StringIO(text, newline=""))
+    missing = {"sku", "name", "on_hand", "sold_last_30d", "lead_time_days"} - set(reader.fieldnames or [])
+    if missing:
+        sys.exit(f"{args.csv_path} is missing column(s): {', '.join(sorted(missing))}")
+    warnings = []
+    rows = [plan_row(r, reader.line_num, args.today, args.safety_days, args.cover_days, warnings)
+            for r in reader if any((v or "").strip() for v in r.values() if isinstance(v, str))]
 
     rows.sort(key=lambda r: (STATUS_ORDER[r["status"]], r["order_by"]))
 
@@ -131,8 +154,10 @@ def main():
             ("stockout", 10), ("order_by", 10), ("lead", 5), ("order_qty", 9)]
     print("  ".join(h.upper().ljust(w) for h, w in cols))
     for r in rows:
-        print("  ".join(str(r[h])[:w].ljust(w) for h, w in cols))
+        print("  ".join(" ".join(str(r[h]).split())[:w].ljust(w) for h, w in cols))
 
+    for w in warnings:
+        print(f"\nWARNING: {w}")
     upcoming = [s for s in CHINA_SHUTDOWNS if s[2] >= args.today]
     if upcoming:
         name, start, end, _ = upcoming[0]

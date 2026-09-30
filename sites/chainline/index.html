@@ -119,6 +119,7 @@ button { font: inherit; color: inherit; }
   .nav a { padding: 14px 0; font-size: 1.25rem; border-bottom: 1px solid var(--line); }
 }
 @media (max-width: 480px) { .header-row { gap: 10px; } .logo-word { font-size: 1.125rem; letter-spacing: 0.03em; } .menu-btn { flex: none; padding-inline: 0.7em; } .basket-btn .basket-word { display: none; } }
+@media (max-width: 359px) { .header-row { gap: 6px; } .logo { gap: 8px; } .logo-word { font-size: 0.9375rem; letter-spacing: 0.02em; } .logo-mark { width: 26px; height: 26px; } }
 
 /* Hero */
 .hero { padding-block: clamp(40px, 6vw, 80px) clamp(56px, 7vw, 96px); }
@@ -542,7 +543,7 @@ legend { padding: 0; margin-bottom: 8px; }
       <label for="filter-size">Size</label>
       <select id="filter-size">
        <option value="all">All sizes</option>
-       <optgroup label="Adult frames">
+       <optgroup label="Adult frames" id="adult-sizes">
         <option value="XS">XS</option>
         <option value="S">S</option>
         <option value="M">M</option>
@@ -663,7 +664,7 @@ legend { padding: 0; margin-bottom: 8px; }
    <form class="form-card" id="book" aria-labelledby="book-title">
     <h3 id="book-title">Book a service</h3>
     <div class="field"><label for="bk-name">Name</label><input id="bk-name" name="name" type="text" autocomplete="name" required></div>
-    <div class="field"><label for="bk-phone">Phone</label><input id="bk-phone" name="phone" type="tel" autocomplete="tel" pattern="[0-9 +]{10,16}" title="A phone number, e.g. 07700 900000" required></div>
+    <div class="field"><label for="bk-phone">Phone</label><input id="bk-phone" name="phone" type="tel" autocomplete="tel" pattern="[0-9 +\(\)\-]{10,20}" title="A phone number, e.g. 07700 900000" required></div>
     <div class="field"><label for="bk-bike">Bike (make and model)</label><input id="bk-bike" name="bike" type="text" placeholder="e.g. Trek FX 2" required></div>
     <div class="field-row">
      <div class="field">
@@ -696,7 +697,7 @@ legend { padding: 0; margin-bottom: 8px; }
      <p class="eyebrow">E-bike rules</p>
      <h2 id="ebike-title">What makes an e-bike legal</h2>
      <p class="lede">These are the rules in England, Scotland and Wales. The law calls a legal e-bike an electrically assisted pedal cycle (EAPC). Every e-bike we sell meets them.</p>
-     <p class="rules-then">The bike also needs a maker's plate showing its motor power, and its battery voltage or top assisted speed. Meet all of that and you don't need a licence, insurance, tax or registration.</p>
+     <p class="rules-then">Meet these four rules, and have a maker's plate on the bike showing its motor power and its battery voltage or top assisted speed, and you don't need a licence, insurance, tax or registration.</p>
     </div>
     <ul class="eapc">
      <li><span class="eapc-val">Pedals</span><span class="eapc-lab">that move it</span><p>It must have pedals that can propel the bike.</p></li>
@@ -1007,7 +1008,7 @@ legend { padding: 0; margin-bottom: 8px; }
       opt.value = value;
       opt.textContent = text || value;
       opt.setAttribute('data-finder', '');
-      $('#kids-sizes').appendChild(opt);
+      (/K\d/.test(value) ? $('#kids-sizes') : $('#adult-sizes')).appendChild(opt);
     }
   }
 
@@ -1220,10 +1221,11 @@ legend { padding: 0; margin-bottom: 8px; }
     if (!isFinite(inch)) inch = 0;
     return Math.round((ft * 12 + inch) * 2.54);
   }
-  function inchesBad() {
+  function inchValueBad() {
     var inch = parseFloat(sfIn.value || '0');
-    return finderUnit() === 'ft' && isFinite(inch) && (inch < 0 || inch > 11);
+    return isFinite(inch) && (inch < 0 || inch > 11);
   }
+  function inchesBad() { return finderUnit() === 'ft' && inchValueBad(); }
   function heightCm() {
     if (finderUnit() === 'cm') {
       var v = parseFloat(sfCm.value);
@@ -1265,9 +1267,13 @@ legend { padding: 0; margin-bottom: 8px; }
     var at = chart.rows.indexOf(row);
     var above = isFinite(row.max) && row.max - h <= 1 ? chart.rows[at + 1] : null;
     var below = prevMax && h - prevMax <= 1 ? chart.rows[at - 1] : null;
-    var edge = below ? below.size + ' and ' + row.size : above ? row.size + ' and ' + above.size : '';
+    var pair = below ? [below, row] : above ? [row, above] : null;
+    var edge = pair ? pair[0].size + ' and ' + pair[1].size : '';
     return {
-      size: row.size, detail: row.detail, bands: row.band, hits: [row],
+      size: row.size, detail: row.detail, hits: [row],
+      // On an edge, "Show bikes in my size" shows both sizes.
+      bands: pair ? pair[0].band + '|' + pair[1].band : row.band,
+      label: pair ? pair[0].size + ' or ' + pair[1].size : '',
       reason: h + 'cm falls in the ' + row.range.toLowerCase() + ' band for ' + chart.name + ' frames.' +
         (edge ? " You're on the edge between " + edge + ', so try both.' : '')
     };
@@ -1287,7 +1293,11 @@ legend { padding: 0; margin-bottom: 8px; }
     var type = finderType();
     var h = heightCm();
     var s = inchesBad() ? { error: 'Inches go from 0 to 11.', hits: [] } : suggest(type, h);
-    lastSuggestion = s.error ? null : { types: CHARTS[type].types, bands: s.bands, detail: s.detail };
+    lastSuggestion = s.error ? null : {
+      // "26in wheels or adult XS" has to show adult XS bikes too, so it can't stay on the Kids type.
+      types: type === 'kids' && s.bands.split('|').indexOf('XS') !== -1 ? [] : CHARTS[type].types,
+      bands: s.bands, detail: s.label || s.detail
+    };
     if (s.error) {
       sfSize.textContent = '–';
       sfDetail.textContent = '';
@@ -1317,7 +1327,7 @@ legend { padding: 0; margin-bottom: 8px; }
         }
         cmWrap.hidden = true; ftWrap.hidden = false;
       } else {
-        var h = ftInCm();
+        var h = inchValueBad() ? NaN : ftInCm();
         if (isFinite(h)) sfCm.value = String(h);
         ftWrap.hidden = true; cmWrap.hidden = false;
       }
