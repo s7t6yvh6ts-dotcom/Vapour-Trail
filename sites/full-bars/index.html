@@ -11,6 +11,7 @@
   --paper: #0c131e;
   --line: #1a2432;
   --line-strong: #2a3748;
+  --field-line: #5b6b80;
   /* Text: cool light, muted blue-grey */
   --fg: #e3ebf4;
   --muted: #8b9baf;
@@ -224,7 +225,7 @@ legend { padding: 0; margin-bottom: 6px; }
 .chip input:checked + label { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .chip input:focus-visible + label, .cond-opt input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
 select, input[type="text"], input[type="email"] {
-  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--fg);
+  background: var(--surface-2); border: 1px solid var(--field-line); border-radius: 8px; color: var(--fg);
   padding: 9px 12px; min-height: 42px; font-size: var(--fs-sm); max-width: 100%;
 }
 select:hover, input:hover { border-color: var(--muted); }
@@ -334,6 +335,8 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
 .footer-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px 40px; }
 .footer-grid > div { min-width: 0; display: grid; gap: 10px; align-content: start; }
 .site-footer p { font-size: var(--fs-sm); color: var(--muted); max-width: 44ch; }
+.site-footer .label { font-size: var(--fs-xs); }
+.site-footer .contact { color: var(--fg); }
 
 /* Basket drawer */
 .scrim { position: fixed; inset: 0; z-index: 60; background: var(--overlay); opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
@@ -393,14 +396,15 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
   .filters select { width: 100%; }
 }
 @media (max-width: 380px) { .promise-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 359px) { .header-row { gap: 8px; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 </style>
 
-<div class="page">
-  <p class="banner bleed"><span class="inner" style="display:block">Prototype: placeholder stock and prices. Checkout isn't connected yet.</span></p>
+<div class="page" id="top">
+  <p class="banner bleed"><span class="inner" style="display:block">Prototype: stock, prices and contact details are placeholders. Checkout and the trade-in form aren't connected.</span></p>
 
   <header class="site-header bleed">
     <div class="inner header-row">
@@ -410,13 +414,13 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
       </a>
       <nav class="site-nav" id="site-nav" aria-label="Main">
         <a href="#shop">Shop</a>
+        <a href="#grading">Grading</a>
         <a href="#trade-in">Trade in</a>
         <a href="#repairs">Repairs</a>
-        <a href="#grading">Grading</a>
         <a href="#help">Help</a>
       </nav>
       <button class="basket-btn" id="basket-btn" type="button" aria-controls="drawer" aria-expanded="false">
-        Basket <span class="basket-count" id="basket-count" data-zero>0</span><span class="sr-only"> items</span>
+        Basket <span class="basket-count" id="basket-count" data-zero>0</span><span class="sr-only" id="basket-sr"> items</span>
       </button>
       <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">
         <span class="menu-icon" aria-hidden="true"></span><span class="menu-text">Menu</span>
@@ -424,12 +428,12 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
     </div>
   </header>
 
-  <main id="top">
+  <main>
     <section class="hero inner" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="label">Refurbished iPhone, Galaxy and Pixel · Trade-ins · Repairs</p>
         <h1 id="hero-title">Refurbished phones, graded honestly.</h1>
-        <p class="hero-sub">Every phone is tested, wiped and graded by how it looks. Whatever the grade, it works like new. You get a 12-month warranty and 30 days to change your mind.</p>
+        <p class="hero-sub">Every phone is tested, wiped and graded by how it looks. Whatever the grade, it passes the same 64-point test. You get a 12-month warranty and 30 days to change your mind.</p>
         <div class="cta-row">
           <a class="btn btn-primary" href="#shop">Shop phones</a>
           <a class="btn btn-ghost" href="#trade-in">Get a trade-in price</a>
@@ -441,10 +445,10 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
         <div class="ro-head"><b>Full Bars phone check</b><span>Sample</span></div>
         <dl>
           <div class="ro-row" style="--i:0"><dt>Device</dt><dd>iPhone 14 · 128GB · Midnight</dd></div>
-          <div class="ro-row" style="--i:1"><dt>Battery health</dt><dd class="ro-ok">91%</dd><dd class="ro-pass">PASS</dd></div>
+          <div class="ro-row" style="--i:1"><dt>Battery health</dt><dd class="ro-ok">90%</dd><dd class="ro-pass">PASS</dd></div>
           <div class="ro-row" style="--i:2"><dt>IMEI</dt><dd>Clean on CheckMEND</dd><dd class="ro-pass">PASS</dd></div>
-          <div class="ro-row" style="--i:3"><dt>Activation lock</dt><dd>Removed</dd><dd class="ro-pass">PASS</dd></div>
-          <div class="ro-row" style="--i:4"><dt>Data wipe</dt><dd>Certified</dd><dd class="ro-pass">PASS</dd></div>
+          <div class="ro-row" style="--i:3"><dt>Activation lock</dt><dd>Off</dd><dd class="ro-pass">PASS</dd></div>
+          <div class="ro-row" style="--i:4"><dt>Data wipe</dt><dd>Complete</dd><dd class="ro-pass">PASS</dd></div>
           <div class="ro-row" style="--i:5"><dt>64-point test</dt><dd>Passed</dd><dd class="ro-pass">PASS</dd></div>
         </dl>
         <div class="ro-grade">
@@ -459,12 +463,12 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
     <section class="promise bleed" aria-labelledby="promise-title">
       <div class="inner promise-grid">
         <h2 class="promise-title" id="promise-title">What every phone gets</h2>
-        <p class="promise-item"><b>12 months</b><span>Warranty. If a fault shows up, we repair it, replace it or refund you.</span></p>
-        <p class="promise-item"><b class="num">85%+</b><span>Battery health, or we fit a new battery before it ships.</span></p>
+        <p class="promise-item"><b>12 months</b><span>Warranty. If a fault shows up, we repair it, replace it or refund you. On top of your legal rights.</span></p>
+        <p class="promise-item"><b class="num">85%+</b><span>Battery health, or we fit a new battery before it goes on sale.</span></p>
         <p class="promise-item"><b>IMEI checked</b><span>Against CheckMEND's lost, stolen and blocked register.</span></p>
-        <p class="promise-item"><b>Wiped</b><span>Certified data wipe. Nothing left from the last owner.</span></p>
+        <p class="promise-item"><b>Wiped</b><span>Full data wipe. Nothing left from the last owner.</span></p>
         <p class="promise-item"><b>Unlocked</b><span>Works on every UK network.</span></p>
-        <p class="promise-item"><b>30 days</b><span>To return it for any reason. The law asks for 14 days on online orders.</span></p>
+        <p class="promise-item"><b>30 days</b><span>To return it for any reason. The law gives you 14 days on online orders.</span></p>
       </div>
     </section>
 
@@ -526,7 +530,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
         <div class="rail">
           <h2 id="grading-title">What the bars mean</h2>
           <p class="lede">More bars, fewer marks. The grade describes how a phone looks and nothing else.</p>
-          <p class="same">Every grade works 100% the same. Same tests, same warranty, same 30-day returns.</p>
+          <p class="same">Every grade gets the same tests, the same warranty and the same 30-day returns.</p>
           <p class="small">We don't sell anything below Good. Phones that don't make it are used for parts or recycled.</p>
         </div>
         <div class="main-col grades">
@@ -609,7 +613,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
                 <div class="cond">
                   <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-new" value="new"><label for="ti-cond-new"><strong>Like new</strong><span>No scratches or marks. Everything works.</span></label></div>
                   <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-good" value="good" checked><label for="ti-cond-good"><strong>Good</strong><span>Normal scratches or scuffs. Everything works.</span></label></div>
-                  <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-cracked" value="cracked"><label for="ti-cond-cracked"><strong>Cracked screen</strong><span>Cracked front or back glass. Otherwise works.</span></label></div>
+                  <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-cracked" value="cracked"><label for="ti-cond-cracked"><strong>Cracked glass</strong><span>Cracked front or back glass. Otherwise works.</span></label></div>
                   <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-dead" value="dead"><label for="ti-cond-dead"><strong>Won't power on</strong><span>Doesn't turn on or charge.</span></label></div>
                 </div>
               </fieldset>
@@ -619,9 +623,10 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
               <p class="label">Estimated offer</p>
               <output class="est-amount" id="ti-out" for="ti-model ti-storage" aria-live="polite">£205</output>
               <p class="est-desc" id="ti-desc">iPhone 14 · 128GB · Good</p>
-              <p class="est-hold">Quote held for 14 days. Final price confirmed once we've checked the phone.</p>
+              <p class="est-hold">Lock it in and we'll hold it for 14 days. Final price confirmed once we've checked the phone.</p>
               <button class="btn btn-primary" id="ti-lock" type="button" aria-expanded="false" aria-controls="ti-lock-form">Lock in this quote</button>
               <form class="lock-form" id="ti-lock-form" hidden>
+                <p class="small">Prototype: nothing you enter here is sent or stored.</p>
                 <div class="field">
                   <label class="label" for="lock-name">Name</label>
                   <input type="text" id="lock-name" name="name" autocomplete="name" required>
@@ -630,12 +635,12 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
                   <label class="label" for="lock-email">Email</label>
                   <input type="email" id="lock-email" name="email" autocomplete="email" required>
                 </div>
-                <button class="btn btn-ghost" type="submit">Hold my quote</button>
+                <button class="btn btn-ghost" id="ti-hold" type="submit">Hold my quote</button>
                 <p class="msg" id="ti-lock-msg" role="status" hidden>Prototype: quotes aren't sent anywhere yet.</p>
               </form>
             </div>
           </div>
-          <p class="warn"><strong>Before you send it.</strong> We don't buy phones reported lost or stolen, or phones still signed in to iCloud or a Google account (activation lock). Sign out and remove the account first.</p>
+          <p class="warn"><strong>Before you send it.</strong> We don't buy phones reported lost or stolen, or phones still signed in to an iCloud, Google or Samsung account (activation lock). Sign out and remove the account first.</p>
         </div>
       </div>
     </section>
@@ -648,13 +653,13 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
           <dl class="facts">
             <div><dt class="label">Drop-off</dt><dd>Most screens and batteries fixed the same day.</dd></div>
             <div><dt class="label">Post-in</dt><dd>Back with you in 3–5 working days.</dd></div>
-            <div><dt class="label">Warranty</dt><dd>6 months on every repair.</dd></div>
+            <div><dt class="label">Warranty</dt><dd>6 months on every repair, on top of your legal rights.</dd></div>
           </dl>
         </div>
         <div class="main-col">
           <div class="table-scroll" tabindex="0" role="region" aria-label="Repair prices">
             <table>
-              <caption>Prices include parts and labour. Placeholder prices for the prototype.</caption>
+              <caption>Prices include parts and labour.</caption>
               <thead>
                 <tr><th scope="col">Model</th><th scope="col">Screen</th><th scope="col">Battery</th><th scope="col">Charging port</th><th scope="col">Back glass</th></tr>
               </thead>
@@ -671,6 +676,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
               </tbody>
             </table>
           </div>
+          <p class="warn">Prototype: placeholder prices.</p>
           <p class="warn">Different model or fault? Send us the model and what's wrong and we'll give you a price: <span class="contact">hello@fullbars.example</span> or <span class="contact">0191 000 0002</span>.</p>
         </div>
       </div>
@@ -703,19 +709,20 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
             <div class="answer">
               <p>Any fault that shows up through normal use in the first 12 months. We'll repair it, replace it or refund you.</p>
               <p>It doesn't cover accidental damage, such as a cracked screen from a drop or water damage.</p>
+              <p>The warranty is on top of your legal rights. If a phone is faulty you can reject it for a full refund within 30 days, and you have further rights after that under the Consumer Rights Act 2015.</p>
             </div>
           </details>
           <details>
             <summary>Is it unlocked? Can I use an eSIM?</summary>
             <div class="answer">
               <p>Yes. Every phone is unlocked and works on any UK network, including EE, O2, Vodafone, Three and the smaller networks that run on them.</p>
-              <p>All the phones we sell take a nano-SIM and also support eSIM. Your network can move your number to an eSIM if you prefer.</p>
+              <p>All the phones we sell are UK models. They take a nano-SIM and also support eSIM. Your network can move your number to an eSIM if you prefer.</p>
             </div>
           </details>
           <details>
             <summary>What if I change my mind?</summary>
             <div class="answer">
-              <p>You have 30 days from delivery to send it back for a full refund, for any reason. The law only requires 14 days for online orders.</p>
+              <p>You have 30 days from delivery to send it back for a full refund, for any reason. The law gives you 14 days from delivery to cancel an online order.</p>
               <p>Get in touch and we'll send you a free returns label. We refund you within 5 working days of the phone reaching us.</p>
             </div>
           </details>
@@ -747,7 +754,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
 </div>
 
 <div class="scrim" id="scrim"></div>
-<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
   <div class="drawer-head">
     <h2 id="drawer-title">Your basket</h2>
     <button class="icon-btn" id="drawer-close" type="button" aria-label="Close basket"></button>
@@ -768,12 +775,13 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
     <button class="btn btn-primary btn-block" id="checkout" type="button">Checkout</button>
     <p class="msg" id="checkout-msg" role="status" hidden>Payments aren't connected yet. No order has been placed and you haven't been charged.</p>
   </div>
-</aside>
+</div>
 <p class="sr-only" id="announce" aria-live="polite"></p>
 
 <script>
 (function () {
   'use strict';
+  document.documentElement.lang = 'en-GB';
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var money = function (n) { return '£' + n.toLocaleString('en-GB'); };
@@ -853,7 +861,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
   var grid = $('#grid'), filters = $('#filters'), countEl = $('#shop-count'), emptyEl = $('#shop-empty');
 
   function addLabel(p, inB) {
-    return inB ? p.model + ' is in your basket. Open basket' : 'Add ' + p.model + ', ' + p.gb + 'GB, ' + p.colour + ' to basket';
+    return inB ? 'In basket: ' + p.model + '. Open basket' : 'Add to basket: ' + p.model + ', ' + p.gb + 'GB, ' + p.colour;
   }
 
   function cardHTML(p) {
@@ -901,7 +909,9 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
   filters.addEventListener('change', renderShop);
   filters.addEventListener('submit', function (e) { e.preventDefault(); });
   $('#f-clear').addEventListener('click', function () {
+    var sort = $('#f-sort').value;
     filters.reset();
+    $('#f-sort').value = sort;
     renderShop();
     $('#f-brand-all').focus();
   });
@@ -925,6 +935,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
   function renderBasket() {
     var countBadge = $('#basket-count');
     countBadge.textContent = basket.length;
+    $('#basket-sr').textContent = basket.length === 1 ? ' item' : ' items';
     if (basket.length) countBadge.removeAttribute('data-zero'); else countBadge.setAttribute('data-zero', '');
     var sum = 0;
     listEl.innerHTML = basket.map(function (id) {
@@ -947,6 +958,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
     return $$('button, a[href], input, select', drawer).filter(function (el) { return !el.disabled && el.offsetParent !== null; });
   }
   function openDrawer(from) {
+    setMenu(false);
     returnFocus = from || basketBtn;
     drawer.classList.add('open');
     scrim.classList.add('open');
@@ -968,7 +980,9 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
   $('#drawer-browse').addEventListener('click', function () {
     returnFocus = null;
     closeDrawer();
-    location.hash = 'shop';
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('#shop').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
+    $('#f-brand-all').focus({ preventScroll: true });
   });
   listEl.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-remove]');
@@ -984,7 +998,6 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
   });
   $('#checkout').addEventListener('click', function () { checkoutMsg.hidden = false; });
   drawer.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { closeDrawer(); return; }
     if (e.key !== 'Tab') return;
     var f = focusables();
     if (!f.length) return;
@@ -1005,7 +1018,9 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
   menuBtn.addEventListener('click', function () { setMenu(!nav.classList.contains('open')); });
   nav.addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && nav.classList.contains('open')) { setMenu(false); menuBtn.focus(); }
+    if (e.key !== 'Escape') return;
+    if (drawer.classList.contains('open')) { closeDrawer(); return; }
+    if (nav.classList.contains('open')) { setMenu(false); menuBtn.focus(); }
   });
 
   /* ---------- Trade-in estimator ---------- */
@@ -1028,7 +1043,7 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
   var CONDITION = {
     'new': { label: 'Like new', factor: 1 },
     good: { label: 'Good', factor: GOOD },
-    cracked: { label: 'Cracked screen', factor: GOOD * 0.55 },
+    cracked: { label: 'Cracked glass', factor: GOOD * 0.55 },
     dead: { label: "Won't power on", factor: 0.2 }
   };
   var tiForm = $('#ti-form'), tiModel = $('#ti-model'), tiStorage = $('#ti-storage');
@@ -1068,9 +1083,11 @@ tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
     lockBtn.setAttribute('aria-expanded', show ? 'true' : 'false');
     if (show) $('#lock-name').focus();
   });
-  lockForm.addEventListener('submit', function (e) {
+  // Handled on the button's click (Enter in a field clicks it too), not on submit: in a sandboxed
+  // frame without allow-forms, a submit is blocked before any submit handler runs.
+  $('#ti-hold').addEventListener('click', function (e) {
     e.preventDefault();
-    lockMsg.hidden = false;
+    if (lockForm.reportValidity()) lockMsg.hidden = false;
   });
 
   /* ---------- Start ---------- */
