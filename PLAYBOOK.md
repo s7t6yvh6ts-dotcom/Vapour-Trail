@@ -69,9 +69,9 @@ Run it every Monday. Anything marked `LATE - ORDER NOW` or `ORDER THIS WEEK` get
 
 Nicotine pouches are made in Europe, so there's no reason for them to be stuck behind a Chinese holiday. UK trade wholesalers deliver next day:
 
-- [Wholesale Nicotine Pouches](https://www.wholesalenicotinepouches.co.uk/): free trade account (ZYN, Velo, Pablo, Killa)
-- [SnusBlast Wholesale](https://snusblast.co.uk/wholesale/): next day if ordered by 1pm
-- [Nico Distribution](https://nicodistribution.com/): takes newer retailers
+- [Wholesale Nicotine Pouches](https://www.wholesalenicotinepouches.co.uk/): free trade account (ZYN, Velo, Pablo, Killa). Apply on the site's sign-up page, or call 0121 751 3353 (Mon–Fri 9–5)
+- [SnusBlast Wholesale](https://snusblast.co.uk/wholesale/): next day if ordered by 1pm. info@snusblast.co.uk, WhatsApp +44 7459 481933
+- [Nico Distribution](https://nicodistribution.com/): takes newer retailers. info@nicodistribution.com, 07904 858 487
 - [Vape UK Wholesale](https://vapeukwholesale.co.uk/collections/wholesale-nicotine-pouches): next day, £200 minimum (also sells compliant vapes)
 
 Unit cost is higher than buying direct from China. But you restock in 24 hours, the products are genuine branded and UK-legal, and you never sit on dead stock waiting for a holiday to end. Run both prices through `tools/margin.py` before deciding. Check any wholesaler (company number, reviews) before your first order.
@@ -90,7 +90,11 @@ Plugins for WooCommerce: [AgeChecked](https://www.agechecked.com/woocommerce-plu
 
 ## Taking payments
 
-Stripe, PayPal, Square and Shopify Payments prohibit vapes. Don't build the business on them. You need a **high-risk merchant account** that approves vape/nicotine in writing. UK brokers include [We Tranxact](https://www.wetranxact.co.uk/e-cig-and-vape-merchant-account/) (Birmingham) and [Merchant Advice Service](https://www.merchantadviceservice.co.uk/high-risk-merchant-accounts/electronic-cigarette-merchant-accounts/). Expect 3–6% fees and a rolling reserve. Put that fee % into `tools/margin.py`.
+Stripe, PayPal, Square and Shopify Payments prohibit vapes. Don't build the business on them. You need a **high-risk merchant account** that approves vape/nicotine in writing. UK brokers include [We Tranxact](https://www.wetranxact.co.uk/e-cig-and-vape-merchant-account/) (Birmingham) and [Merchant Advice Service](https://www.merchantadviceservice.co.uk/high-risk-merchant-accounts/electronic-cigarette-merchant-accounts/). Expect 3–6% fees and a rolling reserve. Put that fee % into `tools/margin.py`. We Tranxact: info@wetranxact.co.uk, 0121 792 5367.
+
+Approval for a vape merchant account usually takes **6–8 weeks**, often with about 10% of takings held back for 180 days as a reserve. Apply now, not when the shop is finished. Until it's approved, take payment by bank transfer (order number as the reference, dispatch once it lands) and cash on local collection.
+
+Don't run vape or pouch sales through the Stripe account you started in September. Stripe prohibits e-cigarettes, and when it finds out it can close the account and hold the balance.
 
 ## What can shut the business down
 

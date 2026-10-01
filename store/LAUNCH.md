@@ -48,6 +48,7 @@ Pages → Add New, once for each file in `pages/`. Paste the text in and replace
 1. With the site live (even with no products published yet), apply for a **high-risk merchant account** that approves vape/nicotine in writing. Brokers are listed in `../PLAYBOOK.md`. They'll want your URL, the policy pages, and proof of age checks.
 2. Install the WooCommerce plugin they give you.
 3. **Don't** use Stripe, PayPal or Square for nicotine. They freeze accounts after approval.
+4. While you wait for approval (usually 6–8 weeks), go to **WooCommerce → Settings → Payments**, switch on **Direct bank transfer**, and add your account details. In the instructions box, write: "Use your order number as the reference. We dispatch as soon as the payment lands." Turn it off once card payments are live, or keep it as a second option.
 
 ## 7. Test and go live
 
