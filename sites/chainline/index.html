@@ -1,0 +1,1436 @@
+<title>Chainline Cycles</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  /* Layout: asymmetric 12-col. Hero 6/5 (headline | bike drawing + workshop ticket); sections alternate a narrow label column against wide content; card treatment only for bikes, the ticket and forms. */
+  color-scheme: dark;
+  --bg: #0b1510;
+  --bg-raised: #111e17;
+  --bg-deep: #07100b;
+  --line: #213228;
+  --line-strong: #35503f;
+  --field-line: #5b7a66;
+  --fg: #ece7d9;
+  --muted: #9dab9f;
+  --accent: #c68d52;
+  --accent-hi: #ddaa72;
+  --accent-ink: #1a1109;
+  --tag: #d9c79e;
+  --tag-ink: #18241c;
+  --tag-rule: #a99670;
+  --stamp: #1d5334;
+  --pass: #9cc796;
+  --focus: #f3cc98;
+  --scrim: rgb(2 6 4 / 0.72);
+  --shadow: rgb(0 0 0 / 0.45);
+  --header-bg: rgb(11 21 16 / 0.94);
+
+  --font-display: "Barlow Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Barlow", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-data: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --gutter: clamp(16px, 4vw, 48px);
+  --maxw: 1240px;
+  --radius: 3px;
+  --section-pad: clamp(56px, 8vw, 112px);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-padding-top: 84px; -webkit-text-size-adjust: 100%; }
+html.locked { overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 1.0625rem/1.6 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:hover { color: var(--accent-hi); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+::selection { background: var(--accent); color: var(--accent-ink); }
+
+.wrap { max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gutter); }
+.vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.mono, .price, .specs, .ticket, .svc-price, .totals, .chart, .count, .finder-detail { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+.eyebrow {
+  font: 600 0.8125rem/1.2 var(--font-display);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.section { padding-block: var(--section-pad); border-top: 1px solid var(--line); }
+.section h2 { font-size: clamp(2.25rem, 4.6vw, 3.5rem); line-height: 0.95; text-transform: uppercase; margin-top: 10px; }
+.lede { color: var(--muted); max-width: 44ch; margin-top: 16px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5em;
+  min-height: 46px; padding: 0.55em 1.25em;
+  font: 600 1.0625rem/1 var(--font-display); letter-spacing: 0.09em; text-transform: uppercase;
+  border: 1.5px solid var(--accent); border-radius: var(--radius);
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); color: var(--accent-ink); }
+.btn-ghost { background: transparent; color: var(--fg); border-color: var(--line-strong); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--fg); }
+.btn-sm { min-height: 40px; padding: 0.45em 0.9em; font-size: 0.9375rem; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.link-btn { background: none; border: 0; padding: 4px 0; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 0.875rem; }
+.link-btn:hover { color: var(--fg); }
+
+/* Banner + header */
+.banner { background: var(--bg-deep); color: var(--muted); border-bottom: 1px solid var(--line); font: 400 0.8125rem/1.45 var(--font-data); padding-block: 8px; }
+.banner strong { color: var(--accent); font-weight: 500; }
+.site-header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40;
+  background: var(--header-bg); border-bottom: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.header-row { display: flex; align-items: center; gap: 20px; min-height: 64px; position: relative; }
+.logo { display: inline-flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; min-width: 0; flex: 0 1 auto; }
+.logo:hover { color: var(--fg); }
+.logo-mark { width: 30px; height: 30px; color: var(--accent); flex: none; }
+.logo-word { font: 700 1.375rem/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav { margin-left: auto; }
+.nav ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; }
+.nav a {
+  display: block; padding: 10px 12px; color: var(--fg); text-decoration: none;
+  font: 600 1rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.nav a:hover { color: var(--accent); }
+.menu-btn { display: none; }
+.basket-btn { display: inline-flex; align-items: center; gap: 10px; background: transparent; border: 1.5px solid var(--line-strong); color: var(--fg); border-radius: var(--radius); min-height: 42px; padding: 0 12px; cursor: pointer; font: 600 1rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; }
+.basket-btn:hover { border-color: var(--accent); }
+.count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); font-size: 0.8125rem; font-weight: 500; letter-spacing: 0; }
+@media (max-width: 1000px) {
+  .menu-btn { display: inline-flex; margin-left: auto; }
+  .nav { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px; display: none; margin: 0; }
+  .nav.open { display: block; }
+  .nav ul { flex-direction: column; }
+  .nav a { padding: 14px 0; font-size: 1.25rem; border-bottom: 1px solid var(--line); }
+}
+@media (max-width: 480px) { .header-row { gap: 10px; } .logo-word { font-size: 1.125rem; letter-spacing: 0.03em; } .menu-btn { flex: none; padding-inline: 0.7em; } .basket-btn .basket-word { display: none; } }
+@media (max-width: 359px) { .header-row { gap: 6px; } .logo { gap: 8px; } .logo-word { font-size: 0.9375rem; letter-spacing: 0.02em; } .logo-mark { width: 26px; height: 26px; } }
+
+/* Hero */
+.hero { padding-block: clamp(40px, 6vw, 80px) clamp(56px, 7vw, 96px); }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+.hero-copy { min-width: 0; }
+.hero h1 { font-size: clamp(3rem, 6.4vw, 5.5rem); line-height: 0.9; text-transform: uppercase; letter-spacing: 0.005em; margin-top: 18px; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero-sub { font-size: 1.1875rem; max-width: 42ch; margin-top: 22px; color: var(--fg); }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.hero-note { margin-top: 20px; color: var(--muted); font-size: 0.9375rem; }
+.hero-visual { margin: 0; min-width: 0; }
+.bike { display: block; width: 100%; height: auto; max-width: 100%; color: var(--accent); overflow: visible; }
+.bike .dim { color: var(--muted); }
+.bike text { font-family: var(--font-data); font-size: 15px; fill: currentColor; }
+.bike .spokes { transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .bike .spokes { animation: roll 3s cubic-bezier(0.22, 0.61, 0.3, 1) both; }
+}
+@keyframes roll { from { transform: rotate(-300deg); } to { transform: rotate(0deg); } }
+@media (max-width: 880px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } .hero-visual { max-width: 560px; } }
+
+/* Workshop ticket */
+.ticket-wrap { position: relative; width: min(100%, 350px); margin: -9% 4% 0 auto; transform: rotate(-2.5deg); }
+.ticket-string { position: absolute; left: 50%; bottom: calc(100% - 25px); width: 70px; height: 84px; margin-left: -46px; color: var(--tag-rule); z-index: 1; overflow: visible; }
+.ticket {
+  --notch: 24px;
+  position: relative; background: var(--tag); color: var(--tag-ink);
+  padding: 42px 20px 16px; font-size: 0.8125rem; line-height: 1.35;
+  clip-path: polygon(var(--notch) 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%, 0 var(--notch));
+}
+.ticket::before { content: ""; position: absolute; top: 18px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 4px var(--tag-rule); }
+.ticket-head { display: flex; justify-content: space-between; gap: 8px; font: 700 0.75rem/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; padding-bottom: 10px; border-bottom: 2px solid var(--tag-ink); }
+.ticket-no { display: flex; justify-content: space-between; align-items: baseline; padding-block: 8px 6px; }
+.ticket-no b { font-size: 1.75rem; font-weight: 500; letter-spacing: 0.02em; }
+.ticket-no span { font: 600 0.75rem/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; }
+.ticket dl { margin: 0; }
+.ticket dl div { display: grid; grid-template-columns: 6.8em minmax(0, 1fr); gap: 10px; padding-block: 5px; border-top: 1px dashed var(--tag-rule); align-items: baseline; }
+.ticket dt { font: 700 0.6875rem/1.3 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
+.ticket dd { margin: 0; min-width: 0; }
+.stamp { display: inline-block; border: 2px solid var(--stamp); color: var(--stamp); padding: 1px 8px 0; transform: rotate(-4deg); font: 700 0.9375rem/1.2 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; }
+.ticket-foot { display: flex; justify-content: space-between; gap: 8px; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--tag-ink); }
+.ticket-foot a { color: var(--tag-ink); font-weight: 500; }
+.ticket-foot a:focus-visible { outline-color: var(--tag-ink); }
+@media (max-width: 480px) { .ticket-wrap { width: calc(100% - 24px); margin-inline: auto; } }
+
+/* Promise strip */
+.promise { background: var(--bg-deep); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: clamp(40px, 5vw, 64px); }
+.promise-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: clamp(24px, 4vw, 56px); }
+.promise h2 { font-size: clamp(1.75rem, 3vw, 2.25rem); text-transform: uppercase; line-height: 0.95; margin-top: 10px; }
+.promise ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 32px; }
+.promise li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px 12px; align-content: start; }
+.promise li svg { width: 22px; height: 22px; color: var(--accent); margin-top: 1px; }
+.promise h3 { font-size: 1.25rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.15; }
+.promise li p { grid-column: 2; color: var(--muted); font-size: 0.9375rem; line-height: 1.5; }
+@media (max-width: 1000px) { .promise-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 820px) { .promise ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .promise ul { grid-template-columns: minmax(0, 1fr); } }
+
+/* Shop */
+.shop-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px; align-items: end; }
+.shop-head .lede { margin-top: 0; }
+.filters { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; justify-content: space-between; margin-top: 36px; padding-block: 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.filter-group { display: grid; gap: 8px; min-width: 0; }
+.filter-label { font: 600 0.8125rem/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: transparent; color: var(--fg); border: 1px solid var(--line-strong); border-radius: var(--radius); min-height: 40px; padding: 0 14px; cursor: pointer; font: 600 1rem/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.filter-selects { display: flex; flex-wrap: wrap; gap: 12px; }
+.filter-selects select { width: auto; min-width: 11rem; }
+.results-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-block: 18px 22px; color: var(--muted); font-size: 0.9375rem; }
+.bike-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(262px, 1fr)); gap: 20px; }
+.card { display: flex; flex-direction: column; gap: 14px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; min-width: 0; }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.glyph { display: block; width: 112px; height: auto; color: var(--accent); flex: none; }
+.card-no { font: 400 0.75rem/1.2 var(--font-data); color: var(--muted); white-space: nowrap; }
+.card h3 { font-size: 1.5rem; font-weight: 600; line-height: 1.05; }
+.card-meta { color: var(--muted); font-size: 0.9375rem; margin-top: 4px; }
+.specs { margin: 0; display: grid; gap: 4px; font-size: 0.875rem; }
+.specs div { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 10px; }
+.specs dt { color: var(--muted); }
+.specs dd { margin: 0; min-width: 0; }
+.fit {
+  position: relative; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline;
+  background: var(--tag); color: var(--tag-ink); padding: 7px 12px 7px 26px;
+  font: 400 0.8125rem/1.35 var(--font-data);
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 50%);
+}
+.fit::before { content: ""; position: absolute; left: 11px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--bg-raised); }
+.fit b { font: 700 0.6875rem/1.35 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; }
+.card-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.price { font-size: 1.375rem; font-weight: 500; }
+.empty { border: 1px dashed var(--line-strong); padding: 24px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+@media (max-width: 760px) { .shop-head { grid-template-columns: minmax(0, 1fr); } .filter-selects, .filter-selects .field { width: 100%; } .filter-selects select { width: 100%; } }
+
+/* Forms */
+.field { display: grid; gap: 6px; min-width: 0; }
+.field label, .field-label, legend { font: 600 0.8125rem/1.2 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.field .opt { text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-weight: 400; }
+input, select, textarea {
+  font: 400 1rem/1.4 var(--font-body); color: var(--fg);
+  background: var(--bg); border: 1px solid var(--field-line); border-radius: 2px;
+  padding: 0.6em 0.75em; min-height: 46px; width: 100%; min-width: 0;
+}
+::placeholder { color: var(--muted); opacity: 1; }
+textarea { min-height: 96px; resize: vertical; }
+input:hover, select:hover, textarea:hover { border-color: var(--muted); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--accent); }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: 8px; }
+.form-card { display: grid; gap: 16px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(18px, 3vw, 28px); min-width: 0; align-content: start; }
+.form-card h3 { font-size: 1.75rem; text-transform: uppercase; }
+.field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.form-result { border: 1px dashed var(--accent); border-radius: 2px; padding: 14px 16px; font-size: 0.9375rem; }
+.form-result strong { color: var(--accent); font-weight: 600; display: block; margin-bottom: 4px; }
+@media (max-width: 480px) { .field-row { grid-template-columns: minmax(0, 1fr); } }
+
+/* Segmented radios */
+.seg-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg-opts label { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line-strong); border-radius: var(--radius); cursor: pointer; font: 600 1.0625rem/1 var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg); }
+.seg-opts label:hover { border-color: var(--accent); }
+.seg-opts input:checked + label { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.seg-opts input:focus-visible + label { outline: 2px solid var(--focus); outline-offset: 2px; }
+.seg-sm label { min-height: 36px; padding: 0 12px; font-size: 0.9375rem; }
+
+/* Size finder */
+.finder-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
+.finder-form { display: grid; gap: 24px; margin-top: 32px; }
+.height-row { display: grid; gap: 12px; }
+.height-ft { display: grid; grid-template-columns: repeat(2, minmax(0, 8rem)); gap: 12px; }
+.height-cm { max-width: 12rem; }
+.finder-result { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(20px, 3vw, 32px); display: grid; gap: 14px; min-width: 0; }
+.finder-answer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.finder-size { font: 700 clamp(4rem, 9vw, 6.5rem)/0.85 var(--font-display); color: var(--accent); text-transform: uppercase; }
+.finder-detail { font-size: 1.125rem; }
+.finder-live { display: grid; gap: 14px; }
+.finder-reason { max-width: 52ch; }
+.finder-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.table-scroll { overflow-x: auto; margin-top: 8px; border-top: 1px solid var(--line); }
+.chart { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.chart caption { text-align: left; padding-block: 12px 6px; color: var(--muted); font: 600 0.8125rem/1.2 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
+.chart th, .chart td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.chart th { color: var(--muted); font-weight: 400; }
+.chart td:last-child { white-space: normal; }
+.chart tr.hit td { color: var(--accent); }
+.chart tr.hit td:first-child::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; background: var(--accent); border-radius: 50%; vertical-align: middle; }
+.finder-note { margin-top: 28px; font: 600 1.25rem/1.3 var(--font-display); letter-spacing: 0.02em; max-width: 40ch; }
+@media (max-width: 880px) { .finder-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Workshop */
+.workshop-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(32px, 5vw, 72px); align-items: start; }
+.turnaround { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font: 400 0.9375rem/1.4 var(--font-data); }
+.turnaround b { font-weight: 500; color: var(--accent); }
+.svc-list { list-style: none; margin: 28px 0 0; padding: 0; }
+.svc { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "main price book"; gap: 6px 20px; align-items: center; padding-block: 16px; border-bottom: 1px dashed var(--line-strong); }
+.svc-main { grid-area: main; min-width: 0; }
+.svc h3 { font-size: 1.3125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.svc-main p { color: var(--muted); font-size: 0.9375rem; margin-top: 4px; line-height: 1.45; }
+.svc-price { grid-area: price; text-align: right; font-size: 1.125rem; font-weight: 500; }
+.svc-price span { display: block; font-size: 0.75rem; font-weight: 400; color: var(--muted); }
+.svc-book { grid-area: book; }
+.svc-note { margin-top: 16px; color: var(--muted); font-size: 0.9375rem; }
+@media (max-width: 960px) { .workshop-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 520px) { .svc { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main main" "price book"; } .svc-price { text-align: left; } }
+
+/* E-bike rules */
+.rules-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
+.eapc { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--line-strong); }
+.eapc li { padding: 20px 20px 22px 0; border-bottom: 1px solid var(--line-strong); min-width: 0; }
+.eapc li:nth-child(odd) { border-right: 1px solid var(--line); }
+.eapc li:nth-child(even) { padding-left: 20px; }
+.eapc-val { display: block; font: 700 clamp(2.5rem, 5vw, 3.5rem)/0.95 var(--font-display); color: var(--accent); text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.eapc-lab { display: block; margin-top: 6px; font: 600 0.8125rem/1.2 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.eapc p { margin-top: 10px; font-size: 0.9375rem; }
+.rules-then { margin-top: 22px; font: 600 1.375rem/1.25 var(--font-display); letter-spacing: 0.01em; }
+.rules-notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 36px; margin-top: clamp(40px, 5vw, 64px); }
+.rules-notes > div { border-top: 2px solid var(--accent); padding-top: 16px; min-width: 0; }
+.rules-notes h3 { font-size: 1.375rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.rules-notes p { margin-top: 10px; color: var(--muted); font-size: 0.9375rem; }
+.rules-notes p + p { margin-top: 8px; }
+@media (max-width: 960px) { .rules-grid { grid-template-columns: minmax(0, 1fr); } .rules-notes { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 460px) { .eapc { grid-template-columns: minmax(0, 1fr); } .eapc li:nth-child(odd) { border-right: 0; } .eapc li:nth-child(even) { padding-left: 0; } }
+
+/* Sell */
+.sell-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
+.proof { margin-top: 24px; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font: 600 1.1875rem/1.3 var(--font-display); letter-spacing: 0.02em; }
+.sell-list { margin: 20px 0 0; padding-left: 1.1em; color: var(--muted); font-size: 0.9375rem; display: grid; gap: 6px; }
+@media (max-width: 880px) { .sell-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* FAQ */
+.faq-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
+.faq details { border-bottom: 1px solid var(--line-strong); }
+.faq details:first-child { border-top: 1px solid var(--line-strong); }
+.faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 18px; font: 600 1.3125rem/1.2 var(--font-display); letter-spacing: 0.02em; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: ""; flex: none; width: 14px; height: 14px; background: linear-gradient(var(--accent), var(--accent)) center / 14px 2px no-repeat, linear-gradient(var(--accent), var(--accent)) center / 2px 14px no-repeat; transition: transform 0.2s; }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq summary:hover { color: var(--accent); }
+.faq .answer { padding-bottom: 20px; color: var(--muted); max-width: 62ch; display: grid; gap: 10px; }
+@media (max-width: 880px) { .faq-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Footer */
+.site-footer { background: var(--bg-deep); border-top: 1px solid var(--line); padding-block: 48px 28px; font-size: 0.9375rem; }
+.footer-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 3fr); gap: 28px 40px; }
+.footer-grid > div { min-width: 0; }
+.footer-h { font: 600 0.8125rem/1.2 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.footer-about p { margin-top: 14px; color: var(--muted); max-width: 44ch; }
+.contact-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; user-select: text; }
+.contact-line + .contact-line { margin-top: 6px; }
+.contact-line span { font-family: var(--font-data); overflow-wrap: anywhere; }
+.footer-base { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8125rem; }
+@media (max-width: 820px) { .footer-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Basket drawer */
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 60; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 70;
+  width: min(420px, 100%); background: var(--bg-raised); border-left: 1px solid var(--line-strong);
+  box-shadow: -24px 0 48px var(--shadow);
+  display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translateX(100%); visibility: hidden;
+  transition: transform 0.28s ease, visibility 0s linear 0.28s;
+}
+.drawer.open { transform: none; visibility: visible; transition: transform 0.28s ease; }
+@media (prefers-reduced-motion: reduce) { .drawer, .drawer.open { transition: none; } .faq summary::after { transition: none; } }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.drawer-head h2 { font-size: 1.75rem; text-transform: uppercase; }
+.icon-btn { display: inline-grid; place-items: center; width: 44px; height: 44px; background: transparent; border: 1px solid var(--line-strong); border-radius: var(--radius); color: var(--fg); cursor: pointer; }
+.icon-btn:hover { border-color: var(--accent); }
+.icon-btn svg { width: 18px; height: 18px; }
+.drawer-body { flex: 1; overflow-y: auto; padding: 8px 20px 20px; display: grid; gap: 20px; align-content: start; }
+.lines { list-style: none; margin: 0; padding: 0; }
+.line { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding-block: 14px; border-bottom: 1px solid var(--line); }
+.line .glyph { width: 64px; }
+.line-title { font: 600 1.125rem/1.1 var(--font-display); }
+.line-meta { color: var(--muted); font-size: 0.8125rem; margin-top: 2px; }
+.line-side { display: grid; justify-items: end; gap: 2px; }
+.line-side .price { font-size: 1rem; }
+.basket-empty { color: var(--muted); padding-block: 16px; }
+.delivery { display: grid; gap: 8px; }
+.del-opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); cursor: pointer; font-size: 0.9375rem; }
+.del-opt:has(input:checked) { border-color: var(--accent); }
+.del-opt input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--accent); }
+.del-opt small { display: block; color: var(--muted); font-size: 0.8125rem; }
+.del-opt .mono { font-size: 0.875rem; }
+.totals { margin: 0; display: grid; gap: 6px; font-size: 0.9375rem; }
+.totals div { display: flex; justify-content: space-between; gap: 12px; }
+.totals dt { color: var(--muted); font-family: var(--font-body); }
+.totals dd { margin: 0; }
+.totals .grand { padding-top: 10px; border-top: 1px solid var(--line-strong); font-size: 1.125rem; }
+.totals .grand dt { color: var(--fg); font: 600 1.125rem/1.2 var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; }
+.drawer-foot { padding: 16px 20px 20px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
+.drawer-foot .btn { width: 100%; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+ <defs>
+  <symbol id="i-tick" viewBox="0 0 22 22"><rect x="1.5" y="1.5" width="19" height="19" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11.5l3.2 3.2L16 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-dasharray="2.45 2.46"/><circle cx="16" cy="16" r="9.6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16V7.6M16 16l8.1-2.6M16 16l5 6.9M16 16l-5 6.9M16 16l-8.1-2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16" cy="16" r="2.6" fill="currentColor"/></symbol>
+  <symbol id="i-close" viewBox="0 0 18 18"><path d="M3 3l12 12M15 3L3 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+ </defs>
+</svg>
+
+<div class="banner" id="top"><div class="wrap"><strong>Prototype:</strong> placeholder stock, prices and contact details. Checkout, bookings and offers aren't connected yet.</div></div>
+
+<header class="site-header">
+ <div class="wrap header-row">
+  <a class="logo" href="#top" aria-label="Chainline Cycles, back to top">
+   <svg class="logo-mark" aria-hidden="true" focusable="false"><use href="#i-logo"/></svg>
+   <span class="logo-word">Chainline Cycles</span>
+  </a>
+  <button type="button" class="btn btn-ghost btn-sm menu-btn" id="menu-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
+  <nav class="nav" id="site-nav" aria-label="Main">
+   <ul>
+    <li><a href="#shop">Bikes</a></li>
+    <li><a href="#size">Size finder</a></li>
+    <li><a href="#workshop">Workshop</a></li>
+    <li><a href="#ebike">E-bike rules</a></li>
+    <li><a href="#sell">Sell your bike</a></li>
+   </ul>
+  </nav>
+  <button type="button" class="basket-btn" id="basket-open" aria-controls="basket" aria-label="Basket, 0 bikes"><span class="basket-word">Basket</span><span class="count" id="basket-count">0</span></button>
+ </div>
+</header>
+
+<main>
+ <section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero-grid">
+   <div class="hero-copy">
+    <p class="eyebrow">Refurbished bikes · UK-legal e-bikes · Workshop</p>
+    <h1 id="hero-title">Used bikes, <em>rebuilt</em> and ready to ride.</h1>
+    <p class="hero-sub">Every bike goes through our workshop before it goes on sale. We check it, replace what's worn and write it all on the ticket, so you know exactly what you're buying.</p>
+    <div class="hero-ctas">
+     <a class="btn btn-primary" href="#shop">Shop bikes</a>
+     <a class="btn btn-ghost" href="#book">Book a service</a>
+    </div>
+    <p class="hero-note">The workshop services any bike, wherever you bought it.</p>
+   </div>
+
+   <figure class="hero-visual">
+    <svg class="bike" viewBox="0 0 640 430" role="img" aria-labelledby="bike-title">
+     <title id="bike-title">Line drawing of a Trek FX 2 hybrid bike, medium frame</title>
+     <defs>
+      <g id="spoke-set" fill="none" stroke="currentColor" stroke-width="1.4">
+       <line x1="-102" y1="0" x2="102" y2="0"/>
+       <line x1="-94.2" y1="-39" x2="94.2" y2="39"/>
+       <line x1="-72.1" y1="-72.1" x2="72.1" y2="72.1"/>
+       <line x1="-39" y1="-94.2" x2="39" y2="94.2"/>
+       <line x1="0" y1="-102" x2="0" y2="102"/>
+       <line x1="39" y1="-94.2" x2="-39" y2="94.2"/>
+       <line x1="72.1" y1="-72.1" x2="-72.1" y2="72.1"/>
+       <line x1="94.2" y1="-39" x2="-94.2" y2="39"/>
+       <line x1="0" y1="-104" x2="0" y2="-94" stroke-width="4" stroke-linecap="round"/>
+      </g>
+     </defs>
+     <g class="dim" fill="none" stroke="currentColor" stroke-width="1.2">
+      <line x1="12" y1="393" x2="628" y2="393" stroke-dasharray="2 5"/>
+      <path d="M44 140L66 184M305.9 272.5L270.9 152.5M298.2 274.7l15.4-4.5M263.2 154.7l15.4-4.5"/>
+     </g>
+     <g class="dim">
+      <text x="302" y="210" text-anchor="middle" transform="rotate(-73.8 302 210)">17.5in</text>
+      <text x="10" y="132">700 x 35c</text>
+     </g>
+     <g transform="translate(150 272)">
+      <g class="spokes"><use href="#spoke-set"/></g>
+      <circle r="116" fill="none" stroke="currentColor" stroke-width="8"/>
+      <circle r="105" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle r="11" fill="none" stroke="currentColor" stroke-width="3"/>
+      <circle r="4" fill="currentColor"/>
+     </g>
+     <g transform="translate(507 272)">
+      <g class="spokes"><use href="#spoke-set"/></g>
+      <circle r="116" fill="none" stroke="currentColor" stroke-width="8"/>
+      <circle r="105" fill="none" stroke="currentColor" stroke-width="2"/>
+      <circle r="4" fill="currentColor"/>
+     </g>
+     <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M296 268L150 261M296 324L150 283" stroke-width="1.6" stroke-dasharray="3 3"/>
+      <path d="M296 296L250 138M254 148L454 106M296 296L464 138M296 296L150 272L256 158" stroke-width="7"/>
+      <path d="M452 100L468 147" stroke-width="10"/>
+      <path d="M468 147Q492 225 507 272" stroke-width="6"/>
+      <path d="M250 138L239 100" stroke-width="5"/>
+      <path d="M452 100L478 90" stroke-width="6"/>
+      <path d="M484 92L462 87" stroke-width="10"/>
+      <path d="M476 95Q490 101 494 114" stroke-width="3"/>
+      <circle cx="296" cy="296" r="28" stroke-width="5" stroke-dasharray="3.5 3.83"/>
+      <circle cx="296" cy="296" r="21" stroke-width="2"/>
+      <path d="M296 296L322 346M308 348H338" stroke-width="7"/>
+     </g>
+     <path d="M207 95C220 86 246 85 264 89C270 90 271 95 264 97C244 101 221 100 207 95Z" fill="currentColor"/>
+     <circle cx="296" cy="296" r="6" fill="currentColor"/>
+    </svg>
+
+    <div class="ticket-wrap">
+     <svg class="ticket-string" viewBox="0 0 70 84" aria-hidden="true" focusable="false">
+      <path d="M46 82C44 58 30 40 12 2M46 82C52 56 38 34 12 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+     </svg>
+     <div class="ticket" role="group" aria-label="Example workshop ticket">
+      <div class="ticket-head"><span>Chainline Cycles</span><span>Workshop ticket</span></div>
+      <p class="ticket-no"><span>Ticket</span><b>0412</b></p>
+      <dl>
+       <div><dt>Bike</dt><dd>Trek FX 2</dd></div>
+       <div><dt>Year</dt><dd>2021</dd></div>
+       <div><dt>Size</dt><dd>Medium (17.5in)</dd></div>
+       <div><dt>30-point check</dt><dd><span class="stamp">Passed</span></dd></div>
+       <div><dt>Frame number</dt><dd>Checked on BikeRegister: not recorded as stolen</dd></div>
+       <div><dt>Fitted</dt><dd>New chain and cassette</dd></div>
+       <div><dt>Brakes</dt><dd>Bled</dd></div>
+       <div><dt>Tyres</dt><dd>Schwalbe Marathon 700x35c</dd></div>
+      </dl>
+      <p class="ticket-foot"><span>In the shop now</span><a href="#shop">£379</a></p>
+     </div>
+    </div>
+   </figure>
+  </div>
+ </section>
+
+ <section class="promise" aria-labelledby="promise-title">
+  <div class="wrap promise-grid">
+   <div>
+    <p class="eyebrow">Our promise</p>
+    <h2 id="promise-title">Every bike we sell</h2>
+   </div>
+   <ul>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>30-point workshop check</h3><p>Frame, fork, wheels, brakes, gears and bearings. Every point is signed off on the bike's ticket.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Frame number checked</h3><p>We check every frame number on BikeRegister, so you know it hasn't been reported stolen there.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Worn parts replaced</h3><p>If a chain, pad, tyre or cable is worn, we fit a new one. Cleaning alone isn't enough.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>3-month warranty</h3><p>Parts and labour, from the day you collect the bike or it's delivered. On top of your legal rights.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Free 6-week check-up</h3><p>New cables stretch as they bed in. Bring the bike back and we'll re-adjust gears and brakes.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Collection or delivery</h3><p>Collect from the workshop, or we send it anywhere in the UK, boxed and 90% built.</p></li>
+   </ul>
+  </div>
+ </section>
+
+ <section class="section shop" id="shop" aria-labelledby="shop-title">
+  <div class="wrap">
+   <div class="shop-head">
+    <div>
+     <p class="eyebrow">Bikes</p>
+     <h2 id="shop-title" tabindex="-1">Ready to ride</h2>
+    </div>
+    <p class="lede">Each bike is a one-off. The tag on every card shows what our workshop fitted or tested.</p>
+   </div>
+
+   <div class="filters">
+    <div class="filter-group">
+     <span class="filter-label" id="type-label">Type</span>
+     <div class="chips" role="group" aria-labelledby="type-label">
+      <button type="button" class="chip" id="chip-all" data-type="all" aria-pressed="true">All</button>
+      <button type="button" class="chip" id="chip-road" data-type="road" aria-pressed="false">Road</button>
+      <button type="button" class="chip" id="chip-hybrid" data-type="hybrid" aria-pressed="false">Hybrid</button>
+      <button type="button" class="chip" id="chip-gravel" data-type="gravel" aria-pressed="false">Gravel</button>
+      <button type="button" class="chip" id="chip-ebike" data-type="ebike" aria-pressed="false">E-bike</button>
+      <button type="button" class="chip" id="chip-folding" data-type="folding" aria-pressed="false">Folding</button>
+      <button type="button" class="chip" id="chip-kids" data-type="kids" aria-pressed="false">Kids</button>
+     </div>
+    </div>
+    <div class="filter-selects">
+     <div class="field">
+      <label for="filter-size">Size</label>
+      <select id="filter-size">
+       <option value="all">All sizes</option>
+       <optgroup label="Adult frames" id="adult-sizes">
+        <option value="XS">XS</option>
+        <option value="S">S</option>
+        <option value="M">M</option>
+        <option value="L">L</option>
+        <option value="XL">XL</option>
+        <option value="XXL">XXL</option>
+        <option value="ONE">One size (folding)</option>
+       </optgroup>
+       <optgroup label="Kids, by wheel size" id="kids-sizes">
+        <option value="K14">14in wheels</option>
+        <option value="K16">16in wheels</option>
+        <option value="K20">20in wheels</option>
+        <option value="K24">24in wheels</option>
+        <option value="K26|XS">26in wheels or adult XS</option>
+       </optgroup>
+      </select>
+     </div>
+     <div class="field">
+      <label for="sort">Sort</label>
+      <select id="sort">
+       <option value="featured">Newest in</option>
+       <option value="low">Price: low to high</option>
+       <option value="high">Price: high to low</option>
+      </select>
+     </div>
+    </div>
+   </div>
+
+   <div class="results-bar">
+    <p id="result-count" class="mono" aria-live="polite">10 bikes</p>
+    <button type="button" class="link-btn" id="clear-filters" hidden>Clear filters</button>
+   </div>
+   <ul class="bike-grid" id="bike-grid"></ul>
+   <div class="empty" id="shop-empty" hidden>
+    <p>No bikes match that type and size right now. Try another size, or ask the workshop to keep an eye out.</p>
+    <button type="button" class="btn btn-ghost btn-sm" id="empty-clear">Show all bikes</button>
+   </div>
+  </div>
+ </section>
+
+ <section class="section" id="size" aria-labelledby="size-title">
+  <div class="wrap finder-grid">
+   <div>
+    <p class="eyebrow">Size finder</p>
+    <h2 id="size-title">Find your frame size</h2>
+    <p class="lede">Pick a bike type and enter the rider's height. We'll suggest a size from standard charts.</p>
+    <form class="finder-form" id="finder-form" novalidate>
+     <fieldset>
+      <legend>Bike type</legend>
+      <div class="seg-opts">
+       <input class="vh" type="radio" name="sf-type" id="sf-type-road" value="road"><label for="sf-type-road">Road / gravel</label>
+       <input class="vh" type="radio" name="sf-type" id="sf-type-hybrid" value="hybrid" checked><label for="sf-type-hybrid">Hybrid / e-bike</label>
+       <input class="vh" type="radio" name="sf-type" id="sf-type-kids" value="kids"><label for="sf-type-kids">Kids</label>
+      </div>
+     </fieldset>
+     <fieldset class="height-row">
+      <legend>Rider height</legend>
+      <div class="seg-opts seg-sm">
+       <input class="vh" type="radio" name="sf-unit" id="sf-unit-cm" value="cm" checked><label for="sf-unit-cm">cm</label>
+       <input class="vh" type="radio" name="sf-unit" id="sf-unit-ft" value="ft"><label for="sf-unit-ft">ft and in</label>
+      </div>
+      <div class="field height-cm" id="sf-cm-wrap">
+       <label for="sf-cm">Height in cm</label>
+       <input type="number" id="sf-cm" inputmode="numeric" min="80" max="230" step="1" value="172">
+      </div>
+      <div class="height-ft" id="sf-ft-wrap" hidden>
+       <div class="field"><label for="sf-ft">Feet</label><input type="number" id="sf-ft" inputmode="numeric" min="2" max="7" step="1" value="5"></div>
+       <div class="field"><label for="sf-in">Inches</label><input type="number" id="sf-in" inputmode="numeric" min="0" max="11" step="1" value="8"></div>
+      </div>
+     </fieldset>
+    </form>
+   </div>
+
+   <div class="finder-result">
+    <p class="eyebrow">Suggested size</p>
+    <div class="finder-live" aria-live="polite" aria-atomic="true">
+     <div class="finder-answer">
+      <span class="finder-size" id="sf-size">M</span>
+      <span class="finder-detail" id="sf-detail">17–18in frame</span>
+     </div>
+     <p class="finder-reason" id="sf-reason">172cm falls in the 165–177cm band for hybrid and e-bike frames.</p>
+    </div>
+    <div class="finder-actions">
+     <button type="button" class="btn btn-primary" id="sf-show">Show bikes in my size</button>
+    </div>
+    <div class="table-scroll">
+     <table class="chart" id="sf-chart">
+      <caption id="sf-caption">Hybrid and e-bike chart</caption>
+      <thead><tr><th scope="col">Rider height</th><th scope="col">Size</th><th scope="col">Frame</th></tr></thead>
+      <tbody id="sf-rows"></tbody>
+     </table>
+    </div>
+    <p class="finder-note">A test ride beats any chart. Standover height matters more than the number.</p>
+   </div>
+  </div>
+ </section>
+
+ <section class="section" id="workshop" aria-labelledby="workshop-title">
+  <div class="wrap workshop-grid">
+   <div>
+    <p class="eyebrow">Workshop</p>
+    <h2 id="workshop-title">Servicing and repairs for any bike</h2>
+    <p class="lede">It doesn't matter where you bought it. Book below and bring it in on the day.</p>
+    <p class="turnaround"><b>Usual turnaround: 2–3 working days.</b> <span>Safety checks while you wait.</span></p>
+    <ul class="svc-list">
+     <li class="svc"><div class="svc-main"><h3>Puncture repair</h3><p>Puncture found and fixed, tyre checked for glass and thorns.</p></div><p class="svc-price">£12<span>plus tube if needed</span></p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="puncture" aria-label="Book a puncture repair">Book</button></li>
+     <li class="svc"><div class="svc-main"><h3>Safety check</h3><p>Brakes, tyres, wheels, headset and bolts checked and adjusted.</p></div><p class="svc-price">£25</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="safety" aria-label="Book a safety check">Book</button></li>
+     <li class="svc"><div class="svc-main"><h3>Standard service</h3><p>Gears and brakes adjusted, drivetrain cleaned and lubed, wheels trued, bolts torqued.</p></div><p class="svc-price">£65</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="standard" aria-label="Book a standard service">Book</button></li>
+     <li class="svc"><div class="svc-main"><h3>Full service</h3><p>A standard service, plus hubs, headset and bottom bracket stripped, cleaned and regreased.</p></div><p class="svc-price">£120</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="full" aria-label="Book a full service">Book</button></li>
+     <li class="svc"><div class="svc-main"><h3>Strip-down and rebuild</h3><p>Frame stripped bare, every part cleaned and inspected, rebuilt with fresh grease.</p></div><p class="svc-price">£180</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="rebuild" aria-label="Book a strip-down and rebuild">Book</button></li>
+     <li class="svc"><div class="svc-main"><h3>Wheel true</h3><p>Wheel trued and spoke tension evened out so it runs straight.</p></div><p class="svc-price">£20</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="wheel" aria-label="Book a wheel true">Book</button></li>
+     <li class="svc"><div class="svc-main"><h3>Brake bleed</h3><p>Old hydraulic fluid flushed out, fresh fluid in, air bled from the line.</p></div><p class="svc-price">£25<span>per brake</span></p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="bleed" aria-label="Book a brake bleed">Book</button></li>
+     <li class="svc"><div class="svc-main"><h3>E-bike diagnostic</h3><p>Error codes read, motor and wiring checked, battery capacity tested.</p></div><p class="svc-price">£45</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="ebike" aria-label="Book an e-bike diagnostic">Book</button></li>
+    </ul>
+    <p class="svc-note">Prices are for labour. We quote for parts before we fit them.</p>
+   </div>
+
+   <form class="form-card" id="book" aria-labelledby="book-title">
+    <h3 id="book-title">Book a service</h3>
+    <div class="field"><label for="bk-name">Name</label><input id="bk-name" name="name" type="text" autocomplete="name" required></div>
+    <div class="field"><label for="bk-phone">Phone</label><input id="bk-phone" name="phone" type="tel" autocomplete="tel" pattern="[0-9 +\(\)\-]{10,20}" title="A phone number, e.g. 07700 900000" required></div>
+    <div class="field"><label for="bk-bike">Bike (make and model)</label><input id="bk-bike" name="bike" type="text" placeholder="e.g. Trek FX 2" required></div>
+    <div class="field-row">
+     <div class="field">
+      <label for="bk-service">Service</label>
+      <select id="bk-service" name="service" required>
+       <option value="">Choose a service</option>
+       <option value="puncture">Puncture repair (£12)</option>
+       <option value="safety">Safety check (£25)</option>
+       <option value="standard">Standard service (£65)</option>
+       <option value="full">Full service (£120)</option>
+       <option value="rebuild">Strip-down and rebuild (£180)</option>
+       <option value="wheel">Wheel true (£20)</option>
+       <option value="bleed">Brake bleed (£25 per brake)</option>
+       <option value="ebike">E-bike diagnostic (£45)</option>
+      </select>
+     </div>
+     <div class="field"><label for="bk-date">Preferred date</label><input id="bk-date" name="date" type="date" required></div>
+    </div>
+    <div class="field"><label for="bk-notes">Notes <span class="opt">(optional)</span></label><textarea id="bk-notes" name="notes" rows="3" placeholder="What's it doing? Noises, slipping gears, soft brakes..."></textarea></div>
+    <button type="submit" class="btn btn-primary" id="bk-submit">Request booking</button>
+    <div class="form-result" id="book-result" role="status" hidden></div>
+   </form>
+  </div>
+ </section>
+
+ <section class="section" id="ebike" aria-labelledby="ebike-title">
+  <div class="wrap">
+   <div class="rules-grid">
+    <div>
+     <p class="eyebrow">E-bike rules</p>
+     <h2 id="ebike-title">What makes an e-bike legal</h2>
+     <p class="lede">These are the rules in England, Scotland and Wales. The law calls a legal e-bike an electrically assisted pedal cycle (EAPC). Every e-bike we sell meets them.</p>
+     <p class="rules-then">Meet these four rules, and have a maker's plate on the bike showing its motor power and its battery voltage or top assisted speed, and you don't need a licence, insurance, tax or registration.</p>
+    </div>
+    <ul class="eapc">
+     <li><span class="eapc-val">Pedals</span><span class="eapc-lab">that move it</span><p>It must have pedals that can propel the bike.</p></li>
+     <li><span class="eapc-val">250W</span><span class="eapc-lab">maximum continuous rated power</span><p>The motor can't be rated above 250 watts continuous.</p></li>
+     <li><span class="eapc-val">15.5 mph</span><span class="eapc-lab">assistance cuts out (25 km/h)</span><p>The motor stops helping at 15.5 mph. You can go faster on your own legs.</p></li>
+     <li><span class="eapc-val">14+</span><span class="eapc-lab">rider age</span><p>The rider must be 14 or over.</p></li>
+    </ul>
+   </div>
+   <div class="rules-notes">
+    <div>
+     <h3>Throttles</h3>
+     <p>Without pedalling, a throttle can only power the bike up to 3.7 mph (6 km/h), as walk or start assist. A throttle that goes faster needs the bike to be type-approved, or in law it's a moped: registration, tax, insurance, licence and helmet.</p>
+    </div>
+    <div>
+     <h3>What we won't sell or fit</h3>
+     <p>Derestriction kits, also sold as delimiters, that lift the 15.5 mph cut-out.</p>
+     <p>Conversion kits above 250W.</p>
+    </div>
+    <div>
+     <h3>Batteries</h3>
+     <p>We only supply the manufacturer's own battery and charger for each bike.</p>
+     <p>Every used e-bike battery gets a capacity test. The result is shown as battery health: 94% means it holds 94% of the charge it held when new.</p>
+    </div>
+   </div>
+  </div>
+ </section>
+
+ <section class="section" id="sell" aria-labelledby="sell-title">
+  <div class="wrap sell-grid">
+   <div>
+    <p class="eyebrow">Sell your bike</p>
+    <h2 id="sell-title">We buy bikes</h2>
+    <p class="lede">Road, hybrid, gravel, folding, kids and e-bikes in any condition we can bring back. Tell us what you've got and we'll make you an offer.</p>
+    <p class="proof">Bring proof of ownership. We check every frame number on BikeRegister before we buy.</p>
+    <ul class="sell-list">
+     <li>A receipt, a bank statement or the original box and paperwork all help.</li>
+     <li>The frame number is usually stamped under the bottom bracket.</li>
+    </ul>
+   </div>
+   <form class="form-card" id="sell-form" aria-labelledby="sell-form-title">
+    <h3 id="sell-form-title">Get an offer</h3>
+    <div class="field-row">
+     <div class="field"><label for="sl-name">Name</label><input id="sl-name" name="name" type="text" autocomplete="name" required></div>
+     <div class="field"><label for="sl-email">Email</label><input id="sl-email" name="email" type="email" autocomplete="email" required></div>
+    </div>
+    <div class="field-row">
+     <div class="field"><label for="sl-make">Make</label><input id="sl-make" name="make" type="text" placeholder="e.g. Giant" required></div>
+     <div class="field"><label for="sl-model">Model</label><input id="sl-model" name="model" type="text" placeholder="e.g. Contend AR 2" required></div>
+    </div>
+    <div class="field-row">
+     <div class="field"><label for="sl-year">Year</label><input id="sl-year" name="year" type="number" inputmode="numeric" min="1980" max="2026" placeholder="e.g. 2021"></div>
+     <div class="field"><label for="sl-size">Frame size</label><input id="sl-size" name="size" type="text" placeholder="e.g. 54cm or M"></div>
+    </div>
+    <div class="field">
+     <label for="sl-condition">Condition</label>
+     <select id="sl-condition" name="condition" required>
+      <option value="">Choose one</option>
+      <option>Like new: hardly ridden</option>
+      <option>Good: normal wear, rides well</option>
+      <option>Fair: needs a service</option>
+      <option>Needs work: damaged or not rideable</option>
+     </select>
+    </div>
+    <div class="field"><label for="sl-notes">Anything else <span class="opt">(optional)</span></label><textarea id="sl-notes" name="notes" rows="3" placeholder="Upgrades, damage, service history"></textarea></div>
+    <button type="submit" class="btn btn-primary" id="sl-submit">Ask for an offer</button>
+    <div class="form-result" id="sell-result" role="status" hidden></div>
+   </form>
+  </div>
+ </section>
+
+ <section class="section faq" id="faq" aria-labelledby="faq-title">
+  <div class="wrap faq-grid">
+   <div>
+    <p class="eyebrow">Questions</p>
+    <h2 id="faq-title">Before you buy</h2>
+   </div>
+   <div>
+    <details open>
+     <summary>How do you check a refurbished bike?</summary>
+     <div class="answer">
+      <p>Every bike goes through a 30-point check in our workshop. We look at the frame and fork for cracks and alignment, then the headset, bottom bracket and hubs, wheels and spoke tension, tyres, brakes, gears, chain wear and every bolt. Then we road test it.</p>
+      <p>Anything worn gets replaced. The ticket on each listing shows what we fitted.</p>
+     </div>
+    </details>
+    <details>
+     <summary>What does the warranty cover?</summary>
+     <div class="answer">
+      <p>Three months on parts and labour from the day you collect the bike or it's delivered. If something we fitted or adjusted fails with normal use, we put it right.</p>
+      <p>It doesn't cover crash damage, punctures or normal wear on tyres and brake pads.</p>
+      <p>The warranty is on top of your legal rights under the Consumer Rights Act 2015. A bike must be of satisfactory quality for its age and price, and if it's faulty you can reject it for a full refund within 30 days.</p>
+     </div>
+    </details>
+    <details>
+     <summary>How does delivery work?</summary>
+     <div class="answer">
+      <p>UK delivery is £39 per bike. We box it 90% built. You fit the pedals and turn the bars straight, and the tools you need are in the box.</p>
+      <p>Or collect it from the workshop for free and we'll set the saddle height with you.</p>
+      <p>E-bikes go by a specialist courier because of their batteries.</p>
+     </div>
+    </details>
+    <details>
+     <summary>Can I return a bike?</summary>
+     <div class="answer">
+      <p>Yes. If you ordered online, you have 14 days from the day after you get the bike to change your mind, whether we delivered it or you collected it. Tell us, then send or bring it back within 14 days of telling us.</p>
+      <p>We refund the bike and the delivery charge within 14 days of getting it back, or of you showing us you've sent it. Sending it back is at your cost: we can collect it for £39. If it's been ridden more than a test ride needs, we may take something off the refund.</p>
+      <p>Bikes bought in person at the workshop can't be returned just for a change of mind, but your rights for faulty goods still apply.</p>
+     </div>
+    </details>
+    <details>
+     <summary>Do you service bikes you didn't sell?</summary>
+     <div class="answer">
+      <p>Yes. The workshop services any make, wherever you bought it, including e-bikes. See the <a href="#workshop">service menu</a> for prices.</p>
+     </div>
+    </details>
+   </div>
+  </div>
+ </section>
+</main>
+
+<footer class="site-footer">
+ <div class="wrap footer-grid">
+  <div class="footer-about">
+   <a class="logo" href="#top" aria-label="Chainline Cycles, back to top">
+    <svg class="logo-mark" aria-hidden="true" focusable="false"><use href="#i-logo"/></svg>
+    <span class="logo-word">Chainline Cycles</span>
+   </a>
+   <p>Checked, refurbished bikes and UK-legal e-bikes, plus a workshop that services any make.</p>
+  </div>
+  <div>
+   <h2 class="footer-h">Contact</h2>
+   <p class="contact-line"><span id="contact-email">workshop@chainline.example</span><button type="button" class="link-btn" data-copy="contact-email">Copy</button></p>
+   <p class="contact-line"><span id="contact-phone">0191 000 0003</span><button type="button" class="link-btn" data-copy="contact-phone">Copy</button></p>
+  </div>
+  <div>
+   <h2 class="footer-h">Company details</h2>
+   <p>Company number and workshop address go here before launch.</p>
+  </div>
+ </div>
+ <div class="wrap footer-base">
+  <p>© 2026 Chainline Cycles</p>
+  <p>Prototype: placeholder stock, prices and contact details.</p>
+ </div>
+</footer>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="drawer" id="basket" role="dialog" aria-modal="true" aria-labelledby="basket-title">
+ <div class="drawer-head">
+  <h2 id="basket-title">Basket</h2>
+  <button type="button" class="icon-btn" id="basket-close" aria-label="Close basket"><svg aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
+ </div>
+ <div class="drawer-body">
+  <ul class="lines" id="basket-lines"></ul>
+  <p class="basket-empty" id="basket-empty">Your basket is empty. Every bike is a one-off, so there's only one of each.</p>
+  <fieldset class="delivery">
+   <legend>Delivery</legend>
+   <label class="del-opt" for="del-collect"><input type="radio" name="delivery" id="del-collect" value="collect" checked><span>Collect from the workshop<small>We'll set it up with you</small></span><span class="mono">Free</span></label>
+   <label class="del-opt" for="del-uk"><input type="radio" name="delivery" id="del-uk" value="uk"><span>UK delivery<small>Boxed, 90% built, tools included</small></span><span class="mono">£39 per bike</span></label>
+  </fieldset>
+  <dl class="totals">
+   <div><dt>Subtotal</dt><dd id="t-sub">£0</dd></div>
+   <div><dt id="t-del-label">Delivery</dt><dd id="t-del">Free</dd></div>
+   <div class="grand"><dt>Total</dt><dd id="t-total">£0</dd></div>
+  </dl>
+ </div>
+ <div class="drawer-foot">
+  <button type="button" class="btn btn-primary" id="checkout">Checkout</button>
+  <p class="form-result" id="checkout-msg" role="status" hidden><strong>Payments aren't connected yet.</strong>This is a prototype. No order has been placed and nothing has been charged.</p>
+ </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  document.documentElement.lang = 'en-GB';
+
+  var BIKES = [
+    { id: 'allez-2020', no: '0398', make: 'Specialized', model: 'Allez', year: 2020, type: 'road', size: '54cm', band: 'M', gears: '2x8', tagLabel: 'Fitted', tag: 'New tyres + bar tape', price: 449 },
+    { id: 'contend-2022', no: '0405', make: 'Giant', model: 'Contend AR 2', year: 2022, type: 'road', size: 'M', band: 'M', gears: '2x9', tagLabel: 'Fitted', tag: 'New chain + brake pads', price: 529 },
+    { id: 'fx2-2021', no: '0412', make: 'Trek', model: 'FX 2', year: 2021, type: 'hybrid', size: 'M (17.5in)', band: 'M', gears: '2x9', tagLabel: 'Fitted', tag: 'New chain + cassette', price: 379 },
+    { id: 'hyb86-2022', no: '0409', make: 'Boardman', model: 'HYB 8.6', year: 2022, type: 'hybrid', size: 'L', band: 'L', gears: '1x10', tagLabel: 'Work done', tag: 'Hubs serviced', price: 349 },
+    { id: 'nuroad-2021', no: '0415', make: 'Cube', model: 'Nuroad', year: 2021, type: 'gravel', size: '56cm', band: 'L', gears: '2x9', tagLabel: 'Fitted', tag: 'New tubeless tyres', price: 649 },
+    { id: 'brompton-2022', no: '0401', make: 'Brompton', model: 'C Line Explore', year: 2022, type: 'folding', size: 'One size', band: 'ONE', gears: '6-speed', tagLabel: 'Fitted', tag: 'New chain + tyres', price: 899 },
+    { id: 'crossfire-2023', no: '0417', make: 'Carrera', model: 'Crossfire-E', year: 2023, type: 'ebike', size: 'M', band: 'M', gears: '1x9', tagLabel: 'Tested', tag: 'Battery health 94%', price: 749 },
+    { id: 'motus-2021', no: '0419', make: 'Raleigh', model: 'Motus Tour', year: 2021, type: 'ebike', size: 'M', band: 'M', gears: '8-speed hub', tagLabel: 'Tested', tag: 'Battery health 88%', price: 1149 },
+    { id: 'frog55-2022', no: '0411', make: 'Frog', model: '55', year: 2022, type: 'kids', size: '20in wheels', band: 'K20', gears: '1x8', tagLabel: 'Fitted', tag: 'New tyres', price: 219 },
+    { id: 'beinn20-2020', no: '0414', make: 'Islabikes', model: 'Beinn 20', year: 2020, type: 'kids', size: '20in wheels', band: 'K20', gears: '1x8', tagLabel: 'Fitted', tag: 'New brake pads', price: 249 }
+  ];
+  var TYPE_LABEL = { road: 'Road', hybrid: 'Hybrid', gravel: 'Gravel', ebike: 'E-bike', folding: 'Folding', kids: 'Kids' };
+  var DELIVERY_PER_BIKE = 39;
+  var STORE_KEY = 'chainline-basket-v1';
+
+  var money = (function () {
+    var f = null;
+    try { f = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 }); } catch (e) { f = null; }
+    return function (n) { return f ? f.format(n) : '£' + n; };
+  })();
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function findBike(id) {
+    for (var i = 0; i < BIKES.length; i++) if (BIKES[i].id === id) return BIKES[i];
+    return null;
+  }
+
+  /* Small bike glyphs, one per type */
+  function wheel(x, y, r, w) {
+    return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" stroke-width="' + (w || 2.4) + '"/>' +
+      '<circle cx="' + x + '" cy="' + y + '" r="1.8" fill="currentColor" stroke="none"/>';
+  }
+  var HYBRID = wheel(26, 52, 20) + wheel(94, 52, 20) +
+    '<path d="M54 54L46 24L82 22M54 54L84 31M82 22L84 31Q87 44 94 52M54 54L26 52L47 29M46 24L44 17M38 16.5H51M82 22L86 15M81 14L92 16"/>';
+  var GLYPHS = {
+    road: wheel(26, 52, 20) + wheel(94, 52, 20) +
+      '<path d="M54 54L46 24L82 22M54 54L84 31M82 22L84 31Q87 44 94 52M54 54L26 52L47 29M46 24L44 17M38 16.5H51M82 22L89 20Q96 20 96 26Q96 32 91 32"/>',
+    gravel: wheel(26, 52, 19, 4.2) + wheel(94, 52, 19, 4.2) +
+      '<path d="M54 54L46 26L82 24M54 54L84 33M82 24L84 33Q87 45 94 52M54 54L26 52L47 31M46 26L44 18M38 17.5H51M82 24L89 22Q97 22 97 28Q98 34 92 35"/>',
+    hybrid: HYBRID,
+    ebike: HYBRID +
+      '<rect x="-9" y="-3.2" width="18" height="6.4" rx="1.5" transform="translate(68 43) rotate(-37.5)" fill="currentColor" stroke="none"/>' +
+      '<circle cx="54" cy="54" r="4.6" fill="currentColor" stroke="none"/>',
+    folding: wheel(34, 58, 13) + wheel(90, 58, 13) +
+      '<path d="M52 58L48 24M46 14L48 24M40 13H53M49 40L82 34L84 41L90 58M82 34L80 13M75 13H86M52 58L34 58L48 46"/>' +
+      '<circle cx="66" cy="37" r="2.2" fill="currentColor" stroke="none"/>',
+    kids: wheel(30, 56, 16) + wheel(90, 56, 16) +
+      '<path d="M56 58L50 34L82 32M56 58L84 38M82 30L84 38Q86 48 90 56M56 58L30 56L51 38M50 34L49 28M43 27H55M82 30L84 22M79 21H90"/>'
+  };
+  function glyph(type) {
+    return '<svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false">' +
+      '<g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
+      (GLYPHS[type] || GLYPHS.road) + '</g></svg>';
+  }
+
+  /* Basket storage: optional, page works without it */
+  function loadSaved() {
+    try {
+      var raw = window.localStorage.getItem(STORE_KEY);
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      return data && typeof data === 'object' ? data : null;
+    } catch (e) { return null; }
+  }
+  function persist() {
+    try {
+      window.localStorage.setItem(STORE_KEY, JSON.stringify({ items: state.basket, delivery: state.delivery }));
+    } catch (e) { /* storage unavailable: basket lasts for this visit only */ }
+  }
+
+  var state = { types: [], size: 'all', sort: 'featured', basket: [], delivery: 'collect' };
+  var saved = loadSaved();
+  if (saved) {
+    if (Array.isArray(saved.items)) {
+      state.basket = saved.items.filter(function (id, i, arr) { return findBike(id) && arr.indexOf(id) === i; });
+    }
+    if (saved.delivery === 'uk') state.delivery = 'uk';
+  }
+
+  /* Shop */
+  var grid = $('#bike-grid');
+  var countEl = $('#result-count');
+  var emptyEl = $('#shop-empty');
+  var clearBtn = $('#clear-filters');
+  var sizeSel = $('#filter-size');
+  var sortSel = $('#sort');
+  var chips = $all('.chip');
+
+  function visibleBikes() {
+    var bands = state.size === 'all' ? null : state.size.split('|');
+    var list = BIKES.filter(function (b) {
+      var typeOk = !state.types.length || state.types.indexOf(b.type) !== -1;
+      var sizeOk = !bands || bands.indexOf(b.band) !== -1;
+      return typeOk && sizeOk;
+    });
+    if (state.sort === 'featured') list = list.slice().sort(function (a, b) { return Number(b.no) - Number(a.no); });
+    if (state.sort === 'low') list = list.slice().sort(function (a, b) { return a.price - b.price; });
+    if (state.sort === 'high') list = list.slice().sort(function (a, b) { return b.price - a.price; });
+    return list;
+  }
+
+  function cardHTML(b) {
+    var inBasket = state.basket.indexOf(b.id) !== -1;
+    var name = b.make + ' ' + b.model;
+    return '<li class="card">' +
+      '<div class="card-top">' + glyph(b.type) + '<span class="card-no">Ticket ' + esc(b.no) + '</span></div>' +
+      '<div><h3>' + esc(name) + '</h3><p class="card-meta">' + b.year + ' · ' + TYPE_LABEL[b.type] + '</p></div>' +
+      '<dl class="specs"><div><dt>Size</dt><dd>' + esc(b.size) + '</dd></div><div><dt>Gears</dt><dd>' + esc(b.gears) + '</dd></div></dl>' +
+      '<p class="fit"><b>' + esc(b.tagLabel) + '</b><span>' + esc(b.tag) + '</span></p>' +
+      '<div class="card-foot"><span class="price">' + money(b.price) + '</span>' +
+      '<button type="button" class="btn btn-sm ' + (inBasket ? 'btn-ghost' : 'btn-primary') + '" data-add="' + b.id + '" aria-label="' +
+      (inBasket ? 'In basket: ' + esc(name) + '. Open basket' : 'Add to basket: ' + esc(name)) + '">' +
+      (inBasket ? 'In basket' : 'Add to basket') + '</button></div>' +
+      '</li>';
+  }
+
+  function ensureSizeOption(value, text) {
+    if (value === 'all') return;
+    // Only keep the finder's latest combined size ("14in or 16in wheels"), not every one tried.
+    $all('option[data-finder]', sizeSel).forEach(function (o) { if (o.value !== value) o.remove(); });
+    var exists = $all('option', sizeSel).some(function (o) { return o.value === value; });
+    if (!exists) {
+      var opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = text || value;
+      opt.setAttribute('data-finder', '');
+      (/K\d/.test(value) ? $('#kids-sizes') : $('#adult-sizes')).appendChild(opt);
+    }
+  }
+
+  function renderShop() {
+    var list = visibleBikes();
+    grid.innerHTML = list.map(cardHTML).join('');
+    emptyEl.hidden = list.length > 0;
+    countEl.textContent = list.length + (list.length === 1 ? ' bike' : ' bikes') +
+      (state.types.length || state.size !== 'all' ? (list.length === 1 ? ' matches your filters' : ' match your filters') : ' in stock');
+    clearBtn.hidden = !(state.types.length || state.size !== 'all');
+    chips.forEach(function (chip) {
+      var t = chip.getAttribute('data-type');
+      var on = t === 'all' ? state.types.length === 0 : state.types.indexOf(t) !== -1;
+      chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    sizeSel.value = state.size;
+    sortSel.value = state.sort;
+  }
+
+  function clearFilters() {
+    state.types = [];
+    state.size = 'all';
+    renderShop();
+    $('#chip-all').focus();
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var t = chip.getAttribute('data-type');
+      state.types = t === 'all' ? [] : [t];
+      renderShop();
+    });
+  });
+  sizeSel.addEventListener('change', function () { state.size = sizeSel.value; renderShop(); });
+  sortSel.addEventListener('change', function () { state.sort = sortSel.value; renderShop(); });
+  clearBtn.addEventListener('click', clearFilters);
+  $('#empty-clear').addEventListener('click', clearFilters);
+
+  grid.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-add]');
+    if (!btn) return;
+    var id = btn.getAttribute('data-add');
+    if (state.basket.indexOf(id) === -1) {
+      state.basket.push(id);
+      persist();
+      renderShop();
+      renderBasket();
+      var again = grid.querySelector('[data-add="' + id + '"]');
+      if (again) again.focus();
+    } else {
+      openBasket(btn);
+    }
+  });
+
+  /* Basket drawer */
+  var drawer = $('#basket');
+  var scrim = $('#scrim');
+  var openBtn = $('#basket-open');
+  var badge = $('#basket-count');
+  var linesEl = $('#basket-lines');
+  var lastFocus = null;
+
+  function renderBasket() {
+    var items = state.basket.map(findBike).filter(Boolean);
+    linesEl.innerHTML = items.map(function (b) {
+      return '<li class="line">' + glyph(b.type) +
+        '<div><p class="line-title">' + esc(b.make + ' ' + b.model) + '</p>' +
+        '<p class="line-meta">' + b.year + ' · ' + esc(b.size) + ' · Ticket ' + esc(b.no) + '</p></div>' +
+        '<div class="line-side"><span class="price">' + money(b.price) + '</span>' +
+        '<button type="button" class="link-btn" data-remove="' + b.id + '" aria-label="Remove ' + esc(b.make + ' ' + b.model) + '">Remove</button></div></li>';
+    }).join('');
+    $('#basket-empty').hidden = items.length > 0;
+    var sub = items.reduce(function (s, b) { return s + b.price; }, 0);
+    var del = state.delivery === 'uk' ? DELIVERY_PER_BIKE * items.length : 0;
+    $('#t-sub').textContent = money(sub);
+    $('#t-del-label').textContent = state.delivery === 'uk'
+      ? 'UK delivery' + (items.length ? ' (' + items.length + (items.length === 1 ? ' bike)' : ' bikes)') : '')
+      : 'Collect from workshop';
+    $('#t-del').textContent = state.delivery === 'uk' ? money(del) : 'Free';
+    $('#t-total').textContent = money(sub + del);
+    $('#del-collect').checked = state.delivery === 'collect';
+    $('#del-uk').checked = state.delivery === 'uk';
+    badge.textContent = String(items.length);
+    openBtn.setAttribute('aria-label', 'Basket, ' + items.length + (items.length === 1 ? ' bike' : ' bikes'));
+    $('#checkout').disabled = items.length === 0;
+    $('#checkout-msg').hidden = true;
+  }
+
+  function focusables() {
+    // Only the checked radio in a group can take focus with Tab.
+    return $all('button:not([disabled]), input:not([disabled]), a[href]', drawer).filter(function (el) {
+      return el.offsetParent !== null && (el.type !== 'radio' || el.checked);
+    });
+  }
+  function openBasket(from) {
+    setMenu(false);
+    lastFocus = from || document.activeElement;
+    document.documentElement.classList.add('locked');
+    scrim.hidden = false;
+    drawer.classList.add('open');
+    drawer.removeAttribute('aria-hidden');
+    openBtn.setAttribute('aria-expanded', 'true');
+    // The drawer is fixed, so moving focus in and out of it should never scroll the page.
+    window.setTimeout(function () { $('#basket-close').focus({ preventScroll: true }); }, 30);
+  }
+  function closeBasket() {
+    document.documentElement.classList.remove('locked');
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    scrim.hidden = true;
+    openBtn.setAttribute('aria-expanded', 'false');
+    if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+    else openBtn.focus({ preventScroll: true });
+  }
+  drawer.setAttribute('aria-hidden', 'true');
+  openBtn.setAttribute('aria-expanded', 'false');
+  openBtn.addEventListener('click', function () { openBasket(openBtn); });
+  $('#basket-close').addEventListener('click', closeBasket);
+  scrim.addEventListener('click', closeBasket);
+  document.addEventListener('keydown', function (e) {
+    if (!drawer.classList.contains('open')) return;
+    if (e.key === 'Escape') { closeBasket(); return; }
+    if (e.key !== 'Tab') return;
+    var f = focusables();
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (f.indexOf(document.activeElement) === -1) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  linesEl.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-remove]');
+    if (!btn) return;
+    var id = btn.getAttribute('data-remove');
+    state.basket = state.basket.filter(function (x) { return x !== id; });
+    persist();
+    renderBasket();
+    renderShop();
+    $('#basket-close').focus({ preventScroll: true });
+  });
+  $all('input[name="delivery"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      if (r.checked) { state.delivery = r.value === 'uk' ? 'uk' : 'collect'; persist(); renderBasket(); }
+    });
+  });
+  $('#checkout').addEventListener('click', function () {
+    var msg = $('#checkout-msg');
+    msg.hidden = false;
+  });
+
+  /* Mobile menu */
+  var menuBtn = $('#menu-toggle');
+  var nav = $('#site-nav');
+  function setMenu(open) {
+    nav.classList.toggle('open', open);
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    menuBtn.textContent = open ? 'Close' : 'Menu';
+  }
+  menuBtn.addEventListener('click', function () { setMenu(!nav.classList.contains('open')); });
+  $all('a', nav).forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && nav.classList.contains('open')) { setMenu(false); menuBtn.focus(); }
+  });
+
+  /* Size finder */
+  var CHARTS = {
+    road: {
+      name: 'road and gravel', caption: 'Road and gravel chart', col: 'Frame', types: ['road', 'gravel'],
+      rows: [
+        { max: 160, range: 'Under 160cm', size: 'XS', detail: '47–50cm frame', band: 'XS' },
+        { max: 168, range: '160–167cm', size: 'S', detail: '51–53cm frame', band: 'S' },
+        { max: 175, range: '168–174cm', size: 'M', detail: '54–55cm frame', band: 'M' },
+        { max: 183, range: '175–182cm', size: 'L', detail: '56–57cm frame', band: 'L' },
+        { max: 191, range: '183–190cm', size: 'XL', detail: '58–60cm frame', band: 'XL' },
+        { max: Infinity, range: 'Over 190cm', size: 'XXL', detail: '61cm frame and up', band: 'XXL' }
+      ]
+    },
+    hybrid: {
+      name: 'hybrid and e-bike', caption: 'Hybrid and e-bike chart', col: 'Frame', types: ['hybrid', 'ebike'],
+      rows: [
+        { max: 165, range: 'Under 165cm', size: 'S', detail: '15–16in frame', band: 'S' },
+        { max: 178, range: '165–177cm', size: 'M', detail: '17–18in frame', band: 'M' },
+        { max: 188, range: '178–187cm', size: 'L', detail: '19–20in frame', band: 'L' },
+        { max: Infinity, range: '188cm and over', size: 'XL', detail: '21in frame and up', band: 'XL' }
+      ]
+    },
+    kids: {
+      name: 'kids', caption: 'Kids chart (overlaps are normal)', col: 'Wheels', types: ['kids'],
+      rows: [
+        { min: 95, max: 110, range: '95–110cm', size: '14in', detail: '14in wheels', band: 'K14' },
+        { min: 105, max: 120, range: '105–120cm', size: '16in', detail: '16in wheels', band: 'K16' },
+        { min: 115, max: 135, range: '115–135cm', size: '20in', detail: '20in wheels', band: 'K20' },
+        { min: 130, max: 150, range: '130–150cm', size: '24in', detail: '24in wheels', band: 'K24' },
+        { min: 145, max: 160, range: '145–160cm', size: '26in', detail: '26in wheels or adult XS', band: 'K26|XS' }
+      ]
+    }
+  };
+
+  var sfSize = $('#sf-size'), sfDetail = $('#sf-detail'), sfReason = $('#sf-reason'), sfShow = $('#sf-show');
+  var sfCm = $('#sf-cm'), sfFt = $('#sf-ft'), sfIn = $('#sf-in');
+  var lastSuggestion = null;
+  var fromCm = null; // the cm value the ft/in fields were last filled from, so a round trip doesn't drift
+
+  function finderType() { var r = $('input[name="sf-type"]:checked'); return r ? r.value : 'hybrid'; }
+  function finderUnit() { var r = $('input[name="sf-unit"]:checked'); return r ? r.value : 'cm'; }
+  function ftInCm() {
+    if (fromCm && sfFt.value === fromCm.ft && sfIn.value === fromCm.inch) return fromCm.cm;
+    var ft = parseFloat(sfFt.value), inch = parseFloat(sfIn.value || '0');
+    if (!isFinite(ft)) return NaN;
+    if (!isFinite(inch)) inch = 0;
+    return Math.round((ft * 12 + inch) * 2.54);
+  }
+  function inchValueBad() {
+    var inch = parseFloat(sfIn.value || '0');
+    return isFinite(inch) && (inch < 0 || inch > 11);
+  }
+  function inchesBad() { return finderUnit() === 'ft' && inchValueBad(); }
+  function heightCm() {
+    if (finderUnit() === 'cm') {
+      var v = parseFloat(sfCm.value);
+      return isFinite(v) ? Math.round(v) : NaN;
+    }
+    return ftInCm();
+  }
+
+  function suggest(type, h) {
+    var chart = CHARTS[type];
+    if (!isFinite(h) || h < 80 || h > 230) {
+      return { error: 'Enter a height between 80 and 230cm (2ft 8in to 7ft 6in).' };
+    }
+    if (type === 'kids') {
+      if (h < 95) return { error: 'Under 95cm, a balance bike is usually the best first bike.', hits: [] };
+      if (h > 160) return { error: "Over 160cm, an adult bike will fit better. Switch the bike type to Road / gravel or Hybrid / e-bike.", hits: [] };
+      var hits = chart.rows.filter(function (r) { return h >= r.min && h <= r.max; });
+      if (hits.length === 1) {
+        var k = hits[0];
+        return { size: k.size, detail: k.detail, bands: k.band, hits: [k],
+          reason: h + 'cm falls in the ' + k.range + ' range for ' + k.detail + '.' };
+      }
+      var a = hits[0], b = hits[1];
+      return {
+        size: a.size.replace('in', '') + '/' + b.size,
+        detail: a.size + ' or ' + b.size + ' wheels' + (b.band.indexOf('XS') !== -1 ? ', or adult XS' : ''),
+        bands: a.band + '|' + b.band, hits: hits, combo: true,
+        reason: h + 'cm sits where two sizes overlap. Pick the one they can stand over with both feet flat on the ground.'
+      };
+    }
+    if (h < 140) {
+      return { error: 'At ' + h + "cm a kids' bike will fit better. Switch the bike type to Kids.", hits: [] };
+    }
+    var row = null, prevMax = 0;
+    for (var i = 0; i < chart.rows.length; i++) {
+      if (h < chart.rows[i].max) { row = chart.rows[i]; break; }
+      prevMax = chart.rows[i].max;
+    }
+    var at = chart.rows.indexOf(row);
+    var above = isFinite(row.max) && row.max - h <= 1 ? chart.rows[at + 1] : null;
+    var below = prevMax && h - prevMax <= 1 ? chart.rows[at - 1] : null;
+    var pair = below ? [below, row] : above ? [row, above] : null;
+    var edge = pair ? pair[0].size + ' and ' + pair[1].size : '';
+    return {
+      size: row.size, detail: row.detail, hits: [row],
+      // On an edge, "Show bikes in my size" shows both sizes.
+      bands: pair ? pair[0].band + '|' + pair[1].band : row.band,
+      label: pair ? pair[0].size + ' or ' + pair[1].size : '',
+      reason: h + 'cm falls in the ' + row.range.toLowerCase() + ' band for ' + chart.name + ' frames.' +
+        (edge ? " You're on the edge between " + edge + ', so try both.' : '')
+    };
+  }
+
+  function renderChart(type, hits) {
+    var chart = CHARTS[type];
+    $('#sf-caption').textContent = chart.caption;
+    $('#sf-chart thead').innerHTML = '<tr><th scope="col">Rider height</th><th scope="col">Size</th><th scope="col">' + chart.col + '</th></tr>';
+    $('#sf-rows').innerHTML = chart.rows.map(function (r) {
+      var hit = hits && hits.indexOf(r) !== -1;
+      return '<tr' + (hit ? ' class="hit"' : '') + '><td>' + r.range + '</td><td>' + r.size + '</td><td>' + r.detail + '</td></tr>';
+    }).join('');
+  }
+
+  function runFinder() {
+    var type = finderType();
+    var h = heightCm();
+    var s = inchesBad() ? { error: 'Inches go from 0 to 11.', hits: [] } : suggest(type, h);
+    lastSuggestion = s.error ? null : {
+      // "26in wheels or adult XS" has to show adult XS bikes too, so it can't stay on the Kids type.
+      types: type === 'kids' && s.bands.split('|').indexOf('XS') !== -1 ? [] : CHARTS[type].types,
+      bands: s.bands, detail: s.label || s.detail
+    };
+    if (s.error) {
+      sfSize.textContent = '–';
+      sfDetail.textContent = '';
+      sfReason.textContent = s.error;
+      sfShow.hidden = true;
+    } else {
+      sfSize.textContent = s.size;
+      sfDetail.textContent = s.detail;
+      sfReason.textContent = s.reason;
+      sfShow.hidden = false;
+    }
+    renderChart(type, s.hits || []);
+  }
+
+  $all('input[name="sf-type"]').forEach(function (r) { r.addEventListener('change', runFinder); });
+  $all('input[name="sf-unit"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      var unit = finderUnit();
+      var cmWrap = $('#sf-cm-wrap'), ftWrap = $('#sf-ft-wrap');
+      if (unit === 'ft') {
+        var cm = parseFloat(sfCm.value);
+        if (isFinite(cm)) {
+          var totalIn = Math.round(cm / 2.54);
+          sfFt.value = String(Math.floor(totalIn / 12));
+          sfIn.value = String(totalIn % 12);
+          fromCm = { cm: Math.round(cm), ft: sfFt.value, inch: sfIn.value };
+        }
+        cmWrap.hidden = true; ftWrap.hidden = false;
+      } else {
+        var h = inchValueBad() ? NaN : ftInCm();
+        if (isFinite(h)) sfCm.value = String(h);
+        ftWrap.hidden = true; cmWrap.hidden = false;
+      }
+      runFinder();
+    });
+  });
+  [sfCm, sfFt, sfIn].forEach(function (el) {
+    el.addEventListener('input', runFinder);
+    // Enter would try to submit the finder form, which a sandboxed frame blocks with a console error.
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); runFinder(); } });
+  });
+  $('#finder-form').addEventListener('submit', function (e) { e.preventDefault(); runFinder(); });
+
+  sfShow.addEventListener('click', function () {
+    if (!lastSuggestion) return;
+    state.types = lastSuggestion.types.slice();
+    state.size = lastSuggestion.bands;
+    ensureSizeOption(lastSuggestion.bands, lastSuggestion.detail);
+    renderShop();
+    var head = $('#shop');
+    head.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    $('#shop-title').focus({ preventScroll: true });
+  });
+
+  /* Forms */
+  function todayISO() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  // Forms are handled on the submit button's click (Enter in a field clicks it too), not on submit:
+  // in a sandboxed frame without allow-forms, a submit is blocked before any submit handler runs.
+  function onSend(form, button, send) {
+    button.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (form.reportValidity()) send();
+    });
+    form.addEventListener('submit', function (e) { e.preventDefault(); if (form.reportValidity()) send(); });
+  }
+  var bookForm = $('#book');
+  var bkDate = $('#bk-date');
+  bkDate.min = todayISO();
+  $('#sl-year').max = String(new Date().getFullYear());
+
+  $all('.svc-book').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      $('#bk-service').value = btn.getAttribute('data-service');
+      bookForm.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      $('#bk-name').focus({ preventScroll: true });
+    });
+  });
+
+  onSend(bookForm, $('#bk-submit'), function () {
+    var sel = $('#bk-service');
+    var service = sel.options[sel.selectedIndex].text.replace(/\s*\(.*\)$/, '');
+    var when = bkDate.value;
+    var nice = when;
+    try {
+      nice = new Date(when + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    } catch (err) { nice = when; }
+    var out = $('#book-result');
+    out.innerHTML = "<strong>Prototype: bookings aren't sent anywhere yet.</strong>" +
+      'Nothing has been booked. You asked for: ' + esc(service) + ' on ' + esc($('#bk-bike').value) + ', ' + esc(nice) + '.';
+    out.hidden = false;
+  });
+
+  var sellForm = $('#sell-form');
+  onSend(sellForm, $('#sl-submit'), function () {
+    var out = $('#sell-result');
+    out.innerHTML = "<strong>Prototype: offers aren't sent yet.</strong>" +
+      'Normally we email you an offer within 2 working days. Your bike: ' +
+      esc(($('#sl-year').value ? $('#sl-year').value + ' ' : '') + $('#sl-make').value + ' ' + $('#sl-model').value) + '.';
+    out.hidden = false;
+  });
+
+  /* Copy contact details */
+  $all('[data-copy]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = document.getElementById(btn.getAttribute('data-copy'));
+      if (!target) return;
+      var text = target.textContent;
+      function selectIt() {
+        try {
+          var range = document.createRange();
+          range.selectNodeContents(target);
+          var s = window.getSelection();
+          s.removeAllRanges();
+          s.addRange(range);
+          btn.textContent = 'Selected';
+        } catch (err) { /* leave as plain text */ }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { btn.textContent = 'Copied'; }, selectIt);
+      } else {
+        selectIt();
+      }
+      window.setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+    });
+  });
+
+  renderShop();
+  renderBasket();
+  runFinder();
+})();
+</script>
