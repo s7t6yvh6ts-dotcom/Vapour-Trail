@@ -8,3 +8,5 @@ Each folder holds one single-file prototype site. The `index.html` is the source
 | `chainline/` | Chainline Cycles: refurbished bikes, e-bikes, workshop | https://claude.ai/artifact/XYbfVPYMWfnf7nN511v8iN |
 
 All of them are dark only, on purpose. Stock, prices and contact details are placeholders. Checkout and forms aren't connected to anything, and each page says so.
+
+**Heads up:** both live artifacts were updated on 30 Sep 2026 and are ahead of the files here. Before editing a site, read the live artifact and start from that, or the republish will be refused.
