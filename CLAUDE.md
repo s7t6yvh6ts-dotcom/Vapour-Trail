@@ -4,6 +4,7 @@
 - UK business, UK English, prices in £.
 - **Dark mode on everything.** Every site, page or artifact built for Ash is dark by default.
 - Act, don't ask, when the next step is obvious. Ask only when it's really Ash's call (money, legal risk, contacting customers or suppliers).
+- Ash is often away from the screen. When something does need Ash's call, send a push notification to Ash's phone instead of waiting in chat, and carry on with everything else meanwhile.
 
 # The businesses
 
