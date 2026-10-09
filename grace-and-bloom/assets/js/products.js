@@ -10,6 +10,7 @@ GB.config = {
   // Where "Checkout" sends people. Paste your Etsy shop (or any payment/checkout) link here.
   // e.g. 'https://www.etsy.com/shop/YourShopName'
   checkoutUrl: '',
+  // Optional per-product Etsy link: add  etsyUrl: 'https://www.etsy.com/listing/...'  to any product below.
   // Optional: a Formspree / Mailchimp / ConvertKit form endpoint for the email sign-up box.
   newsletterAction: ''
 };
@@ -172,3 +173,26 @@ GB.products = [
 ];
 
 GB.byId = function (id) { return GB.products.find(function (p) { return p.id === id; }); };
+
+/* Search / gift-finder keywords. */
+GB.tags = {
+  'peony-birthday': ['birthday', 'card', 'mum', 'friend'],
+  'sweetpea-thanks': ['thank you', 'card', 'teacher'],
+  'winter-bloom-xmas': ['christmas', 'card', 'seasonal'],
+  'anemone-thinking': ['thinking of you', 'sympathy', 'card'],
+  'birthday-collection': ['birthday', 'card', 'gift', 'set'],
+  'dusk-dahlia': ['print', 'wall art', 'home'],
+  'wild-meadow': ['print', 'wall art', 'home'],
+  'birth-flower': ['personalised', 'birthday', 'gift', 'print'],
+  'botanical-trio': ['print', 'gift', 'wall art', 'home'],
+  'pressed-bookmark': ['gift', 'stocking filler', 'reader', 'keepsake'],
+  'posy-gift-tags': ['gift wrap', 'keepsake', 'christmas', 'birthday'],
+  'focus-planner': ['adhd', 'organise', 'planner', 'focus', 'productivity'],
+  'weekly-reset': ['organise', 'journal', 'weekly', 'self-care'],
+  'brain-dump-pad': ['adhd', 'organise', 'notepad', 'focus'],
+  'wall-calendar-2027': ['calendar', 'gift', 'home', '2027'],
+  'gym-journal': ['gym', 'fitness', 'self-care', 'goals'],
+  'home-reset': ['cleaning', 'home', 'organise'],
+  'money-planner': ['money', 'budget', 'savings', 'goals', 'wealth'],
+  'habit-pad': ['habits', 'self-care', 'organise', 'goals']
+};

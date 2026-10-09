@@ -72,10 +72,22 @@
     return a;
   }
   function catLabel(id) { var c = GB.categories.filter(function (c) { return c.id === id; })[0]; return c ? c.label : id; }
+  var query = '', sortBy = 'featured';
+  function haystack(p) { return (p.name + ' ' + p.blurb + ' ' + catLabel(p.cat) + ' ' + (GB.tags[p.id] || []).join(' ')).toLowerCase(); }
+  function sorted(a) {
+    var b = a.slice();
+    if (sortBy === 'low') b.sort(function (x, y) { return x.price - y.price; });
+    else if (sortBy === 'high') b.sort(function (x, y) { return y.price - x.price; });
+    else if (sortBy === 'rated') b.sort(function (x, y) { return y.rating - x.rating || y.reviews - x.reviews; });
+    return b;
+  }
   function render(filter) {
     current = filter; grid.innerHTML = '';
-    GB.products.filter(function (p) { return filter === 'all' || p.cat === filter; }).forEach(function (p, i) { grid.appendChild(card(p, i)); });
-    $$('.chip').forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.filter === filter)); });
+    var q = query.trim().toLowerCase();
+    var items = sorted(GB.products.filter(function (p) { return (filter === 'all' || p.cat === filter) && (!q || haystack(p).indexOf(q) > -1); }));
+    if (!items.length) grid.innerHTML = '<p class="none">Nothing matches “' + esc(query) + '” yet. Try “birthday”, “planner” or “print”.</p>';
+    items.forEach(function (p, i) { grid.appendChild(card(p, i)); });
+    $$('.chip[data-filter]').forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.filter === filter)); });
     observe();
   }
   var chips = $('#chips');
@@ -83,6 +95,32 @@
     var b = document.createElement('button'); b.className = 'chip'; b.dataset.filter = c.id; b.textContent = c.label;
     b.addEventListener('click', function () { render(c.id); }); chips.appendChild(b);
   });
+
+  $('#q').addEventListener('input', function (e) { query = e.target.value; render(current); });
+  $('#sort').addEventListener('change', function (e) { sortBy = e.target.value; render(current); });
+
+  /* ---------- gift finder ---------- */
+  var FINDER = [
+    ['A birthday card', function (p) { return has(p, 'birthday') && p.cat === 'cards'; }],
+    ['A Christmas card', function (p) { return has(p, 'christmas'); }],
+    ['A thank you', function (p) { return has(p, 'thank you') || has(p, 'thinking of you'); }],
+    ['Under £15', function (p) { return p.price <= 15; }],
+    ['A gift for her', function (p) { return has(p, 'gift') || has(p, 'personalised'); }],
+    ['Get organised', function (p) { return has(p, 'organise'); }],
+    ['Money & goals', function (p) { return has(p, 'money') || has(p, 'goals'); }],
+    ['Something for the wall', function (p) { return has(p, 'wall art') || has(p, 'calendar'); }]
+  ];
+  function has(p, t) { return (GB.tags[p.id] || []).indexOf(t) > -1; }
+  var fchips = $('#finder-chips'), fres = $('#finder-results');
+  function pick(i) {
+    $$('.chip', fchips).forEach(function (c, j) { c.setAttribute('aria-pressed', String(i === j)); });
+    fres.innerHTML = '';
+    GB.products.filter(FINDER[i][1]).sort(function (a, b) { return b.rating - a.rating || b.reviews - a.reviews; }).slice(0, 4).forEach(function (p, k) { var c = card(p, k); c.classList.add('in'); fres.appendChild(c); });
+  }
+  FINDER.forEach(function (f, i) {
+    var b = document.createElement('button'); b.className = 'chip'; b.textContent = f[0]; b.addEventListener('click', function () { pick(i); }); fchips.appendChild(b);
+  });
+  pick(0);
 
   /* ---------- collections ---------- */
   var cols = $('#collections-grid');
@@ -117,7 +155,7 @@
       (vr ? '<fieldset class="opts"><legend>' + esc(vr.label) + '</legend>' + vr.options.map(function (o, i) { return '<label><input type="radio" name="v" value="' + i + '"' + (i === 0 ? ' checked' : '') + '><span>' + esc(o[0]) + '</span></label>'; }).join('') + '</fieldset>' : '') +
       '<div class="qty-row"><div class="qty" role="group" aria-label="Quantity"><button data-q="-1" aria-label="Decrease">−</button><output id="qv-q">1</output><button data-q="1" aria-label="Increase">+</button></div>' +
       '<button class="btn btn--primary" id="qv-add">Add to basket</button></div>' +
-      '<ul class="details">' + p.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul></div>';
+      (p.etsyUrl ? '<a class="etsy" href="' + esc(p.etsyUrl) + '" target="_blank" rel="noopener">Also available on Etsy →</a>' : '') + '<ul class="details">' + p.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul></div>';
     var st = $('.qv-stage', mbody); st.appendChild(mock(p, 1.3)); tilt(st, $('.mock', st));
     function price() { return p.price + (vr ? vr.options[qv.v][1] : 0); }
     function upd() { $('#qv-price').textContent = money(price()); $('#qv-q').textContent = qv.q; }
@@ -172,11 +210,11 @@
   $('.drawer-close', drawer).addEventListener('click', closeCart);
   drawer.addEventListener('click', function (e) { if (e.target === drawer) closeCart(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (!modal.hidden) closeModal(); else if (!drawer.hidden) closeCart(); } });
-  grid.addEventListener('click', function (e) {
+  [grid, fres].forEach(function (g) { g.addEventListener('click', function (e) {
     var b = e.target.closest('[data-add]'); if (!b) return;
     var p = GB.byId(b.dataset.add);
     if (p.variants) openModal(p); else add(p.id, 0, 1);
-  });
+  }); });
   $('#cart-checkout').addEventListener('click', function () {
     if (cfg.checkoutUrl) window.open(cfg.checkoutUrl, '_blank', 'noopener');
     else toast('Checkout isn’t connected yet — this is a preview.');

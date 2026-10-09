@@ -28,6 +28,7 @@
         <a href="#focus">Journals</a>
         <a href="#story">Our story</a>
         <a href="#reviews">Reviews</a>
+        <a href="#faq">FAQ</a>
       </nav>
       <div class="actions">
         <button class="icon-btn" data-open-cart aria-label="Open basket">
@@ -85,6 +86,19 @@
       </div>
     </section>
 
+    <!-- GIFT FINDER -->
+    <section class="section" id="finder">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">Gift finder</p>
+          <h2>Not sure what to <em>choose?</em></h2>
+          <p class="sub">Tell us what you’re after and we’ll pick the best matches.</p>
+        </header>
+        <div class="finder-chips chips" id="finder-chips" role="group" aria-label="What are you looking for"></div>
+        <div class="grid" id="finder-results" aria-live="polite"></div>
+      </div>
+    </section>
+
     <!-- SHOP -->
     <section class="section section--tint" id="shop">
       <div class="wrap">
@@ -94,6 +108,12 @@
           <p class="sub">Tap any piece to take a closer look.</p>
         </header>
         <div class="chips" id="chips" role="group" aria-label="Filter products"></div>
+        <div class="toolbar">
+          <label class="sr" for="q">Search products</label>
+          <input id="q" type="search" placeholder="Search cards, planners, prints…" autocomplete="off">
+          <label class="sr" for="sort">Sort products</label>
+          <select id="sort"><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option><option value="rated">Top rated</option></select>
+        </div>
         <div class="grid" id="grid" aria-live="polite"></div>
       </div>
     </section>
@@ -163,6 +183,24 @@
       </div>
     </section>
 
+    <!-- FAQ -->
+    <section class="section section--tint" id="faq">
+      <div class="wrap faq-wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">Good to know</p>
+          <h2>Questions, <em>answered</em></h2>
+        </header>
+        <div class="faq reveal">
+          <details open><summary>How long does delivery take?</summary><p>Orders are packed by hand within 1–3 working days. Standard delivery follows, and orders over £40 ship free.</p></details>
+          <details><summary>Can I return something?</summary><p>If anything arrives damaged or isn’t right, get in touch and we’ll make it right. Personalised items are made to order, so they can’t be returned unless faulty.</p></details>
+          <details><summary>How does personalisation work?</summary><p>For the Birth Flower Print, send us the name and birthday after ordering. We’ll email a digital proof within 48 hours and print once you approve it.</p></details>
+          <details><summary>Are the journals a medical product?</summary><p>No. The planners are designed with ADHD brains in mind, using clear prompts and gentle structure, but they are not a treatment or a replacement for professional support.</p></details>
+          <details><summary>What paper do you print on?</summary><p>Cards use 350gsm textured card. Prints use 310gsm archival cotton rag, so colours stay soft and don’t fade quickly.</p></details>
+          <details><summary>Do you do bulk or wedding orders?</summary><p>Yes. Message us with the occasion and quantity and we’ll put together a custom set.</p></details>
+        </div>
+      </div>
+    </section>
+
     <!-- NEWSLETTER -->
     <section class="news">
       <div class="wrap news-inner reveal">
@@ -180,7 +218,7 @@
     <div class="wrap foot-grid">
       <div><a class="logo" href="#top"><span class="logo-mark" aria-hidden="true"></span>Grace <em>&amp;</em> Bloom</a><p>Cards, prints &amp; keepsakes. Soft, timeless designs for gifting and personal use.</p></div>
       <div><h4>Shop</h4><a href="#shop">Cards</a><a href="#shop">Prints</a><a href="#shop">Keepsakes</a><a href="#focus">Journals</a></div>
-      <div><h4>Help</h4><a href="#">Shipping</a><a href="#">Returns</a><a href="#">Contact</a><a href="#">FAQ</a></div>
+      <div><h4>Help</h4><a href="#faq">Shipping</a><a href="#faq">Returns</a><a href="#faq">Personalisation</a><a href="#faq">FAQ</a></div>
     </div>
     <div class="wrap legal"><span>© <span id="year"></span> Grace &amp; Bloom. All rights reserved.</span><span>Made with care ✿</span></div>
   </footer>
