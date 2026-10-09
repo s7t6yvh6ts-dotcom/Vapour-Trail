@@ -1,7 +1,7 @@
 // Edit this file to set up the shop. No other code changes needed.
 window.SHOP = {
   name: "Vapour Trail",
-  tagline: "Vintage clothing. One of each, then it's gone.",
+  tagline: "New drops and vintage finds.",
   currency: "£",
   freeShippingOver: 100,
   shipping: 3.95,

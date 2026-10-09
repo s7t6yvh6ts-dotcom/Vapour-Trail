@@ -1,74 +1,11 @@
 [
- {
-  "id": "v001",
-  "name": "90s Carhartt Detroit Jacket",
-  "category": "Outerwear",
-  "era": "1990s",
-  "size": "L",
-  "condition": "Good \u2013 light fade, no tears",
-  "measurements": "Pit to pit 62cm \u00b7 Length 70cm",
-  "price": 85,
-  "colour": "#7a5c3a",
-  "stock": 1
- },
- {
-  "id": "v002",
-  "name": "Levi's 501 Selvedge",
-  "category": "Bottoms",
-  "era": "1980s",
-  "size": "W32 L30",
-  "condition": "Excellent \u2013 minimal wear",
-  "measurements": "Waist 82cm \u00b7 Inseam 76cm",
-  "price": 65,
-  "colour": "#34507a",
-  "stock": 1
- },
- {
-  "id": "v003",
-  "name": "Band Tee \u2013 Faded Black",
-  "category": "Tops",
-  "era": "1990s",
-  "size": "M",
-  "condition": "Fair \u2013 cracked print, loved",
-  "measurements": "Pit to pit 52cm \u00b7 Length 70cm",
-  "price": 42,
-  "colour": "#232323",
-  "stock": 3
- },
- {
-  "id": "v004",
-  "name": "Fair Isle Wool Jumper",
-  "category": "Knitwear",
-  "era": "1970s",
-  "size": "M",
-  "condition": "Very good \u2013 one tiny repair",
-  "measurements": "Pit to pit 56cm \u00b7 Length 64cm",
-  "price": 38,
-  "colour": "#8a4a3c",
-  "stock": 1
- },
- {
-  "id": "v005",
-  "name": "Nike Windbreaker",
-  "category": "Outerwear",
-  "era": "1990s",
-  "size": "XL",
-  "condition": "Good",
-  "measurements": "Pit to pit 66cm \u00b7 Length 72cm",
-  "price": 48,
-  "colour": "#3f7a6e",
-  "stock": 0
- },
- {
-  "id": "v006",
-  "name": "Leather Belt, Brass Buckle",
-  "category": "Accessories",
-  "era": "1980s",
-  "size": "One size",
-  "condition": "Excellent",
-  "measurements": "Length 105cm \u00b7 Width 3.5cm",
-  "price": 16,
-  "colour": "#5a3a22",
-  "stock": 2
- }
+ {"id":"n001","type":"new","name":"Oversized Hoodie","category":"Tops","price":38,"colour":"#3b3f4a","desc":"Heavyweight brushed cotton, boxy fit.","stock":{"S":4,"M":2,"L":0,"XL":7}},
+ {"id":"n002","type":"new","name":"Logo Tee","category":"Tops","price":18,"colour":"#d9d4c7","desc":"Soft 100% cotton, screen-printed chest logo.","stock":{"S":10,"M":3,"L":1,"XL":0}},
+ {"id":"n003","type":"new","name":"Cargo Trousers","category":"Bottoms","price":45,"colour":"#5b6b4f","desc":"Relaxed fit, six pockets, adjustable ankle.","stock":{"28":3,"30":6,"32":2,"34":0}},
+ {"id":"n004","type":"new","name":"Rib Beanie","category":"Accessories","price":12,"colour":"#c7a14a","desc":"Chunky rib knit, fold-up cuff.","stock":{"One size":12}},
+ {"id":"v001","type":"vintage","name":"90s Carhartt Detroit Jacket","category":"Outerwear","price":85,"colour":"#7a5c3a","era":"1990s","condition":"Good – light fade, no tears","measurements":"Pit to pit 62cm · Length 70cm","stock":{"L":1}},
+ {"id":"v002","type":"vintage","name":"Levi's 501 Selvedge","category":"Bottoms","price":65,"colour":"#34507a","era":"1980s","condition":"Excellent – minimal wear","measurements":"Waist 82cm · Inseam 76cm","stock":{"W32 L30":1}},
+ {"id":"v003","type":"vintage","name":"Band Tee – Faded Black","category":"Tops","price":42,"colour":"#232323","era":"1990s","condition":"Fair – cracked print, loved","measurements":"M: pit to pit 52cm · L: 56cm","stock":{"M":1,"L":1}},
+ {"id":"v004","type":"vintage","name":"Fair Isle Wool Jumper","category":"Knitwear","price":38,"colour":"#8a4a3c","era":"1970s","condition":"Very good – one tiny repair","measurements":"Pit to pit 56cm · Length 64cm","stock":{"M":1}},
+ {"id":"v005","type":"vintage","name":"Nike Windbreaker","category":"Outerwear","price":48,"colour":"#3f7a6e","era":"1990s","condition":"Good","measurements":"Pit to pit 66cm · Length 72cm","stock":{"XL":0}}
 ]

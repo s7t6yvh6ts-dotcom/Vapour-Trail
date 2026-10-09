@@ -26,3 +26,9 @@ footer.cart{padding:16px;border-top:1px solid var(--line);display:grid;gap:8px}
 .card.sold .img{filter:grayscale(1);opacity:.55}.card.sold h3{text-decoration:line-through}
 .img{position:relative}.tag{position:absolute;top:10px;left:10px;background:var(--ink);color:var(--bg);font-size:12px;padding:2px 8px;border-radius:4px}
 .small{font-size:13px!important}.add:disabled{opacity:.45;cursor:default}.row{align-items:center;justify-content:space-between}
+.sizes{display:flex;gap:6px;flex-wrap:wrap}
+.filters button.on,.size.on{background:var(--ink);color:var(--bg)}
+.size{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:4px 10px;font-size:14px}
+.size.out{text-decoration:line-through;opacity:.4;cursor:default}
+.stockmsg.low{color:var(--accent);font-weight:600}
+#types{margin-bottom:0}
