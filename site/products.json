@@ -1,0 +1,8 @@
+[
+  {"id":"hoodie-01","name":"Oversized Hoodie","category":"Tops","price":38,"sizes":["S","M","L","XL"],"colour":"#3b3f4a","desc":"Heavyweight brushed cotton, boxy fit."},
+  {"id":"tee-01","name":"Logo Tee","category":"Tops","price":18,"sizes":["S","M","L","XL"],"colour":"#d9d4c7","desc":"Soft 100% cotton, screen-printed chest logo."},
+  {"id":"cargo-01","name":"Cargo Trousers","category":"Bottoms","price":45,"sizes":["28","30","32","34"],"colour":"#5b6b4f","desc":"Relaxed fit, six pockets, adjustable ankle."},
+  {"id":"jacket-01","name":"Coach Jacket","category":"Outerwear","price":55,"sizes":["S","M","L"],"colour":"#a8442f","desc":"Lightweight shell, snap buttons, lined."},
+  {"id":"cap-01","name":"Dad Cap","category":"Accessories","price":14,"sizes":["One size"],"colour":"#27303f","desc":"Washed cotton twill, embroidered logo."},
+  {"id":"beanie-01","name":"Rib Beanie","category":"Accessories","price":12,"sizes":["One size"],"colour":"#c7a14a","desc":"Chunky rib knit, fold-up cuff."}
+]
