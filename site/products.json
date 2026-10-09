@@ -1,8 +1,74 @@
 [
-  {"id":"hoodie-01","name":"Oversized Hoodie","category":"Tops","price":38,"sizes":["S","M","L","XL"],"colour":"#3b3f4a","desc":"Heavyweight brushed cotton, boxy fit."},
-  {"id":"tee-01","name":"Logo Tee","category":"Tops","price":18,"sizes":["S","M","L","XL"],"colour":"#d9d4c7","desc":"Soft 100% cotton, screen-printed chest logo."},
-  {"id":"cargo-01","name":"Cargo Trousers","category":"Bottoms","price":45,"sizes":["28","30","32","34"],"colour":"#5b6b4f","desc":"Relaxed fit, six pockets, adjustable ankle."},
-  {"id":"jacket-01","name":"Coach Jacket","category":"Outerwear","price":55,"sizes":["S","M","L"],"colour":"#a8442f","desc":"Lightweight shell, snap buttons, lined."},
-  {"id":"cap-01","name":"Dad Cap","category":"Accessories","price":14,"sizes":["One size"],"colour":"#27303f","desc":"Washed cotton twill, embroidered logo."},
-  {"id":"beanie-01","name":"Rib Beanie","category":"Accessories","price":12,"sizes":["One size"],"colour":"#c7a14a","desc":"Chunky rib knit, fold-up cuff."}
+ {
+  "id": "v001",
+  "name": "90s Carhartt Detroit Jacket",
+  "category": "Outerwear",
+  "era": "1990s",
+  "size": "L",
+  "condition": "Good \u2013 light fade, no tears",
+  "measurements": "Pit to pit 62cm \u00b7 Length 70cm",
+  "price": 85,
+  "colour": "#7a5c3a",
+  "stock": 1
+ },
+ {
+  "id": "v002",
+  "name": "Levi's 501 Selvedge",
+  "category": "Bottoms",
+  "era": "1980s",
+  "size": "W32 L30",
+  "condition": "Excellent \u2013 minimal wear",
+  "measurements": "Waist 82cm \u00b7 Inseam 76cm",
+  "price": 65,
+  "colour": "#34507a",
+  "stock": 1
+ },
+ {
+  "id": "v003",
+  "name": "Band Tee \u2013 Faded Black",
+  "category": "Tops",
+  "era": "1990s",
+  "size": "M",
+  "condition": "Fair \u2013 cracked print, loved",
+  "measurements": "Pit to pit 52cm \u00b7 Length 70cm",
+  "price": 42,
+  "colour": "#232323",
+  "stock": 3
+ },
+ {
+  "id": "v004",
+  "name": "Fair Isle Wool Jumper",
+  "category": "Knitwear",
+  "era": "1970s",
+  "size": "M",
+  "condition": "Very good \u2013 one tiny repair",
+  "measurements": "Pit to pit 56cm \u00b7 Length 64cm",
+  "price": 38,
+  "colour": "#8a4a3c",
+  "stock": 1
+ },
+ {
+  "id": "v005",
+  "name": "Nike Windbreaker",
+  "category": "Outerwear",
+  "era": "1990s",
+  "size": "XL",
+  "condition": "Good",
+  "measurements": "Pit to pit 66cm \u00b7 Length 72cm",
+  "price": 48,
+  "colour": "#3f7a6e",
+  "stock": 0
+ },
+ {
+  "id": "v006",
+  "name": "Leather Belt, Brass Buckle",
+  "category": "Accessories",
+  "era": "1980s",
+  "size": "One size",
+  "condition": "Excellent",
+  "measurements": "Length 105cm \u00b7 Width 3.5cm",
+  "price": 16,
+  "colour": "#5a3a22",
+  "stock": 2
+ }
 ]

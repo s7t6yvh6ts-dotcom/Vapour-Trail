@@ -23,3 +23,6 @@ footer.cart{padding:16px;border-top:1px solid var(--line);display:grid;gap:8px}
 .total{display:flex;justify-content:space-between;font-weight:700}
 .checkout{background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:12px}.checkout:disabled{opacity:.4}
 .note{font-size:13px;color:var(--mute)}
+.card.sold .img{filter:grayscale(1);opacity:.55}.card.sold h3{text-decoration:line-through}
+.img{position:relative}.tag{position:absolute;top:10px;left:10px;background:var(--ink);color:var(--bg);font-size:12px;padding:2px 8px;border-radius:4px}
+.small{font-size:13px!important}.add:disabled{opacity:.45;cursor:default}.row{align-items:center;justify-content:space-between}
