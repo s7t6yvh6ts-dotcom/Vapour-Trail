@@ -27,7 +27,7 @@ function renderGrid() {
       const el = document.createElement("article"); el.className = "card" + (soldOut ? " sold" : "");
       el.innerHTML = `<div class="img" style="background:${p.colour}">${esc(p.name)}<span class="tag">${soldOut ? "SOLD OUT" : p.type === "vintage" ? "VINTAGE" : "NEW"}</span></div>
         <div class="body"><h3>${esc(p.name)}</h3>
-        ${p.type === "vintage" ? `<p><b>${esc(p.era)}</b> · ${esc(p.condition)}</p><p class="small">${esc(p.measurements)}</p>` : `<p>${esc(p.desc)}</p>`}
+        ${p.type === "vintage" ? `<p><b>${esc(p.era)}</b> · ${esc(p.condition)}</p><p class="small">${esc(p.measurements)}</p>` : `<p>${esc(p.desc)}</p>${p.fabric ? `<p class="small">${esc(p.fabric)}</p>` : ""}`}
         <div class="sizes"></div><p class="small stockmsg">&nbsp;</p>
         <div class="row"><strong>${money(p.price)}</strong><button class="add"></button></div></div>`;
       const sz = el.querySelector(".sizes"), msg = el.querySelector(".stockmsg"), add = el.querySelector(".add");
@@ -39,8 +39,8 @@ function renderGrid() {
           b.onclick = () => { sel = s; refresh(); }; sz.appendChild(b);
         });
         const n = sel ? left(p, sel) : null;
-        msg.textContent = soldOut ? "" : sel === null ? "Select a size" : n <= 3 ? `Only ${n} left` : "In stock";
-        msg.className = "small stockmsg" + (n !== null && n <= 3 ? " low" : "");
+        msg.textContent = soldOut ? "" : sel === null ? "Select a size" : n <= 0 ? "That’s the last one — it’s in your basket" : n <= 3 ? `Only ${n} left` : "In stock";
+        msg.className = "small stockmsg" + (n !== null && n > 0 && n <= 3 ? " low" : "");
         add.disabled = soldOut || sel === null || n <= 0;
         add.textContent = soldOut ? "Sold out" : sel === null ? "Select size" : n <= 0 ? "In basket" : "Add";
       };
@@ -74,4 +74,6 @@ $("checkout").onclick = () => {
 $("open").onclick = () => $("drawer").classList.add("open");
 $("close").onclick = () => $("drawer").classList.remove("open");
 $("shopname").textContent = S.name; $("tagline").textContent = S.tagline;
+if ($("foot-delivery")) $("foot-delivery").textContent = `UK delivery ${money(S.shipping)}, free over ${money(S.freeShippingOver)}.`;
+if ($("foot-email") && S.contactEmail) { $("foot-email").textContent = S.contactEmail; $("foot-email").href = "mailto:" + S.contactEmail; }
 fetch("products.json").then(r => r.json()).then(d => { products = d; renderFilters(); renderGrid(); renderCart(); });
