@@ -2,14 +2,20 @@
 <html lang="en-GB">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Grace &amp; Bloom — Cards, Prints &amp; Keepsakes</title>
-  <meta name="description" content="Soft, timeless floral cards, prints and keepsakes for gifting and everyday life — plus calm, ADHD-friendly journals and planners for home, gym and money goals.">
-  <meta name="theme-color" content="#efedeb">
-  <meta property="og:title" content="Grace & Bloom — Cards, Prints & Keepsakes">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Grace &amp; Bloom</title>
+  <meta name="description" content="Soft, timeless floral cards, prints and keepsakes for gifting and everyday life, plus calm, ADHD-friendly journals and planners for home, gym and money goals.">
+  <meta name="theme-color" content="#efedeb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b1817" media="(prefers-color-scheme: dark)">
+  <meta property="og:title" content="Grace &amp; Bloom">
   <meta property="og:description" content="Soft, timeless designs for gifting and personal use.">
   <meta property="og:type" content="website">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23efedeb'/%3E%3Cg fill='%23d79c9c'%3E%3Cellipse cx='16' cy='8.5' rx='4' ry='7'/%3E%3Cellipse cx='16' cy='23.5' rx='4' ry='7'/%3E%3Cellipse cx='8.5' cy='16' rx='7' ry='4'/%3E%3Cellipse cx='23.5' cy='16' rx='7' ry='4'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='3.2' fill='%238f6a58'/%3E%3C/svg%3E">
+  <script>
+    /* mark JS as running (scroll reveals hide content only then), and apply a saved light/dark choice before first paint */
+    document.documentElement.classList.add('js');
+    try { var gbT = localStorage.getItem('gb-theme'); if (gbT === 'light' || gbT === 'dark') document.documentElement.setAttribute('data-theme', gbT); } catch (e) {}
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
@@ -17,12 +23,12 @@
 </head>
 <body>
   <a class="skip" href="#shop">Skip to shop</a>
-  <div class="announce">Free shipping over £40 · Gift-wrapped &amp; handwritten notes available ✿</div>
+  <div class="announce"><b>Preview</b> · we’re not taking orders yet<span class="dot" aria-hidden="true">·</span>UK delivery £3.95, free on orders of £40 or more</div>
 
   <header class="header">
     <div class="wrap bar">
-      <a class="logo" href="#top" aria-label="Grace & Bloom home"><span class="logo-mark" aria-hidden="true"></span>Grace <em>&amp;</em> Bloom</a>
-      <nav class="nav" aria-label="Main">
+      <a class="logo" href="#top" aria-label="Grace &amp; Bloom home"><span class="logo-mark" aria-hidden="true"></span>Grace <em>&amp;</em> Bloom</a>
+      <nav class="nav" id="nav" aria-label="Main">
         <a href="#shop">Shop</a>
         <a href="#collections">Collections</a>
         <a href="#focus">Journals</a>
@@ -30,11 +36,15 @@
         <a href="#faq">FAQ</a>
       </nav>
       <div class="actions">
+        <button class="icon-btn theme-btn" id="theme-btn" aria-label="Dark theme" aria-pressed="false">
+          <svg class="sun" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <svg class="moon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5a7.8 7.8 0 1 0 10.1 10.1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </button>
         <button class="icon-btn" data-open-cart aria-label="Open basket">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3L5 8z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
           <span class="cart-count" hidden>0</span>
         </button>
-        <button class="icon-btn burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
+        <button class="icon-btn burger" id="burger" aria-label="Menu" aria-controls="nav" aria-expanded="false"><span></span><span></span></button>
       </div>
     </div>
   </header>
@@ -46,21 +56,21 @@
         <div class="hero-copy">
           <p class="eyebrow">Cards · Prints · Keepsakes</p>
           <h1>Soft, timeless designs for the people <em>you love.</em></h1>
-          <p class="lede">Hand-painted florals for birthdays, Christmas and every in-between — plus calm, ADHD-friendly journals and planners to help you organise your day, your home, your fitness and your money.</p>
+          <p class="lede">Hand-painted florals for birthdays, Christmas and every in-between, plus calm, ADHD-friendly journals and planners to help you organise your day, your home, your fitness and your money.</p>
           <div class="cta">
             <a class="btn btn--primary" href="#shop">Shop the collection</a>
             <a class="btn btn--ghost" href="#focus">Explore journals</a>
           </div>
           <ul class="trust">
-            <li><b>Hand-painted</b> original designs</li>
-            <li>Printed on <b>archival paper</b></li>
-            <li>Gift-ready packaging</li>
+            <li><span class="petal" aria-hidden="true"></span><span><b>Hand-painted</b> original designs</span></li>
+            <li><span class="petal" aria-hidden="true"></span><span><b>350gsm</b> textured card</span></li>
+            <li><span class="petal" aria-hidden="true"></span><span>Packed by hand</span></li>
           </ul>
         </div>
         <div class="hero-stage" id="hero-stage">
           <canvas id="hero-canvas" aria-label="A 3D greeting card opening, beside a journal and a framed print" role="img"></canvas>
           <div class="fallback" aria-hidden="true"></div>
-          <button class="btn btn--glass" id="toggle-card" aria-pressed="false"><span>Open the card</span></button>
+          <button class="btn btn--glass" id="toggle-card" type="button"><span>Open the card</span></button>
         </div>
       </div>
       <div class="scroll-cue" aria-hidden="true"></div>
@@ -69,8 +79,8 @@
     <!-- MARQUEE -->
     <div class="marquee" aria-hidden="true">
       <div class="marquee-track">
-        <span>Birthdays</span><i>✿</i><span>Christmas</span><i>✿</i><span>Thank you</span><i>✿</i><span>Weekly journals</span><i>✿</i><span>ADHD-friendly planners</span><i>✿</i><span>Wall calendars</span><i>✿</i><span>Gym &amp; home resets</span><i>✿</i><span>Money &amp; goals</span><i>✿</i>
-        <span>Birthdays</span><i>✿</i><span>Christmas</span><i>✿</i><span>Thank you</span><i>✿</i><span>Weekly journals</span><i>✿</i><span>ADHD-friendly planners</span><i>✿</i><span>Wall calendars</span><i>✿</i><span>Gym &amp; home resets</span><i>✿</i><span>Money &amp; goals</span><i>✿</i>
+        <span>Birthdays</span><i class="petal"></i><span>Christmas</span><i class="petal"></i><span>Thank you</span><i class="petal"></i><span>Weekly journals</span><i class="petal"></i><span>ADHD-friendly planners</span><i class="petal"></i><span>Wall calendars</span><i class="petal"></i><span>Gym &amp; home resets</span><i class="petal"></i><span>Money &amp; goals</span><i class="petal"></i>
+        <span>Birthdays</span><i class="petal"></i><span>Christmas</span><i class="petal"></i><span>Thank you</span><i class="petal"></i><span>Weekly journals</span><i class="petal"></i><span>ADHD-friendly planners</span><i class="petal"></i><span>Wall calendars</span><i class="petal"></i><span>Gym &amp; home resets</span><i class="petal"></i><span>Money &amp; goals</span><i class="petal"></i>
       </div>
     </div>
 
@@ -91,7 +101,7 @@
         <header class="section-head reveal">
           <p class="eyebrow">Gift finder</p>
           <h2>Not sure what to <em>choose?</em></h2>
-          <p class="sub">Tell us what you’re after and we’ll pick the best matches.</p>
+          <p class="sub">Pick what you’re after and we’ll show the closest matches.</p>
         </header>
         <div class="finder-chips chips" id="finder-chips" role="group" aria-label="What are you looking for"></div>
         <div class="grid" id="finder-results" aria-live="polite"></div>
@@ -103,8 +113,8 @@
       <div class="wrap">
         <header class="section-head reveal">
           <p class="eyebrow">The shop</p>
-          <h2>Made to be <em>gifted</em> — and kept</h2>
-          <p class="sub">Tap any piece to take a closer look.</p>
+          <h2>Made to be <em>gifted</em>, and kept</h2>
+          <p class="sub">Tap any piece to take a closer look. Product pictures are illustrated previews.</p>
         </header>
         <div class="chips" id="chips" role="group" aria-label="Filter products"></div>
         <div class="toolbar">
@@ -114,6 +124,7 @@
           <select id="sort"><option value="featured">Featured</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option></select>
         </div>
         <div class="grid" id="grid" aria-live="polite"></div>
+        <noscript><p class="none">The shop needs JavaScript to show products.</p></noscript>
       </div>
     </section>
 
@@ -124,12 +135,12 @@
         <div class="focus-copy reveal">
           <p class="eyebrow">New · Journals &amp; planners</p>
           <h2>Planners for brains that <em>work differently</em></h2>
-          <p class="lede">Most planners assume a quiet mind and a tidy day. Ours don’t. Every page is designed to lower the barrier to starting — big prompts, gentle structure, no guilt for the days that go sideways.</p>
+          <p class="lede">Most planners assume a quiet mind and a tidy day. Ours don’t. Every page is designed to lower the barrier to starting: big prompts, gentle structure, no guilt for the days that go sideways.</p>
           <ul class="ticks">
-            <li><b>Brain-dump first</b> — get everything out of your head before you sort it.</li>
-            <li><b>Top 3, not top 30</b> — a small list you can actually finish.</li>
-            <li><b>Time blocks, not time pressure</b> — flexible, forgiving, undated.</li>
-            <li><b>Wins log</b> — because the dopamine of “done” matters.</li>
+            <li><b>Brain-dump first.</b> Get everything out of your head before you sort it.</li>
+            <li><b>Top 3, not top 30.</b> A small list you can actually finish.</li>
+            <li><b>Time blocks, not time pressure.</b> Flexible, forgiving, undated.</li>
+            <li><b>Wins log.</b> Because the feeling of “done” matters.</li>
           </ul>
           <a class="btn btn--primary" href="#shop" data-filter-link="journals">Shop journals &amp; planners</a>
           <p class="fine">Designed with ADHD brains in mind. Not a medical product or a substitute for professional support.</p>
@@ -147,7 +158,7 @@
         <div class="life-grid">
           <article class="life-card reveal"><span class="num">01</span><h3>Strong</h3><p>Log lifts, runs and how you really felt. The Gym Progress Journal keeps you honest and encouraged.</p></article>
           <article class="life-card reveal" style="--d:80ms"><span class="num">02</span><h3>Calm</h3><p>Tiny daily resets and a weekly deep-clean rotation make a home that’s easy to love and easy to keep.</p></article>
-          <article class="life-card reveal" style="--d:160ms"><span class="num">03</span><h3>Wealthy</h3><p>Budget, save and plan the big goals. The Money &amp; Goals Planner turns “one day” into a date.</p></article>
+          <article class="life-card reveal" style="--d:160ms"><span class="num">03</span><h3>Steady</h3><p>Budget, save and plan the big goals. The Money &amp; Goals Planner turns “one day” into a date.</p></article>
         </div>
       </div>
     </section>
@@ -160,8 +171,8 @@
           <p class="eyebrow">Our story</p>
           <h2>Small studio, <em>big heart</em></h2>
           <p class="lede">Grace &amp; Bloom began with a simple idea: the cards and keepsakes we give should feel as thoughtful as the people we give them to.</p>
-          <p>Every design starts as a painted flower — peonies, sweet peas, dahlias — then becomes a card, a print or a page you’ll actually want to use. We print on heavyweight, responsibly sourced paper and pack every order by hand, so it arrives looking like a gift before it’s even opened.</p>
-          <p>The journals came from real life: busy minds, messy desks, big goals. They’re the planners we wished we could find — beautiful enough to keep out, kind enough to keep using.</p>
+          <p>Every design starts as a painted flower (peonies, sweet peas, dahlias) and becomes a card, a print or a page you’ll actually want to use. Cards are printed on 350gsm textured card, prints are giclée on 310gsm cotton rag, and every order is packed by hand so it arrives looking like a gift before it’s even opened.</p>
+          <p>The journals came from real life: busy minds, messy desks, big goals. They’re the planners we wished we could find, beautiful enough to keep out and kind enough to keep using.</p>
           <p class="sign">With love, <em>Grace &amp; Bloom</em></p>
         </div>
       </div>
@@ -175,12 +186,58 @@
           <h2>Questions, <em>answered</em></h2>
         </header>
         <div class="faq reveal">
-          <details open><summary>How long does delivery take?</summary><p>Orders are packed by hand within 1–3 working days. Standard delivery follows, and orders over £40 ship free.</p></details>
-          <details><summary>Can I return something?</summary><p>If anything arrives damaged or isn’t right, get in touch and we’ll make it right. Personalised items are made to order, so they can’t be returned unless faulty.</p></details>
-          <details><summary>How does personalisation work?</summary><p>For the Birth Flower Print, send us the name and birthday after ordering. We’ll email a digital proof within 48 hours and print once you approve it.</p></details>
+          <details open><summary>How much is delivery, and how long does it take?</summary><p>UK delivery is £3.95 per order, and free when your basket comes to £40 or more. Orders will be packed by hand within <span class="ph">[1–3]</span> working days and sent with <span class="ph">[carrier and service]</span>. Full details are in <a href="#delivery">Delivery</a>.</p></details>
+          <details><summary>Can I return something?</summary><p>Yes. You can cancel within 14 days of your order arriving, for any reason, and get a refund. Personalised items are made to your details, so they can only be returned if faulty. If anything arrives damaged or faulty, tell us and we’ll put it right. See <a href="#returns">Returns &amp; cancellations</a>.</p></details>
+          <details><summary>How does personalisation work?</summary><p>For the Birth Flower Print, you send us the name and birthday after ordering. We’ll email a digital proof within 48 hours and only print once you approve it.</p></details>
           <details><summary>Are the journals a medical product?</summary><p>No. The planners are designed with ADHD brains in mind, using clear prompts and gentle structure, but they are not a treatment or a replacement for professional support.</p></details>
-          <details><summary>What paper do you print on?</summary><p>Cards use 350gsm textured card. Prints use 310gsm archival cotton rag, so colours stay soft and don’t fade quickly.</p></details>
-          <details><summary>Do you do bulk or wedding orders?</summary><p>Yes. Message us with the occasion and quantity and we’ll put together a custom set.</p></details>
+          <details><summary>What paper do you print on?</summary><p>Cards are 350gsm textured card. Prints are giclée prints on 310gsm cotton rag paper.</p></details>
+          <details><summary>Do you do bulk or wedding orders?</summary><p>We’re planning to. Once the shop is open, email <span class="ph">[email@example.com]</span> with the occasion and quantity and we’ll quote for a custom set.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- SMALL PRINT -->
+    <section class="section small-print" id="small-print" aria-labelledby="sp-title">
+      <div class="wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">The small print</p>
+          <h2 id="sp-title">Delivery, returns <em>&amp; privacy</em></h2>
+        </header>
+        <div class="sp-grid">
+          <article id="delivery">
+            <h3>Delivery</h3>
+            <p>We deliver to UK addresses <span class="ph">[confirm, or list other countries and prices]</span>.</p>
+            <ul>
+              <li>£3.95 per order, or free when your basket comes to £40 or more. You’ll see the delivery charge in your basket before checkout.</li>
+              <li>Orders will be packed within <span class="ph">[1–3]</span> working days and sent with <span class="ph">[carrier and service]</span>, usually arriving <span class="ph">[2–3]</span> working days after dispatch.</li>
+              <li>Pre-orders (the 2027 Wall Calendar) will dispatch from <span class="ph">[date]</span>.</li>
+              <li>If we can’t deliver within 30 days of your order, we’ll tell you and you can cancel for a full refund.</li>
+            </ul>
+          </article>
+          <article id="returns">
+            <h3>Returns &amp; cancellations</h3>
+            <p>Changed your mind? You can cancel within 14 days of the day your order arrives, without giving a reason. Just tell us by email at <span class="ph">[email@example.com]</span>, then send the items back within 14 days of telling us.</p>
+            <p>We’ll refund the price of the items and the standard delivery charge within 14 days of getting them back, or of you showing us proof you’ve sent them, whichever is sooner. <span class="ph">[Unless the item is faulty or we sent the wrong thing, you pay the return postage.]</span></p>
+            <p>Personalised items, like the Birth Flower Print, are made to your details, so they can’t be cancelled once we’ve started making them, unless they’re faulty.</p>
+            <p>If anything arrives damaged, faulty or not as described, you’re entitled to a repair, replacement or refund under the Consumer Rights Act 2015. Nothing on this page affects those rights.</p>
+            <details>
+              <summary>Model cancellation form</summary>
+              <div class="form-text">
+                <p>To: <span class="ph">[Registered business name]</span>, <span class="ph">[trading address]</span>, <span class="ph">[email@example.com]</span></p>
+                <p>I/We hereby give notice that I/We cancel my/our contract of sale of the following goods: ____</p>
+                <p>Ordered on ____ / received on ____</p>
+                <p>Name of consumer(s): ____<br>Address of consumer(s): ____<br>Signature of consumer(s) (only if this form is sent on paper): ____<br>Date: ____</p>
+                <p>You don’t have to use this form. An email saying you want to cancel is enough.</p>
+              </div>
+            </details>
+          </article>
+          <article id="privacy">
+            <h3>Privacy &amp; cookies</h3>
+            <p>This is a preview. It takes no orders, accounts or email sign-ups, and it has no analytics, advertising or tracking cookies.</p>
+            <p>Your basket, saved favourites and light/dark choice are kept only in your own browser so they’re still there next time. Nothing is sent to us, and clearing your browser data removes them.</p>
+            <p>Fonts load from Google Fonts, so Google receives your IP address when the page loads.</p>
+            <p>When we start trading, <span class="ph">[Registered business name]</span> will be the data controller for the details you give us with an order (name, address, email), used only to fulfil it and kept for <span class="ph">[period]</span>. Payments will be handled by <span class="ph">[payment provider]</span>. You can ask to see, correct or delete your data at <span class="ph">[email@example.com]</span>, and you can complain to the Information Commissioner’s Office at ico.org.uk.</p>
+          </article>
         </div>
       </div>
     </section>
@@ -188,12 +245,16 @@
     <!-- NEWSLETTER -->
     <section class="news">
       <div class="wrap news-inner reveal">
-        <div><h2>Join the <em>garden</em></h2><p>New designs, seasonal releases and a little 10% welcome gift.</p></div>
-        <form id="news" novalidate>
-          <label class="sr" for="email">Email address</label>
-          <input id="email" name="email" type="email" placeholder="your@email.com" autocomplete="email" required>
-          <button class="btn btn--primary" type="submit">Subscribe</button>
-        </form>
+        <div><h2>Join the <em>garden</em></h2><p>New designs and seasonal releases, by email. Sign-ups open soon.</p></div>
+        <div>
+          <form id="news" novalidate>
+            <label class="sr" for="email">Email address</label>
+            <input id="email" name="email" type="email" placeholder="your@email.com" autocomplete="email" required>
+            <button class="btn btn--primary" type="submit">Sign up</button>
+          </form>
+          <p class="news-msg" id="news-msg" role="status" aria-live="polite"></p>
+          <p class="fine">We’ll only use your email for this newsletter, and you can unsubscribe at any time. See <a href="#privacy">Privacy</a>.</p>
+        </div>
       </div>
     </section>
   </main>
@@ -201,11 +262,19 @@
   <footer class="footer">
     <div class="wrap foot-grid">
       <div><a class="logo" href="#top"><span class="logo-mark" aria-hidden="true"></span>Grace <em>&amp;</em> Bloom</a><p>Cards, prints &amp; keepsakes. Soft, timeless designs for gifting and personal use.</p></div>
-      <div><h4>Shop</h4><a href="#shop">Cards</a><a href="#shop">Prints</a><a href="#shop">Keepsakes</a><a href="#focus">Journals</a></div>
-      <div><h4>Help</h4><a href="#faq">Shipping</a><a href="#faq">Returns</a><a href="#faq">Personalisation</a><a href="#faq">FAQ</a></div>
-      <div><h4>Business details</h4><p class="trader">[Registered business name], [trading address], [town], [postcode].<br>Email <a href="mailto:[email@example.com]">[email@example.com]</a>.<br>UK customers may cancel most orders within 14 days of delivery for a refund under the Consumer Contracts Regulations 2013; personalised items are exempt unless faulty. Return address as above.</p></div>
+      <div class="foot-nav"><h4>Shop</h4><a href="#shop" data-filter-link="cards">Cards</a><a href="#shop" data-filter-link="prints">Prints</a><a href="#shop" data-filter-link="keepsakes">Keepsakes</a><a href="#shop" data-filter-link="journals">Journals</a><a href="#shop" data-filter-link="selfhelp">Self-help</a></div>
+      <div class="foot-nav"><h4>Help</h4><a href="#delivery">Delivery</a><a href="#returns">Returns</a><a href="#privacy">Privacy &amp; cookies</a><a href="#faq">FAQ</a></div>
+      <div class="trader-col">
+        <h4>Business details</h4>
+        <address class="trader">
+          <p>Grace &amp; Bloom is a trading name of <span class="ph">[registered business name, or owner’s full name if a sole trader]</span>.</p>
+          <p><span class="ph">[Trading address]</span>, <span class="ph">[town]</span>, <span class="ph">[postcode]</span>, United Kingdom. This is also our returns address.</p>
+          <p>Email: <span class="ph">[email@example.com]</span><br>Phone: <span class="ph">[phone number]</span></p>
+          <p><span class="ph">[If a limited company: Registered in England and Wales, company no. [number]. Registered office: [address].]</span> <span class="ph">[If VAT-registered: VAT no. GB[number].]</span></p>
+        </address>
+      </div>
     </div>
-    <div class="wrap legal"><span>© <span id="year"></span> Grace &amp; Bloom. All rights reserved.</span><span>Prices include VAT where applicable.</span></div>
+    <div class="wrap legal"><span>© <span id="year">2026</span> Grace &amp; Bloom. All rights reserved.</span><span>Prices include VAT where applicable. Preview: not taking orders yet.</span></div>
   </footer>
 
   <!-- Quick view -->
@@ -214,15 +283,24 @@
   </div>
 
   <!-- Basket -->
-  <div class="drawer" id="cart" hidden role="dialog" aria-modal="true" aria-label="Your basket">
+  <div class="drawer" id="cart" hidden role="dialog" aria-modal="true" aria-labelledby="cart-title">
     <aside class="drawer-box">
-      <header><h3>Your basket</h3><button class="drawer-close" aria-label="Close basket">×</button></header>
+      <header><h3 id="cart-title">Your basket</h3><button class="drawer-close" aria-label="Close basket">×</button></header>
       <div class="ship"><p id="ship-msg"></p><div class="bar-track"><i id="ship-bar"></i></div></div>
       <ul id="cart-list"></ul>
-      <footer><div class="sub-row"><span>Subtotal</span><strong id="cart-sub">£0.00</strong></div><p class="fine">Delivery £3.95 — free on orders over £40. Prices include VAT where applicable.</p><button class="btn btn--primary btn--block" id="cart-checkout">Checkout</button></footer>
+      <footer>
+        <div class="sum">
+          <div class="sum-row"><span>Subtotal</span><span id="cart-sub">£0.00</span></div>
+          <div class="sum-row"><span>UK delivery</span><span id="cart-ship">£0.00</span></div>
+          <div class="sum-row total"><strong>Total</strong><strong id="cart-total">£0.00</strong></div>
+        </div>
+        <p class="fine">Prices include VAT where applicable. Delivery is £3.95, free on orders of £40 or more.</p>
+        <button class="btn btn--primary btn--block" id="cart-checkout">Checkout</button>
+        <p class="checkout-msg" id="checkout-msg" role="status" aria-live="polite"></p>
+      </footer>
     </aside>
   </div>
-  <div class="toast" id="toast" role="status"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="assets/vendor/three.min.js"></script>
   <script src="assets/js/products.js"></script>

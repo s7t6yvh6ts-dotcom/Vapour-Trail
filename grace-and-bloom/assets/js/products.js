@@ -8,10 +8,12 @@ GB.config = {
   freeShippingOver: 40,
   shippingFlat: 3.95,
   // Where "Checkout" sends people. Paste your Etsy shop (or any payment/checkout) link here.
-  // e.g. 'https://www.etsy.com/shop/YourShopName'
+  // e.g. 'https://www.etsy.com/shop/YourShopName'. It becomes a normal link that opens in a new tab.
+  // Note: the basket here does not travel to Etsy; customers re-add items there.
   checkoutUrl: '',
   // Optional per-product Etsy link: add  etsyUrl: 'https://www.etsy.com/listing/...'  to any product below.
   // Optional: a Formspree / Mailchimp / ConvertKit form endpoint for the email sign-up box.
+  // Leave empty until it's set up: the form then says honestly that sign-ups open soon.
   newsletterAction: ''
 };
 
@@ -63,7 +65,7 @@ GB.products = [
   {
     id: 'dusk-dahlia', name: 'Dusk Dahlia Art Print', cat: 'prints', kind: 'print', price: 14,
     badge: 'New',
-    blurb: 'A moody, velvety dahlia printed on archival cotton paper. Looks like a painting, costs like a print.',
+    blurb: 'A moody, velvety dahlia, giclée-printed on cotton rag paper. Looks like a painting, costs like a print.',
     details: ['Giclée print on 310gsm cotton rag', 'Unframed', 'Ships flat in a rigid mailer'],
     variants: { label: 'Size', options: [['A5', 0], ['A4', 6], ['A3', 14]] },
     art: { palette: 'plum', bloom: 'dahlia', layout: 'single', text: ['Dahlia'] }
@@ -79,7 +81,7 @@ GB.products = [
     id: 'birth-flower', name: 'Personalised Birth Flower Print', cat: 'prints', kind: 'print', price: 16,
     badge: 'Personalised',
     blurb: 'Every month has its flower. Tell us the birthday and we will add the bloom, the month and a name in soft lettering.',
-    details: ['Personalised with a name & month', 'Giclée print on 310gsm cotton rag', 'Digital proof within 48 hours'],
+    details: ['Personalised with a name & month', 'Giclée print on 310gsm cotton rag', 'Digital proof within 48 hours', 'Made to order: can’t be cancelled once made, unless faulty'],
     variants: { label: 'Size', options: [['A5', 0], ['A4', 6], ['A3', 14]] },
     art: { palette: 'butter', bloom: 'sweetpea', layout: 'single', text: ['Birth', 'Flower'] }
   },
@@ -129,7 +131,7 @@ GB.products = [
     id: 'wall-calendar-2027', name: 'Bloom Wall Calendar 2027', cat: 'journals', kind: 'calendar', price: 13,
     badge: 'Pre-order',
     blurb: 'Twelve months, twelve blooms, with generous date boxes. January starts the year in blush peonies.',
-    details: ['A4 · opens to A3', '12 illustrated months', 'Wire-bound with hanging hole', 'UK & US holidays marked'],
+    details: ['Pre-order: dispatches from [date to confirm]', 'A4 · opens to A3', '12 illustrated months', 'Wire-bound with hanging hole', 'UK & US holidays marked'],
     art: { palette: 'blush', bloom: 'peony', layout: 'calendar', text: ['January'], year: 2027, month: 0 }
   },
 
@@ -149,7 +151,7 @@ GB.products = [
     id: 'money-planner', name: 'Money & Goals Planner', cat: 'selfhelp', kind: 'journal', price: 12,
     blurb: 'Budget, save, invest and chase the big goals. Monthly money maps, debt and savings trackers, and a 5-year vision page.',
     details: ['Undated · 12 months', 'A5 · lay-flat binding', 'Budget, savings & net-worth trackers'],
-    art: { palette: 'gold', bloom: 'peony', layout: 'cover', text: ['Money &', 'Goals'], sub: 'grow your wealth, gracefully' }
+    art: { palette: 'gold', bloom: 'peony', layout: 'cover', text: ['Money &', 'Goals'], sub: 'plan it, track it, gently' }
   },
   {
     id: 'habit-pad', name: 'Habit & Wins Tracker Pad', cat: 'selfhelp', kind: 'pad', price: 7.5,

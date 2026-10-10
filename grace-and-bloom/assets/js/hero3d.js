@@ -5,12 +5,21 @@
   var GB = window.GB, THREE = window.THREE;
   var canvas = document.getElementById('hero-canvas');
   var stage = document.getElementById('hero-stage');
-  if (!canvas || !THREE || !GB || !GB.art) { if (stage) stage.classList.add('no-webgl'); return; }
+  function hasWebGL() {
+    try {
+      var c = document.createElement('canvas'), gl = window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl'));
+      if (!gl) return false;
+      var lose = gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();
+      return true;
+    } catch (e) { return false; }
+  }
+  if (!canvas || !THREE || !GB || !GB.art || !hasWebGL()) { if (stage) stage.classList.add('no-webgl'); return; }
 
   var renderer;
   try {
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   } catch (e) { stage.classList.add('no-webgl'); return; }
+  canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); stage.classList.add('no-webgl'); });
 
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   renderer.outputEncoding = THREE.sRGBEncoding;
@@ -68,12 +77,19 @@
   pg.position.set(2.9, 0.2, -1.6); pg.rotation.set(0.03, -0.5, -0.02);
   world.add(pg);
 
-  /* ---------- soft ground shadow ---------- */
+  /* ---------- soft ground shadow (colour comes from the --ground CSS token, so it suits light and dark) ---------- */
   var sh = document.createElement('canvas'); sh.width = sh.height = 128;
-  var sctx = sh.getContext('2d'), grd = sctx.createRadialGradient(64, 64, 4, 64, 64, 62);
-  grd.addColorStop(0, 'rgba(60,50,48,0.42)'); grd.addColorStop(1, 'rgba(60,50,48,0)');
-  sctx.fillStyle = grd; sctx.fillRect(0, 0, 128, 128);
-  var shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sh), transparent: true, depthWrite: false }));
+  var sctx = sh.getContext('2d'), shTex = new THREE.CanvasTexture(sh);
+  function paintShadow() {
+    var col = getComputedStyle(document.documentElement).getPropertyValue('--ground').trim() || 'rgba(60,50,48,0.42)';
+    var grd = sctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+    grd.addColorStop(0, col); grd.addColorStop(1, 'rgba(0,0,0,0)');
+    sctx.clearRect(0, 0, 128, 128); sctx.fillStyle = grd; sctx.fillRect(0, 0, 128, 128);
+    shTex.needsUpdate = true;
+  }
+  paintShadow();
+  document.addEventListener('gb-themechange', paintShadow);
+  var shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; shadow.position.y = -1.75; shadow.scale.set(5.2, 2.2, 1);
   world.add(shadow);
 
@@ -99,7 +115,8 @@
   }
 
   /* ---------- state ---------- */
-  var open = 0, openTarget = reduce ? 1 : 0, mx = 0, my = 0, tx = 0, ty = 0, visible = true, clock = new THREE.Clock(), started = performance.now();
+  // reduced motion: the card starts open, and opening or closing it snaps instead of animating
+  var open = reduce ? 1 : 0, openTarget = open, mx = 0, my = 0, tx = 0, ty = 0, visible = true, clock = new THREE.Clock(), started = performance.now();
   function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 
   function layout() {
@@ -110,9 +127,11 @@
     camera.position.set(0, 0.25, a < 0.75 ? 15 : a < 1.3 ? 13 : 10.5);
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
-    var narrow = a < 0.9;
+    // keep the journal and print a clear margin inside the canvas at any aspect, so the soft edge fade never eats them
+    var halfW = (camera.position.z + 1.6) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * a;
+    var side = Math.max(2, Math.min(2.9, halfW - 1));
     jg.visible = pg.visible = true;
-    jg.position.x = narrow ? -2.5 : -2.9; pg.position.x = narrow ? 2.5 : 2.9;
+    jg.position.x = -side; pg.position.x = side;
   }
   window.addEventListener('resize', layout); layout();
 
@@ -122,7 +141,14 @@
   });
   stage.addEventListener('pointerleave', function () { mx = my = 0; });
   var btn = document.getElementById('toggle-card');
-  function toggle() { openTarget = openTarget ? 0 : 1; if (btn) { btn.setAttribute('aria-pressed', String(!!openTarget)); btn.querySelector('span').textContent = openTarget ? 'Close the card' : 'Open the card'; } }
+  // the visible label names the action, so it carries no aria-pressed (a changing label plus a pressed state reads back contradictory)
+  function setLabel() {
+    if (!btn) return;
+    btn.dataset.open = String(!!openTarget);
+    btn.querySelector('span').textContent = openTarget ? 'Close the card' : 'Open the card';
+  }
+  function toggle() { openTarget = openTarget ? 0 : 1; if (reduce) open = openTarget; setLabel(); }
+  setLabel();
   canvas.addEventListener('click', toggle);
   if (btn) btn.addEventListener('click', toggle);
 
