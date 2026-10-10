@@ -140,8 +140,15 @@
 
   /* ---------- quick view ---------- */
   var modal = $('#modal'), mbody = $('#modal-body'), lastFocus, qv;
+  function relatedHtml(p) {
+    var r = GB.products.filter(function (x) { return x.cat === p.cat && x.id !== p.id; });
+    if (r.length < 3) r = r.concat(GB.products.filter(function (x) { return x.cat !== p.cat && x.id !== p.id; }));
+    return '<div class="related"><h4>You may also like</h4><div class="rel-row">' + r.slice(0, 3).map(function (x) {
+      return '<button class="rel" data-rel="' + x.id + '"><img alt="" src="' + url(x, 1) + '"><span>' + esc(x.name) + '</span><small>' + money(x.price) + '</small></button>';
+    }).join('') + '</div></div>';
+  }
   function openModal(p) {
-    lastFocus = document.activeElement; qv = { p: p, v: 0, q: 1 };
+    if (modal.hidden) lastFocus = document.activeElement; qv = { p: p, v: 0, q: 1 };
     var vr = p.variants;
     mbody.innerHTML =
       '<div class="qv-stage"></div><div class="qv-info">' +
@@ -150,7 +157,8 @@
       (vr ? '<fieldset class="opts"><legend>' + esc(vr.label) + '</legend>' + vr.options.map(function (o, i) { return '<label><input type="radio" name="v" value="' + i + '"' + (i === 0 ? ' checked' : '') + '><span>' + esc(o[0]) + '</span></label>'; }).join('') + '</fieldset>' : '') +
       '<div class="qty-row"><div class="qty" role="group" aria-label="Quantity"><button data-q="-1" aria-label="One fewer">−</button><output id="qv-q" aria-live="polite">1</output><button data-q="1" aria-label="One more">+</button></div>' +
       '<button class="btn btn--primary" id="qv-add">Add to basket</button></div>' +
-      (p.etsyUrl ? '<a class="etsy" href="' + esc(p.etsyUrl) + '" target="_blank" rel="noopener">Also available on Etsy →</a>' : '') + '<ul class="details">' + p.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul></div>';
+      (p.etsyUrl ? '<a class="etsy" href="' + esc(p.etsyUrl) + '" target="_blank" rel="noopener">Also available on Etsy →</a>' : '') + '<ul class="details">' + p.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' + relatedHtml(p) + '</div>';
+    $$('[data-rel]', mbody).forEach(function (b) { b.addEventListener('click', function () { openModal(GB.byId(b.dataset.rel)); $('.modal-box', modal).scrollTop = 0; }); });
     var st = $('.qv-stage', mbody); st.appendChild(mock(p, 1.3)); tilt(st, $('.mock', st));
     function price() { return p.price + (vr ? vr.options[qv.v][1] : 0); }
     function upd() { $('#qv-price').textContent = money(price()); $('#qv-q').textContent = qv.q; }
@@ -199,7 +207,12 @@
     $('#cart-total').textContent = money(sub + ship);
     if (checkout.tagName === 'A') { if (cart.length) checkout.removeAttribute('aria-disabled'); else checkout.setAttribute('aria-disabled', 'true'); }
     else checkout.disabled = !cart.length;
+    var up = $('#upsell'), tags = GB.byId('posy-gift-tags');
+    var want = tags && cart.some(function (l) { return GB.byId(l.id).cat === 'cards'; }) && !cart.some(function (l) { return l.id === tags.id; });
+    up.hidden = !want;
+    if (want) up.innerHTML = '<img alt="" src="' + url(tags, 1) + '"><div><b>Complete the gift</b>Add ' + esc(tags.name) + ' for ' + money(tags.price) + '</div><button class="btn btn--ghost" data-upsell>Add</button>';
   }
+  $('#upsell').addEventListener('click', function (e) { if (e.target.hasAttribute('data-upsell')) add('posy-gift-tags', 0, 1, true); });
   list.addEventListener('click', function (e) {
     var t = e.target;
     if (t.dataset.d) { var l = cart[+t.dataset.ci]; l.q += +t.dataset.d; if (l.q < 1) cart.splice(+t.dataset.ci, 1); save(); }
@@ -268,6 +281,8 @@
   $$('.nav a').forEach(function (a) { a.addEventListener('click', closeNav); });
   var scrolled = function () { document.body.classList.toggle('scrolled', window.scrollY > 24); };
   window.addEventListener('scroll', scrolled, { passive: true }); scrolled();
+  var prog = $('#progress');
+  window.addEventListener('scroll', function () { var m = document.documentElement.scrollHeight - innerHeight; prog.style.width = (m > 0 ? Math.min(100, scrollY / m * 100) : 0) + '%'; }, { passive: true });
 
   var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (en) {
     en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
