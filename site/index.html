@@ -1,34 +1,165 @@
 <!doctype html>
 <html lang="en-GB">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Second Rail</title>
 <meta name="description" content="Second Rail — new drops and one-off vintage clothing, sold direct with no marketplace fees.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23a8442f%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232740ff'/%3E%3Cpath d='M6 9h20M16 9v3l-9 8h18z' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header><h1 id="shopname">Second Rail</h1><button class="cartbtn" id="open">Basket (<span id="count">0</span>)</button></header>
-<section class="hero"><h2 id="tagline"></h2><p>Small runs and one-off pieces. When your size is gone, it is gone.</p></section>
-<nav class="filters" id="types"></nav>
-<nav class="filters" id="filters"></nav>
-<main class="grid" id="grid"></main>
-<aside id="drawer" aria-label="Basket">
-  <header><h1>Basket</h1><button class="cartbtn" id="close">Close</button></header>
-  <div id="items"></div>
-  <footer class="cart">
-    <div class="total"><span>Subtotal</span><span id="sub">£0.00</span></div>
-    <div class="note" id="ship"></div>
-    <button class="checkout" id="checkout" disabled>Checkout</button>
-    <div class="note" id="mode"></div>
-  </footer>
-</aside>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="hanger" viewBox="0 0 40 24">
+    <path d="M20 9.5V8c0-1.6 3.2-2.2 3.2-4.6a3.2 3.2 0 0 0-6.4-.2" fill="none" stroke="currentColor" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <path d="M20 9.5 2.5 21.5h35z" fill="none" stroke="currentColor" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  </symbol>
+</svg>
+<a class="skip" href="#shop">Skip to the clothes</a>
+
+<div class="preview" role="note" aria-label="Preview notice">
+  <div class="wrap preview-in">
+    <span class="chip">Preview</span>
+    <p>Second Rail isn’t trading yet. Nothing here can be ordered, no payment is taken, and stock levels aren’t live.</p>
+  </div>
+</div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <h1 class="brand"><svg class="mark" viewBox="0 0 26 18" aria-hidden="true" focusable="false"><path d="M1.5 2.5h23M13 2.5v2.4L4 13h18z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="shopname">Second Rail</span></h1>
+    <nav class="topnav" aria-label="Shop information">
+      <a href="#delivery">Delivery</a>
+      <a href="#returns">Returns</a>
+      <a href="#about">Who we are</a>
+    </nav>
+    <button class="pill" id="open" type="button" aria-haspopup="dialog" aria-controls="drawer">Basket (<span id="count">0</span>)</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap" aria-labelledby="tagline">
+    <h2 id="tagline">New drops and vintage finds.</h2>
+    <p class="lede">Small runs and one-off pieces. When your size is gone, it is gone.</p>
+    <ul class="facts" id="facts"></ul>
+    <nav class="rail" id="rail" aria-label="On the rail now"></nav>
+  </section>
+
+  <section class="shop wrap" id="shop" aria-label="Clothes">
+    <div class="toolbar">
+      <div class="seg" id="types" role="group" aria-label="New or vintage"></div>
+      <div class="filters" id="filters" role="group" aria-label="Category"></div>
+      <p class="count" id="resultcount" aria-live="polite"></p>
+    </div>
+    <div class="grid" id="grid">
+      <p class="loading">Loading the rail…</p>
+      <noscript><p class="loading">Turn on JavaScript to see what’s on the rail.</p></noscript>
+    </div>
+  </section>
+
+  <section class="info wrap" id="info" aria-labelledby="info-title">
+    <h2 id="info-title">Delivery, returns and the small print</h2>
+    <div class="info-grid">
+      <article id="delivery" aria-labelledby="h-delivery">
+        <h3 id="h-delivery">Delivery</h3>
+        <p id="info-delivery">UK delivery is charged per order.</p>
+        <p>Orders go out <span data-cfg="dispatch"></span> by <span data-cfg="courier"></span>, to UK addresses. Unless we agree a different date with you, the law gives us 30 days from your order to deliver it.</p>
+      </article>
+
+      <article id="returns" aria-labelledby="h-returns">
+        <h3 id="h-returns">Changing your mind</h3>
+        <p>You can cancel any order within 14 days of the day it arrives, without giving a reason. That includes vintage.</p>
+        <p>Tell us clearly that you’re cancelling, for example by email to <span data-cfg="contactEmail"></span>, by post to <span data-cfg="trader.address"></span> or by phone on <span data-cfg="trader.phone"></span>. Then send the items back within 14 days of telling us. Return postage is paid by <span data-cfg="returnPostage"></span>.</p>
+        <p>We refund the price and the standard delivery you paid within 14 days of getting the items back, or of you showing proof of posting if that comes first. We can reduce a refund if something has been worn or handled more than you’d need to try it on in a shop.</p>
+        <p class="fine">The right to cancel doesn’t cover items made or altered to your measurements, or sealed hygiene items once you’ve unsealed them.</p>
+      </article>
+
+      <article id="rights" aria-labelledby="h-rights">
+        <h3 id="h-rights">Faulty or not as described</h3>
+        <p>Everything we sell, new or vintage, is covered by your rights under the Consumer Rights Act 2015. If an item is faulty or not as described, you can reject it for a full refund within 30 days of delivery. After that you can ask for a repair or replacement, then a refund or price cut if that doesn’t fix it. We pay the postage on faulty returns.</p>
+        <p>Vintage is second-hand and is judged that way. Faults we point out in the listing, like a cracked print, can’t be grounds for a claim later. Faults we didn’t mention are covered in the usual way.</p>
+      </article>
+
+      <article id="about" aria-labelledby="h-about">
+        <h3 id="h-about">Who we are</h3>
+        <dl class="trader">
+          <div><dt>Trading as</dt><dd data-cfg="name"></dd></div>
+          <div><dt>Business</dt><dd data-cfg="trader.legalName"></dd></div>
+          <div><dt>Address</dt><dd data-cfg="trader.address"></dd></div>
+          <div><dt>Email</dt><dd data-cfg="contactEmail"></dd></div>
+          <div><dt>Phone</dt><dd data-cfg="trader.phone"></dd></div>
+          <div data-row="trader.company"><dt>Company</dt><dd data-cfg="trader.company"></dd></div>
+          <div data-row="trader.vat"><dt>VAT</dt><dd data-cfg="trader.vat"></dd></div>
+        </dl>
+        <p>Prices are in pounds sterling and include VAT where it applies. Once checkout is live you’ll pay by <span data-cfg="paymentMethods"></span>.</p>
+      </article>
+
+      <article id="privacy" aria-labelledby="h-privacy">
+        <h3 id="h-privacy">Privacy and cookies</h3>
+        <p>No tracking, analytics or advertising cookies. Your basket is kept in your own browser so it’s still there when you come back. It isn’t sent to us, and emptying the basket clears it. The fonts load from Google Fonts, so your browser shares its IP address with Google.</p>
+        <p>When orders open, we’ll use your name, address, email and phone to send your order and deal with returns, because we can’t fulfil it without them. Your address goes to <span data-cfg="courier"></span>. Card details go to our payment provider, <span data-cfg="paymentProvider"></span>, and we won’t see them. We keep order records for as long as tax law requires, usually six years, then delete them.</p>
+        <p><span data-cfg="trader.legalName"></span> is responsible for your data. Email <span data-cfg="contactEmail"></span> to see, correct or delete it. You can also complain to the Information Commissioner’s Office at <a href="https://ico.org.uk/make-a-complaint/">ico.org.uk</a>.</p>
+      </article>
+
+      <article id="cancel-form" aria-labelledby="h-form">
+        <h3 id="h-form">Cancellation form</h3>
+        <p>You don’t have to use it. Any clear statement that you’re cancelling is enough, by email, post or phone, but you can copy this into an email or letter.</p>
+        <details class="cform">
+          <summary>Show the model form</summary>
+          <div class="cform-body">
+            <p>To: <span data-cfg="trader.legalName"></span>, <span data-cfg="trader.address"></span>, <span data-cfg="contactEmail"></span></p>
+            <p>I/We [*] hereby give notice that I/We [*] cancel my/our [*] contract of sale of the following goods [*],</p>
+            <p>Ordered on [*]/received on [*],</p>
+            <p>Name of consumer(s),</p>
+            <p>Address of consumer(s),</p>
+            <p>Signature of consumer(s) (only if this form is notified on paper),</p>
+            <p>Date</p>
+            <p>[*] Delete as appropriate.</p>
+          </div>
+        </details>
+      </article>
+    </div>
+  </section>
+</main>
+
 <footer class="sitefoot">
-  <p id="foot-delivery"></p>
-  <p>Most items can be returned within 14 days of delivery for a refund under the Consumer Contracts Regulations 2013. Faulty items are covered by your Consumer Rights Act 2015 rights. Questions: <a id="foot-email" href="#">email us</a>.</p>
-  <p>New clothing lists its fibre composition on the product. Vintage pieces are second-hand, sold as described, one of each.</p>
-  <p class="traderline">[Registered business name] · [trading address, town, postcode] · [company number, if registered]</p>
+  <div class="wrap foot-in">
+    <p class="foot-brand">Second Rail</p>
+    <p id="foot-delivery"></p>
+    <nav class="footnav" aria-label="Footer">
+      <a href="#delivery">Delivery</a>
+      <a href="#returns">Returns</a>
+      <a href="#rights">Faulty items</a>
+      <a href="#about">Who we are</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+    <p><span id="foot-fibre">Every product will list its fibre composition before it goes on sale.</span> Vintage pieces are second-hand and sold as described, with measurements and any faults in the listing.</p>
+    <p>Questions: <span data-cfg="contactEmail"></span></p>
+    <p class="traderline"><span data-cfg="trader.legalName"></span> · <span data-cfg="trader.address"></span><span data-row="trader.company"> · <span data-cfg="trader.company"></span></span><span data-row="trader.vat"> · <span data-cfg="trader.vat"></span></span></p>
+  </div>
 </footer>
+
+<div class="scrim" id="scrim"></div>
+<aside id="drawer" role="dialog" aria-modal="true" aria-labelledby="basket-title" aria-hidden="true" inert>
+  <header class="drawer-head">
+    <h2 id="basket-title">Basket</h2>
+    <button class="pill ghost" id="close" type="button">Close</button>
+  </header>
+  <div id="items"></div>
+  <div class="cartfoot">
+    <dl class="sums">
+      <div><dt>Subtotal</dt><dd id="sub">£0.00</dd></div>
+      <div><dt>UK delivery</dt><dd id="shipcost">–</dd></div>
+      <div class="grand"><dt>Total</dt><dd id="total">£0.00</dd></div>
+    </dl>
+    <p class="note" id="ship"></p>
+    <button class="checkout" id="checkout" type="button" disabled>Checkout</button>
+    <p class="note" id="mode" role="status"></p>
+  </div>
+</aside>
+
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
