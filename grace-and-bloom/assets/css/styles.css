@@ -361,3 +361,49 @@ blockquote .stars { font-size: 1rem; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* ===== Dark theme — applied when the visitor's device is set to dark ===== */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #1b1817; --bg-2: #232020; --surface: #272320;
+    --ink: #f0e9e3; --muted: #b2a89f; --line: #39332e;
+    --rose: #d79c9c; --rose-d: #e2aaa6; --rose-l: #3a2b2b;
+    --shadow-s: 0 1px 2px rgba(0, 0, 0, .45), 0 6px 18px -8px rgba(0, 0, 0, .6);
+    --shadow-m: 0 2px 4px rgba(0, 0, 0, .4), 0 22px 44px -18px rgba(0, 0, 0, .75);
+  }
+  /* spots that hard-coded light surfaces or white-on-ink text */
+  .announce { background: #2b2623; color: var(--ink); }
+  .btn--primary { color: #221e1c; }
+  .btn--primary:hover { background: #fff; color: #221e1c; }
+  .btn--ghost { border-color: #5a524b; }
+  .btn--ghost:hover { background: var(--ink); color: #221e1c; }
+  .btn--glass { background: rgba(32, 28, 26, .6); border-color: rgba(255, 255, 255, .14); }
+  .btn--glass:hover { background: rgba(40, 35, 32, .9); }
+  .skip:focus { color: #221e1c; }
+  body.scrolled .header { background: rgba(27, 24, 23, .82); box-shadow: 0 1px 0 var(--line); }
+  .icon-btn:hover { background: rgba(255, 255, 255, .08); }
+  .cart-count { color: #221e1c; }
+  .chip { border-color: #4a443e; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: #221e1c; border-color: var(--ink); }
+  .marquee-track { color: var(--muted); }
+  .hero { background:
+    radial-gradient(60% 70% at 78% 40%, rgba(255, 255, 255, .03) 0%, transparent 70%),
+    radial-gradient(40% 40% at 8% 90%, rgba(215, 156, 156, .12), transparent 70%); }
+  .stage, .qv-stage { background: linear-gradient(160deg, #2b2623, #201d1b); }
+  .stage::before { background: radial-gradient(closest-side, rgba(255, 255, 255, .06), transparent); }
+  .badge { background: rgba(30, 26, 24, .92); }
+  .fav { background: rgba(30, 26, 24, .9); color: #cbbfb6; }
+  .toolbar input, .toolbar select, .opts span, .qty { border-color: #4a443e; }
+  .faq details p, .story p, .news p, .blurb, .details, .ticks li, .collection p { color: #c9bfb6; }
+  .focus { background: linear-gradient(180deg, var(--bg) 0, var(--bg-2) 100%); }
+  .life { background: #141210; }
+  .news { background: linear-gradient(120deg, #2a2220, #241f1e 55%, #1f1d1c); }
+  .news form { background: rgba(255, 255, 255, .06); }
+  .modal-close, .drawer-close { background: rgba(40, 35, 32, .85); color: var(--ink); }
+  .opts input:checked + span { background: var(--ink); color: #221e1c; border-color: var(--ink); }
+  .bar-track { background: #3a342f; }
+  .toast { color: #221e1c; }
+  .story-frame { background: #211d1b; }
+  @media (max-width: 900px) { .nav { background: rgba(27, 24, 23, .98); } }
+}

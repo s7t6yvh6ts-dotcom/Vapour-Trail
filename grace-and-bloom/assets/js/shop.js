@@ -43,11 +43,6 @@
       target.style.setProperty('--ry', '0deg'); target.style.setProperty('--rx', '0deg');
     });
   }
-  function stars(r) {
-    var full = Math.round(r);
-    return '<span class="stars" aria-label="' + r.toFixed(1) + ' out of 5">' + '★★★★★'.slice(0, full) + '<i>' + '★★★★★'.slice(full) + '</i></span>';
-  }
-
   /* ---------- grid ---------- */
   var grid = $('#grid'), current = 'all';
   function card(p, i) {
@@ -58,7 +53,7 @@
       (p.badge ? '<span class="badge">' + esc(p.badge) + '</span>' : '') +
       '<button class="fav" aria-label="Save ' + esc(p.name) + '" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>' +
       '<div class="meta"><div><h3>' + esc(p.name) + '</h3><p class="cat">' + esc(catLabel(p.cat)) + '</p></div>' +
-      '<div class="row"><span class="price">' + money(p.price) + '</span>' + stars(p.rating) + '<small>(' + p.reviews + ')</small></div></div>' +
+      '<div class="row"><span class="price">' + money(p.price) + '</span></div></div>' +
       '<button class="btn btn--ghost add" data-add="' + p.id + '">Add to basket</button>';
     var st = $('.stage', a); st.appendChild(mock(p, 1)); tilt(st, $('.mock', st));
     st.addEventListener('click', function () { openModal(p); });
@@ -78,7 +73,6 @@
     var b = a.slice();
     if (sortBy === 'low') b.sort(function (x, y) { return x.price - y.price; });
     else if (sortBy === 'high') b.sort(function (x, y) { return y.price - x.price; });
-    else if (sortBy === 'rated') b.sort(function (x, y) { return y.rating - x.rating || y.reviews - x.reviews; });
     return b;
   }
   function render(filter) {
@@ -115,7 +109,7 @@
   function pick(i) {
     $$('.chip', fchips).forEach(function (c, j) { c.setAttribute('aria-pressed', String(i === j)); });
     fres.innerHTML = '';
-    GB.products.filter(FINDER[i][1]).sort(function (a, b) { return b.rating - a.rating || b.reviews - a.reviews; }).slice(0, 4).forEach(function (p, k) { var c = card(p, k); c.classList.add('in'); fres.appendChild(c); });
+    GB.products.filter(FINDER[i][1]).slice(0, 4).forEach(function (p, k) { var c = card(p, k); c.classList.add('in'); fres.appendChild(c); });
   }
   FINDER.forEach(function (f, i) {
     var b = document.createElement('button'); b.className = 'chip'; b.textContent = f[0]; b.addEventListener('click', function () { pick(i); }); fchips.appendChild(b);
@@ -150,7 +144,6 @@
     mbody.innerHTML =
       '<div class="qv-stage"></div><div class="qv-info">' +
       '<p class="cat">' + esc(catLabel(p.cat)) + '</p><h2 id="modal-title">' + esc(p.name) + '</h2>' +
-      '<div class="row">' + stars(p.rating) + '<small>' + p.rating.toFixed(1) + ' · ' + p.reviews + ' reviews</small></div>' +
       '<p class="qv-price" id="qv-price"></p><p class="blurb">' + esc(p.blurb) + '</p>' +
       (vr ? '<fieldset class="opts"><legend>' + esc(vr.label) + '</legend>' + vr.options.map(function (o, i) { return '<label><input type="radio" name="v" value="' + i + '"' + (i === 0 ? ' checked' : '') + '><span>' + esc(o[0]) + '</span></label>'; }).join('') + '</fieldset>' : '') +
       '<div class="qty-row"><div class="qty" role="group" aria-label="Quantity"><button data-q="-1" aria-label="Decrease">−</button><output id="qv-q">1</output><button data-q="1" aria-label="Increase">+</button></div>' +
