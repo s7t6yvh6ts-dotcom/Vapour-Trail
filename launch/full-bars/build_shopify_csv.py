@@ -31,6 +31,11 @@ GRADE_CODE = {'Excellent': 'EX', 'Very Good': 'VG', 'Good': 'GD'}
 # test printout and outer packaging. PACKING_G is an estimate: weigh one packed parcel and change it.
 FACTS_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'facts.json')
 PACKING_G = 200
+# Shopify takes payment at checkout, and the site promises "If a part has been replaced, we tell you before you pay"
+# and "Phones with any replaced part are sold by email order only, so you always hear about it before paying". So only
+# units with all original manufacturer parts are stocked on these listings, and every description says so.
+PARTS_LINE = ('Every phone sold through this listing has all original manufacturer parts. Phones with any replaced part '
+              'are sold by email order only, so you always hear about it before paying.')
 
 
 def handset_weights(path, handles):
@@ -187,6 +192,9 @@ def body_html(p):
         f'<p>Refurbished and unlocked. Released {esc(p["year"])}. Every phone passes our full function test, '
         'has battery health of at least 85% and comes with our 12-month warranty. Every phone is IMEI-checked '
         'on CheckMEND when we buy it and again before it ships, and its IMEI is never altered.</p>',
+        # The site promises that a replaced part is disclosed before payment, so a pay-first checkout only ever sells
+        # phones with all original parts (GO-LIVE.md section 4). validate_shopify_csv.py requires PARTS_LINE.
+        f'<p>{esc(PARTS_LINE)}</p>',
         '<h2>Condition grades</h2>',
         f'<p>{esc(p["grade_intro"])}</p>',
         '<ul>' + ''.join(f'<li><strong>{esc(g)}:</strong> {esc(p["grade_text"][g])}</li>' for g in p['grades']) + '</ul>',

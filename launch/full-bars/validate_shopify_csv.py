@@ -59,6 +59,8 @@ TO_CURRENT = {'Handle': 'URL handle', 'Body (HTML)': 'Description', 'Product Cat
               'Variant Requires Shipping': 'Requires shipping', 'Variant Fulfillment Service': 'Fulfillment service',
               'Image Src': 'Product image URL', 'SEO Title': 'SEO title', 'SEO Description': 'SEO description'}
 MAX_VARIANTS, MAX_OPTIONS, MAX_BYTES = 2048, 3, 15 * 1024 * 1024
+# Typed here as well as in build_shopify_csv.py on purpose (this file shares no code with the builder)
+PARTS_LINE = 'Every phone sold through this listing has all original manufacturer parts.'
 PRODUCT_COLS = ['Title', 'Description', 'Vendor', 'Product category', 'Type', 'Tags', 'Published on online store',
                 'Status', 'Option1 name', 'Option2 name', 'Option3 name', 'SEO title', 'SEO description']
 
@@ -252,6 +254,10 @@ def main():
           all('on top of your Consumer Rights Act 2015 rights' in b for b in bodies))
     check('description: says every phone is IMEI-checked on CheckMEND', all('IMEI-checked on CheckMEND' in b for b in bodies))
     check('description: mentions the 14-day right to cancel', all('within 14 days' in b for b in bodies))
+    # Shopify takes payment at checkout, and the site promises a replaced part is disclosed before payment, so these
+    # listings only ever sell phones with all original manufacturer parts (GO-LIVE.md section 4)
+    check('description: says every phone on the listing has all original manufacturer parts',
+          all(PARTS_LINE in b for b in bodies), f'{sum(PARTS_LINE not in b for b in bodies)} product(s) without it')
     check('description: no site-relative links or scripts', not any(re.search(r'href="\.\.|<script|\[', b) for b in bodies))
     check('description: no fake urgency or review wording',
           not any(re.search(r'(?i)only \d+ left|selling fast|best[- ]?seller|\breview|★|limited time', b) for b in bodies))

@@ -14,9 +14,15 @@ It switches, on every page that has them:
   - the yellow "Preview: Full Bars isn't trading yet" banner is removed
   - data-preview="1" is removed from the 19 product pickers and the contact form (and from the 7 trade-in
     quote tools if you pass --trade-ins open)
-  - the dead "Opening soon" span on each product page becomes a real Order link to the contact page
+  - the dead "Opening soon" span on each product page becomes a real Order link: to the contact page with
+    --checkout stripe (email order, or Buy now where pay.js has a Payment Link), or to the phone's Shopify product
+    with --checkout shopify
+  - --checkout shopify --shop-url https://SHOP: each product picker gets data-shop="https://SHOP/products/<handle>",
+    where <handle> is the page's name and must be a URL handle in products-shopify.csv. site.js then sends the
+    Order button there and never builds an email order or a Payment Link, so one phone can't be sold twice
   - the "Not trading yet" boxes on terms, privacy, cookies, warranty, delivery-returns and contact go
-  - the contact form gets its "Order a phone" topic (site.js looks for it)
+  - --checkout stripe: the contact form gets its "Order a phone" topic (site.js looks for it). --checkout shopify:
+    it doesn't (and an existing one is removed), so there is no email-order route beside Shopify
   - "Last updated ..." on the legal pages and every <lastmod> in sitemap.xml become the launch date. Only in
     the run that switches the site out of preview, or when you pass --launch-date: rerunning on a site that is
     already live leaves those dates alone, because nothing on those pages changed
@@ -29,16 +35,25 @@ It will NOT run (exit code 1, nothing written) while any of these launch blocker
   - a price problem found by check_site_prices.py, or by set_prices.py --check (which also catches a stale
     "Price for ... From" line and a "Lowest price" badge on a phone that is no longer the cheapest)
   - a handset spec that disagrees with facts.json (check_site_facts.py)
-  - checkout not chosen, or pay.js not matching it: --checkout stripe needs at least one https Payment
-    Link in pay.js; --checkout shopify needs pay.js empty, or you'd sell the same phone twice
-  - a data-stock attribute that isn't valid JSON (site.js would ignore it and show everything in stock)
+  - checkout not chosen, or the site not matching it: --checkout stripe needs at least one https Payment
+    Link in pay.js and no data-shop on any product page; --checkout shopify needs pay.js empty, --shop-url, and a
+    Shopify product (a URL handle in products-shopify.csv) for every product page, or you'd sell the same phone
+    twice or have an Order button with nowhere to go
+  - a data-stock that site.js can't use: not valid JSON, a count that isn't a whole number of 0 or more, or a key
+    that isn't one of the page's "storage|condition" pairs (colour is never part of the key). With --checkout
+    stripe, also a product page with no data-stock at all: site.js would offer every option with no stock behind it
   - --trade-ins open while the sell pages have no quote-sending form
   - preview wording ("Preview prices: we're not taking orders yet", "When we open ...") that would still be
     on the live pages. It is future-tense, so it can't be switched mechanically: you write the new wording
     once in a --rewrites file and the script puts it on every page. Trade-in wording that stays true while
     trade-ins are closed is listed separately and doesn't block.
-    To switch anyway and fix the wording by hand afterwards, pass --allow-preview-wording: the run then ends
-    "NOT READY TO PUBLISH" with exit code 3, and you must not publish until the wording is done.
+  - checkout wording that doesn't fit the checkout you chose: "our intended payment provider" (terms section 4) on
+    either route; with --checkout shopify also every sentence about Stripe, Buy now, payment links or ordering by
+    email (terms section 3 on how the contract is made, the FAQ's "How do I pay?" ...), and the FAQ's "ask when you
+    order" promises (photos and battery figure before you pay: on Shopify, ordering is paying). Rewrite them in the
+    same --rewrites file. A sentence that is still true can be kept: give it its own text as the new wording.
+  To switch anyway and fix the preview or checkout wording by hand afterwards, pass --allow-preview-wording: the
+  run then ends "NOT READY TO PUBLISH" with exit code 3, and you must not publish until the wording is done.
 
 How to use it
 -------------
@@ -48,6 +63,7 @@ copy becomes the site you publish), never on your only copy.
   1. See what it would change and what is still blocking launch. Changes nothing:
        python3 launch/full-bars/go_live.py --site COPY --domain fullbars.co.uk --checkout stripe --dry-run \\
            --out ~/go-live-report.txt --rewrites-template ~/rewrites.json
+     (Shopify instead: --checkout shopify --shop-url https://your-shop.example, your store's own address.)
   2. Just the blockers:
        python3 launch/full-bars/go_live.py --site COPY --domain fullbars.co.uk --checkout stripe --check-only
   3. Fill in ~/rewrites.json (below), fix the other blockers, dry-run again with --rewrites ~/rewrites.json
@@ -57,28 +73,33 @@ copy becomes the site you publish), never on your only copy.
   4. Do the items listed under STILL TO DO BY HAND, republish, and put one real order through.
 
 The --rewrites file:
-  --rewrites-template FILE writes every preview sentence still on the pages, one per key, each set to null.
+  --rewrites-template FILE writes every preview or checkout sentence still on the pages, one per key, each null.
   Each key is one sentence as a customer reads it (&rsquo; and the like already turned into ’). Replace each
   null with your new wording in plain text, or "" to delete the sentence. Then pass the file with --rewrites:
   each sentence is replaced wherever it appears, in the page text, in meta descriptions and in the structured
   data (FAQ answers), with quotes and & made safe for each place. Plain text only: < and > are refused, so
-  links and bold stay as they are on the page. If one of your sentences sits inside a longer one of yours at
+  links and bold stay as they are on the page. A checkout sentence that is still true for your checkout can be
+  kept by giving it its own text as the new wording (preview wording can't be kept). If one of your sentences sits inside a longer one of yours at
   the same place, the longer one wins there; two that partly overlap are refused, and every clash is listed.
   A sentence left null is skipped, and blocks the switch if it is preview wording.
 
 Options: --launch-date YYYY-MM-DD (default today) sets the "Last updated" and sitemap dates.
+--shop-url https://SHOP (with --checkout shopify only): your Shopify store's own address, not a /products/ page (the
+script adds /products/<handle> itself); --shopify-csv FILE reads the
+URL handles from FILE instead of products-shopify.csv in this folder.
 --trade-ins closed (the default) keeps the trade-in quote tool in guide-price mode; --trade-ins open switches it on.
 --no-www uses https://fullbars.co.uk/ instead of https://www.fullbars.co.uk/ for page addresses.
 
 Exit codes: 0 = done and ready to publish (with --dry-run or --check-only: no blockers);
 1 = blockers, nothing written (or, after writing, a re-check failed: the report says so, don't publish);
-2 = bad arguments; 3 = switched (or would switch), but NOT READY TO PUBLISH: preview wording is still on the
-pages because you passed --allow-preview-wording.
+2 = bad arguments; 3 = switched (or would switch), but NOT READY TO PUBLISH: preview or checkout wording is still
+on the pages because you passed --allow-preview-wording.
 The script writes only inside --site, plus the --out report and the --rewrites-template file you name (both
 must be outside --site, so they never get published). Python 3 standard library only.
 """
 import argparse
 import bisect
+import csv
 import datetime
 import html
 import json
@@ -133,6 +154,36 @@ PREVIEW_ONLY_JS = (
 QT_SEND_IDS = ('qtSend', 'qtName', 'qtNotes', 'qtOwner', 'qtStatus')
 PICKER_TAG = re.compile(r'<form class="picker" id="picker"[^>]*>')   # as in check_site_prices.py
 NO_INDEX_KEEP = ('404.html',)   # an error page should never be indexed
+
+# --checkout shopify: where each product page's Order button goes. The URL handles come from the Shopify CSV
+# (build_shopify_csv.py names each product after its page, so products/iphone-13.html is handle iphone-13).
+SHOPIFY_CSV = os.path.join(HERE, 'products-shopify.csv')
+# https, a host name, an optional port and path (Shopify Markets can add one, such as /en-gb); no query or fragment
+SHOP_URL = re.compile(r'https://(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?::\d{1,5})?(?:/[A-Za-z0-9._~%-]+)*')
+# Wording about ordering and paying that has to match the checkout you chose. "Our intended payment provider" is
+# wrong at launch on either route. On the Shopify route, every sentence about Stripe, Buy now, payment links or
+# ordering by email has to be rewritten or confirmed (terms section 3 on how the contract is made, the FAQ's
+# "How do I pay?" answer, the contact form's order prompt ...), plus any promise to do something "when you order"
+# before payment (the FAQ's photos and battery answers: on Shopify, ordering and paying are one checkout step), and
+# these sentences, which name none of them:
+SHOPIFY_SENTENCES = (
+    'In both cases the contract is made when we email to confirm your order has been accepted.',   # terms section 3
+    'For orders: the phone, storage, grade and colour, your delivery address and a phone number for the courier.',
+)
+_CHECKOUT_BOTH = r'\bintended payment provider\b'
+# privacy.html's quote-tool sentence, which must end up saying what cookies.html says (answers kept for this tab only)
+PRIVACY_QUOTE_TOOL = 'The quote tool works in your browser.'
+CHECKOUT_WORDS = {
+    'stripe': re.compile(_CHECKOUT_BOTH, re.I),
+    'shopify': re.compile(_CHECKOUT_BOTH + r'|\bstripe\b|\bbuy now\b(?!,?\s*pay later)|\bpayment links?\b'
+                          r'|\border(?:s|ing)? (?:it )?by email\b|\bemail orders?\b|\bsend us an order\b'
+                          r'|\bconfirm(?:ed)? before you pay\b|\bask when you order\b|'
+                          + '|'.join(re.escape(s) for s in SHOPIFY_SENTENCES), re.I),
+}
+# Script text that only runs when pay.js has a Payment Link, so never on a Shopify-route page
+STRIPE_ONLY_JS = (('site.js', 'Buy now — '),)
+# Shown only beside a Buy now link: hidden on every Shopify-route page
+STRIPE_ONLY_HTML = re.compile(r'<p\b[^>]*\bid="buyNote"[^>]*>.*?</p>', re.S)
 
 
 class Fail(Exception):
@@ -232,6 +283,76 @@ def pay_links(src):
     """[(key, link)] from pay.js, as check_site_prices.py reads its keys."""
     body = src[src.index('window.FULLBARS_PAY'):] if 'window.FULLBARS_PAY' in src else ''
     return re.findall(r'^\s*"([^"]+)":\s*"([^"]*)",?\s*$', body, re.M)
+
+
+def page_handle(rel):
+    """products/iphone-13.html -> iphone-13: the Shopify URL handle build_shopify_csv.py gives that page's product."""
+    return rel.rsplit('/', 1)[-1][:-len('.html')]
+
+
+def parse_shop_url(value):
+    """--shop-url as https://host[/path], without a trailing slash; Fail if it isn't one."""
+    v = value.strip().rstrip('/')
+    m = re.match(r'(?i)(https://)([^/]+)(.*)$', v)
+    if m:
+        v = m.group(1).lower() + m.group(2).lower() + m.group(3)
+    if not SHOP_URL.fullmatch(v):
+        raise Fail(f'--shop-url {value!r} is not an https:// address like https://your-shop.example (your Shopify '
+                   'store\'s own address, with no ? or #)')
+    if any(seg.lower() in ('products', 'collections', 'cart', 'checkout', 'checkouts') for seg in m.group(3).split('/')):
+        raise Fail(f'--shop-url {value!r} is a page inside your store, not its address. Give just the store\'s own address '
+                   '(such as https://your-shop.example): this script adds /products/<handle> for each phone itself')
+    return v
+
+
+def csv_handles(path):
+    """(set of URL handles in a Shopify product CSV, None) or (None, why it can't be read)."""
+    try:
+        with open(path, encoding='utf-8-sig', newline='') as fh:
+            rows = list(csv.reader(fh))
+    except (OSError, UnicodeDecodeError, csv.Error) as e:
+        return None, f'can\'t read {path} ({e})'
+    head = rows[0] if rows else []
+    col = 'URL handle' if 'URL handle' in head else 'Handle' if 'Handle' in head else None
+    if col is None:
+        return None, f'{path} has no "URL handle" (or "Handle") column'
+    i = head.index(col)
+    return {r[i].strip() for r in rows[1:] if len(r) > i and r[i].strip()}, None
+
+
+def shop_targets(files, opt):
+    """--checkout shopify: ({product page: its Shopify product address}, blockers, warnings). Every product page needs
+    a product with the same URL handle in the Shopify CSV, or its Order button would have nowhere to go."""
+    if getattr(opt, 'checkout', None) != 'shopify' or not getattr(opt, 'shop_url', None):
+        return {}, [], []
+    handles, err = csv_handles(opt.shopify_csv)
+    if err:
+        return {}, [f'--checkout shopify: {err}, so the Order buttons can\'t be matched to Shopify products'], []
+    targets, blockers = {}, []
+    name = os.path.basename(opt.shopify_csv)
+    for rel, _, _ in pickers(files):
+        h = page_handle(rel)
+        if h in handles:
+            targets[rel] = f'{opt.shop_url}/products/{h}'
+        else:
+            blockers.append(f'{rel}: no product with URL handle "{h}" in {name}, so its Order button would have no '
+                            'Shopify product to go to (data-shop). Rebuild the CSV with build_shopify_csv.py and import '
+                            'it, or rename the page to match its Shopify handle')
+    extra = sorted(handles - {page_handle(r) for r, _, _ in pickers(files)})
+    warnings = [f'{name} has product(s) with no page on the site, so no Order button leads to them: {", ".join(extra)}'] if extra else []
+    return targets, blockers, warnings
+
+
+def whole_count(v):
+    """True for a stock count site.js accepts: a whole number of 0 or more, written 2, 2.0 or 2e0 (JSON has one kind
+    of number, so site.js reads them all as 2). Not true/false, not 1.5, not "1", not negative."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return False
+    return v >= 0 and (isinstance(v, int) or v.is_integer())
+
+
+def _no_constant(name):
+    raise ValueError(f'{name} isn\'t allowed in JSON')
 
 
 # ----------------------------------------------------------------------------------------------- edits
@@ -374,14 +495,33 @@ def plan_switches(files, opt):
             a = re.search(r'\sdata-preview(?:="[^"]*")?', tag)
             where = {'picker': 'product picker', 'contactForm': 'contact form', 'qt': 'trade-in quote tool'}.get(attr(tag, 'id'), 'element')
             edits.append(Edit(rel, m.start() + a.start(), m.start() + a.end(), '', f'{where}: data-preview removed (switches it on)'))
+        # Shopify route: the picker's data-shop (site.js sends the Order button there)
+        pk = PICKER_TAG.search(src)
+        shop = opt.shop_targets.get(rel) if opt.checkout == 'shopify' else None
+        if pk and shop:
+            dm = re.search(r'\sdata-shop="([^"]*)"', pk.group(0))
+            if not dm:
+                at = pk.end() - 1
+                edits.append(Edit(rel, at, at, f' data-shop="{html.escape(shop)}"', f'product picker: data-shop added ({shop})'))
+            elif html.unescape(dm.group(1)) != shop:
+                edits.append(Edit(rel, pk.start() + dm.start(1), pk.start() + dm.end(1), html.escape(shop),
+                                  f'product picker: data-shop -> {shop}'))
+        # the Order link's address when site.js doesn't run: the Shopify product, or the contact page
+        href = shop or (attr(pk.group(0), 'data-contact') if pk else None) or '../contact.html'
         # dead Order span -> link
         for m in re.finditer(r'<span\b[^>]*\bid="orderBtn"[^>]*>.*?</span>', src, re.S):
             tag = m.group(0)[:m.group(0).index('>') + 1]
             cls = ' '.join(c for c in (attr(tag, 'class') or 'btn btn-hot btn-block').split() if c != 'btn-off')
-            pk = PICKER_TAG.search(src)
-            href = (attr(pk.group(0), 'data-contact') if pk else None) or '../contact.html'
             new = f'<a class="{html.escape(cls)}" id="orderBtn" href="{html.escape(href)}">Order</a>'
-            edits.append(Edit(rel, m.start(), m.end(), new, 'Order button: dead "Opening soon" span -> link'))
+            edits.append(Edit(rel, m.start(), m.end(), new, 'Order button: dead "Opening soon" span -> link'
+                              + (' to the Shopify product' if shop else '')))
+        # an Order link from an earlier run that points the other way (contact page vs Shopify): follow --checkout
+        if pk and opt.checkout in ('shopify', 'stripe'):
+            for m in re.finditer(r'<a\b[^>]*\bid="orderBtn"[^>]*>', src):
+                hm = re.search(r'\shref="([^"]*)"', m.group(0))
+                if hm and html.unescape(hm.group(1)) != href and (shop or opt.checkout == 'stripe'):
+                    edits.append(Edit(rel, m.start() + hm.start(1), m.start() + hm.end(1), html.escape(href),
+                                      f'Order button: link -> {href}'))
         # preview-only notes
         if opt.trade_ins == 'open':
             for m in re.finditer(r'<div\b[^>]*\bid="qtPreview"[^>]*>', src):
@@ -396,10 +536,15 @@ def plan_switches(files, opt):
             end = closing(rel, src, m.start())
             s, e = widen_to_line(src, m.start(), end)
             edits.append(Edit(rel, s, e, '', '"Not trading yet" panel removed'))
-        # contact form: the topic site.js picks for ?order= links
+        # contact form: the topic site.js picks for ?order= links. Static route only: on the Shopify route there is no
+        # email order beside Shopify (site.js ignores ?order= without this topic), so it isn't added, or goes
         if 'id="contactForm"' in src:
             sm = re.search(r'<select\b[^>]*\bid="cTopic"[^>]*>(.*?)</select>', src, re.S)
-            if sm and 'Order a phone' not in sm.group(1):
+            if sm and opt.checkout == 'shopify':
+                for om in re.finditer(r'<option\b[^>]*>\s*Order a phone\s*</option>', sm.group(0)):
+                    edits.append(Edit(rel, sm.start() + om.start(), sm.start() + om.end(), '',
+                                      'contact form: "Order a phone" topic removed (Shopify takes the orders)'))
+            elif sm and 'Order a phone' not in sm.group(1):
                 first = src.find('</option>', sm.start(), sm.end())
                 at = first + len('</option>') if first >= 0 else sm.start() + sm.group(0).index('>') + 1
                 edits.append(Edit(rel, at, at, '<option>Order a phone</option>', 'contact form: "Order a phone" topic added'))
@@ -572,12 +717,24 @@ def find_blockers(site, files, opt):
         if filled:
             blockers.append(f'--checkout shopify, but pay.js has {len(filled)} Stripe Payment Link(s) ({", ".join(k for k, _ in filled)}). '
                             'Clear them: running both checkouts sells the same phone twice')
+        if not opt.shop_url:
+            blockers.append('--checkout shopify needs --shop-url https://... (your Shopify store\'s address): each product page\'s '
+                            'Order button goes to <shop-url>/products/<handle>, and without it the pages would still take '
+                            'email orders beside Shopify and sell the same phone twice')
+        blockers.extend(opt.shop_blockers)
+        warnings.extend(opt.shop_warnings)
     else:
         if 'pay.js' not in files:
             blockers.append('--checkout stripe, but the site has no pay.js')
         elif not filled:
             blockers.append('--checkout stripe, but every Payment Link in pay.js is empty, so nothing can be paid for. '
                             'Add a link for each phone you hold (rules at the top of pay.js), or choose --checkout shopify')
+        shop_pages = [f'{rel}:{line_of(files[rel], pos)}' for rel, tag, pos in pickers(files) if attr(tag, 'data-shop') is not None]
+        if shop_pages:
+            blockers.append(f'--checkout stripe, but {len(shop_pages)} product page(s) have data-shop (an Order link to Shopify): '
+                            f'{", ".join(shop_pages)}. site.js would send those Order buttons to Shopify while the rest of the '
+                            'site takes email orders and Payment Links, selling the same phone twice. Remove data-shop from each '
+                            '#picker, or use --checkout shopify')
         for k, v in filled:
             if not v.startswith('https://'):
                 blockers.append(f'pay.js "{k}": "{v}" is not an https:// link, so site.js ignores it')
@@ -597,31 +754,57 @@ def find_blockers(site, files, opt):
             if over:
                 warnings.append(f'pay.js has links for phones priced above the GBP {cap.group(1)} cap (BUY_NOW_MAX), which site.js '
                                 f'never shows: {", ".join(over)}')
-    # 4. data-stock
-    any_stock = False
+    # 4. data-stock: {"128GB|Good": 2, ...}, units held per storage and condition (colour isn't tracked)
+    missing, with_stock, held_by_key = [], [], {}
     for rel, tag, pos in pickers(files):
+        where = f'{rel}:{line_of(files[rel], pos)}'
         raw = attr(tag, 'data-stock')
         if raw is None:
+            missing.append(rel)
             continue
-        any_stock = True
+        with_stock.append(rel)
         try:
-            stock = json.loads(raw)
+            stock = json.loads(raw, parse_constant=_no_constant)   # NaN/Infinity: browsers refuse the whole attribute
             if not isinstance(stock, dict):
                 raise ValueError('not an object')
         except ValueError as e:
-            blockers.append(f'{rel}:{line_of(files[rel], pos)}: data-stock is not valid JSON ({e}), so site.js ignores it and '
-                            'every option looks in stock')
+            blockers.append(f'{where}: data-stock is not valid JSON ({e}), so site.js ignores it and every option looks in stock')
             continue
         try:
             combos = {f'{st}|{gr}' for st, g in json.loads(attr(tag, 'data-prices') or '{}').items() for gr in g}
-        except ValueError:
-            combos = set()
-        odd = [k for k in stock if combos and k not in combos]
+        except (ValueError, AttributeError):
+            combos = set()   # check_site_prices.py reports a broken data-prices
+        bad = [f'"{k}": {json.dumps(v)}' for k, v in stock.items() if not whole_count(v)]
+        if bad:
+            blockers.append(f'{where}: data-stock count(s) that aren\'t a whole number of units (0 or more): {", ".join(bad)}. '
+                            'site.js treats them as not in stock. Write each as a plain number of units, such as 2')
+        coloured = [k for k in stock if k.count('|') >= 2]
+        if coloured:
+            blockers.append(f'{where}: data-stock key(s) with a colour in them: {", ".join(coloured)}. Colour isn\'t tracked: '
+                            'the key is "storage|condition" (for example "128GB|Good"), counting every colour together')
+        odd = [k for k in stock if combos and k not in combos and k not in coloured]
         if odd:
-            warnings.append(f'{rel}: data-stock has keys no option uses, so they do nothing: {", ".join(odd)}')
-    if not any_stock:
-        warnings.append('no product page has data-stock yet, so every option shows as available to order '
-                        '(GO-LIVE.md section 4 and section 6, step 2)')
+            blockers.append(f'{where}: data-stock key(s) that aren\'t a storage and condition on this page: {", ".join(odd)}. '
+                            f'Use one of: {", ".join(sorted(combos))}. A phone under a mistyped key shows as not in stock')
+        model = attr(tag, 'data-model') or ''
+        for k in combos | set(stock):
+            v = stock.get(k)
+            held_by_key[f'{model} {k.replace("|", " ")}'] = whole_count(v) and v > 0
+    if opt.checkout == 'stripe' and missing:
+        blockers.append(f'data-stock is missing on {len(missing)} of {len(missing) + len(with_stock)} product pages '
+                        f'({", ".join(missing)}). On the static route site.js would show every storage and condition as '
+                        'in stock and orderable, with no phone behind it. Add data-stock to each page\'s #picker: '
+                        'data-stock="{&quot;128GB|Good&quot;: 2}" means 2 units of 128GB in Good, any colour; a missing key '
+                        'or 0 means not in stock; "{}" means none at all (GO-LIVE.md section 6, step 2)')
+    elif opt.checkout == 'shopify' and with_stock:
+        warnings.append(f'{len(with_stock)} product page(s) have data-stock. On the Shopify route Shopify\'s own stock decides '
+                        'what can be bought; data-stock only turns a page\'s button into "Not in stock — ask us". Keep it in '
+                        'step with Shopify, or remove it')
+    if opt.checkout == 'stripe':
+        unheld = [k for k, v in filled if k in held_by_key and not held_by_key[k]]
+        if unheld:
+            warnings.append(f'pay.js has Payment Link(s) for phones data-stock says you don\'t hold, so the page shows "Not in '
+                            f'stock" and never offers them: {", ".join(unheld)}. Deactivate them in Stripe and clear them')
     # 5. trade-ins
     if opt.trade_ins == 'open':
         for rel in sorted(files):
@@ -712,7 +895,7 @@ def js_marks(src):
 
 def js_literal_is_code(rel, lit):
     """A JS string that is never shown on the live site: preview-only text, or a selector / attribute name."""
-    if any(rel.split('/')[-1] == f and lit.startswith(p) for f, p in PREVIEW_ONLY_JS):
+    if any(rel.split('/')[-1] == f and lit.startswith(p) for f, p in PREVIEW_ONLY_JS + STRIPE_ONLY_JS):
         return True
     return bool(re.fullmatch(r'[#.\[]?[\w-]+(?:=["\']?[\w-]*["\']?)?\]?', lit))   # e.g. '#qtPreview', 'data-preview'
 
@@ -938,14 +1121,20 @@ def is_sell_page(rel):
     return rel == 'sell.html' or (rel.startswith('sell/') and rel.endswith('.html'))
 
 
-def leftovers(files, opt):
-    """Preview wording still in the site, as {category: {snippet: [rel:line, ...]}}.
+def leftovers(files, opt, keep=()):
+    """Preview and checkout wording still in the site, as {category: {snippet: [rel:line, ...]}}.
     rewrite = customer-facing, needs new wording (one sentence per snippet, as a --rewrites key);
     hand = customer-facing, but in a place scripts read too, so a person edits it;
+    checkout / checkout-hand = the same, for wording about ordering and paying that doesn't fit --checkout;
+    checkout-kept = such wording that your --rewrites keeps as it is (keep: those sentences);
+    hidden = Buy now wording that only shows beside a Payment Link, so never on the Shopify route;
     later = trade-in wording that stays true until trade-ins open; kept = preview hooks deliberately left
     (class, id and attribute names); code = scripts/styles/comments that never show on the live site."""
     items, seen_locs = {}, set()
-    rank = {'rewrite': 0, 'hand': 0, 'later': 1, 'kept': 2, 'code': 3}
+    rank = {'rewrite': 0, 'hand': 0, 'checkout': 1, 'checkout-hand': 1, 'later': 2, 'checkout-kept': 3, 'hidden': 3,
+            'kept': 3, 'code': 4}
+    crx = CHECKOUT_WORDS.get(getattr(opt, 'checkout', None))
+    keep_fold = {norm_text(k).translate(FOLD) for k in keep}
     for rel in sorted(files):
         if not rel.endswith(SCAN_EXT):
             continue
@@ -992,6 +1181,27 @@ def leftovers(files, opt):
                 key = (snippet, loc)
                 if key not in items or rank[cat] < rank[items[key]]:
                     items[key] = cat
+        # checkout wording: only what customers read (code, comments and hooks never show)
+        if crx is None or not rel.endswith(('.html', '.js')):
+            continue
+        hidden = [(m.start(), m.end()) for m in STRIPE_ONLY_HTML.finditer(src)] if opt.checkout == 'shopify' else []
+        for m in crx.finditer(src):
+            pos = m.start()
+            loc = f'{rel}:{line_of(src, pos)}'
+            seg = covering(segs, seg_starts, pos)
+            if seg is None:
+                kind, a, b = classify(rel, src, marks, pos)
+                if kind != 'hand':
+                    continue
+                snippet, cat = src[a:b].strip(), 'checkout-hand'
+            else:
+                a, b = sentence_at(seg.text, seg.index(pos))
+                snippet = seg.text[a:b]
+                cat = ('hidden' if any(x <= pos < y for x, y in hidden)
+                       else 'checkout-kept' if snippet.translate(FOLD) in keep_fold else 'checkout')
+            key = (snippet, loc)
+            if key not in items or rank[cat] < rank[items[key]]:
+                items[key] = cat
     out = {}
     for (snippet, loc), cat in items.items():
         out.setdefault(cat, {}).setdefault(snippet, [])
@@ -1003,6 +1213,12 @@ def leftovers(files, opt):
 def wording_left(left):
     """(pieces, places) of preview wording that must change before the site can be published."""
     groups = list(left.get('rewrite', {}).values()) + list(left.get('hand', {}).values())
+    return len(groups), sum(len(v) for v in groups)
+
+
+def checkout_left(left):
+    """(pieces, places) of checkout wording that doesn't fit --checkout and must change before publishing."""
+    groups = list(left.get('checkout', {}).values()) + list(left.get('checkout-hand', {}).values())
     return len(groups), sum(len(v) for v in groups)
 
 
@@ -1128,6 +1344,8 @@ def rewrite_edits(files, rewrites, bare, host, old_host):
     edits, last_end = [], {}
     for seg, ds, de, key in sorted(hits, key=lambda h: (h[0].rel, h[0].start, h[1])):
         new, text = rw[key], seg.text
+        if new == key:
+            continue   # kept as it is (a checkout sentence that is still true): nothing to change
         prev = last_end.get(id(seg), 0)
         if not new:   # deleting a sentence: take one neighbouring space with it, but never the space next to a tag
             if ds > 1 and text[ds - 1] == ' ' and ds - 1 >= prev:
@@ -1147,9 +1365,9 @@ def rewrite_edits(files, rewrites, bare, host, old_host):
 
 
 def template_keys(files, left):
-    """The --rewrites-template keys: every preview sentence still to rewrite, minus any that only ever sits
-    inside a longer one (it could never apply), with notes for any two that partly overlap."""
-    keys = sorted(left.get('rewrite', {}))
+    """The --rewrites-template keys: every preview or checkout sentence still to rewrite, minus any that only ever
+    sits inside a longer one (it could never apply), with notes for any two that partly overlap."""
+    keys = sorted(set(left.get('rewrite', {})) | set(left.get('checkout', {})))
     hits, clashes, _ = match_rewrites(files, keys)
     used = {h[3] for h in hits}
     notes = [f'--rewrites-template: fill in only one of these: {c}' for c in clashes]
@@ -1187,6 +1405,7 @@ LDJSON_BLOCK = re.compile(r'<script\b[^>]*\btype="application/ld\+json"[^>]*>(.*
 def verify(files, opt, new_host, old_host_changed):
     """What must be true of a switched site. [] when all good."""
     bad = []
+    checkout, shop_url = getattr(opt, 'checkout', None), getattr(opt, 'shop_url', None)
     long_date = f'{opt.launch_date.day} {opt.launch_date:%B %Y}'
     for rel in sorted(files):
         src = files[rel]
@@ -1208,8 +1427,24 @@ def verify(files, opt, new_host, old_host_changed):
             ob = re.search(r'<(\w+)\b[^>]*\bid="orderBtn"[^>]*>', src)
             if not ob or ob.group(1).lower() != 'a' or not attr(ob.group(0), 'href'):
                 bad.append(f'{rel}: Order control is not a link with an href ({ob.group(0) if ob else "missing"})')
-        if 'id="contactForm"' in src and 'Order a phone' not in src:
-            bad.append(f'{rel}: contact form has no "Order a phone" topic')
+            pk = PICKER_TAG.search(src)
+            shop = attr(pk.group(0), 'data-shop') if pk else None
+            if checkout == 'shopify' and pk:
+                want = f'{shop_url}/products/{page_handle(rel)}' if shop_url else None
+                if not shop or not SHOP_URL.fullmatch(shop) or (want and shop != want):
+                    bad.append(f'{rel}: data-shop is {shop!r}, not the page\'s Shopify product ({want or "an https:// address"})')
+                elif ob and ob.group(1).lower() == 'a' and attr(ob.group(0), 'href') != shop:
+                    bad.append(f'{rel}: Order link goes to {attr(ob.group(0), "href")}, not the Shopify product {shop}')
+                if '?order=' in src:
+                    bad.append(f'{rel}: has an email-order link (?order=) on the Shopify route')
+            elif checkout == 'stripe' and shop is not None:
+                bad.append(f'{rel}: data-shop is still on the page with --checkout stripe')
+        if 'id="contactForm"' in src:
+            topic = re.search(r'<option\b[^>]*>\s*Order a phone\s*</option>', src)
+            if checkout == 'shopify' and topic:
+                bad.append(f'{rel}: contact form still has the "Order a phone" topic on the Shopify route (email orders beside Shopify)')
+            elif checkout != 'shopify' and not topic:
+                bad.append(f'{rel}: contact form has no "Order a phone" topic')
         if opt.set_dates:
             for m in re.finditer(r'<p\b[^>]*\bclass="legal-updated"[^>]*>([^<]*)</p>', src):
                 if m.group(1).strip() != f'Last updated {long_date}':
@@ -1265,24 +1500,57 @@ def in_preview(files):
 def manual_items(opt, files):
     pages = sum(1 for r in files if r.startswith('products/') and r.endswith('.html'))
     items = []
+    shop = getattr(opt, 'shop_url', None) or '<shop-url>'
     if opt.checkout == 'shopify':
-        items.append('Shopify: set the products to Active and publish them (GO-LIVE.md section 5). The static product pages\' '
-                     'Order buttons still take email orders through contact.html: point each one at its Shopify product, or retire '
-                     'the static shop, or you will take orders in two places.')
+        items.append(f'Shopify: set the products to Active and publish them (GO-LIVE.md section 5). Every product page\'s Order '
+                     f'button now goes to {shop}/products/<handle> (data-shop), and there is no email-order route beside it '
+                     '(no "Order a phone" topic, no ?order= links). Keep each Shopify URL handle exactly as products-shopify.csv '
+                     'has it, or that Order button lands on a "page not found".')
+        items.append('Shopify stock: add stock only for units with all original manufacturer parts. A unit with any replaced '
+                     'part stays at 0 on Shopify and is sold by email order: the customer asks through the contact page, you '
+                     'tell them which part was replaced, then send a Shopify draft order (a custom item whose title names the '
+                     'replaced part) as an invoice for them to pay. Never a Payment Link: pay.js stays empty on this route '
+                     '(GO-LIVE.md section 4).')
+        items.append('Keep the static site live as the information front (warranty, grading standard, FAQ, delivery and returns '
+                     'with the cancellation form, terms, privacy, cookies, sell pages and guides), or carry those pages into '
+                     'Shopify before you retire it (GO-LIVE.md section 5, step 12).')
+        items.append('Order confirmation: paste launch/full-bars/order-confirmation-email.html into Shopify\'s Settings > '
+                     'Notifications > Order confirmation, and send the unit email in order-confirmation-email.md (exact phone, '
+                     'battery %, parts) within 1 working day of each order. Decide the IMEI question at the top of both files '
+                     'first. Place a test order and read the email before launch: the law wants the order confirmed, with the '
+                     'cancellation rights and form, on a durable medium such as email (GO-LIVE.md section 5, step 11).')
     elif opt.checkout == 'stripe':
         filled = [k for k, v in pay_links(files.get('pay.js', '')) if v.strip()]
         items.append(f'Stripe: pay.js has {len(filled)} Payment Link(s). Deactivate the link in Stripe and clear it in pay.js the '
                      'moment that phone sells.')
+        items.append('Stock: change data-stock on the product page the moment a phone sells or arrives (units held per storage '
+                     'and condition, GO-LIVE.md section 6, step 2), then republish.')
+        items.append('Order confirmation: send launch/full-bars/order-confirmation-email.md, filled in, as the confirmation '
+                     'email for every order (Stripe\'s receipt doesn\'t carry the cancellation rights and form). Decide the '
+                     'IMEI question at the top of that file first. Send one to yourself from a test order before launch '
+                     '(GO-LIVE.md section 6, step 7).')
     items.append('Republish the site (sites/README.md) and put one real order through end to end, then refund it.')
-    items.append(f'Open all {pages} product pages on the published site. Each needs a clickable "Order — £…" button '
-                 '("Buy now — £…" with a Payment Link, "Not in stock — ask us" for an option you don\'t hold) that '
-                 'changes when you change storage, condition or colour. "Opening soon" or greyed-out options mean site.js didn\'t '
-                 'load or data-prices is wrong (GO-LIVE.md section 6, step 3).')
+    if opt.checkout == 'shopify':
+        items.append(f'Open all {pages} product pages on the published site. Each needs a clickable "Order — £…" button '
+                     f'that goes to its own product at {shop} ("Not in stock — ask us" only if you kept data-stock), and the '
+                     'price must change when you change storage, condition or colour. "Opening soon" or greyed-out options '
+                     'mean site.js didn\'t load or data-prices is wrong (GO-LIVE.md section 6, step 3).')
+    else:
+        items.append(f'Open all {pages} product pages on the published site. Each needs a clickable "Order — £…" button '
+                     '("Buy now — £…" with a Payment Link, "Not in stock — ask us" for an option you don\'t hold) that '
+                     'changes when you change storage, condition or colour. "Opening soon" or greyed-out options mean site.js didn\'t '
+                     'load or data-prices is wrong (GO-LIVE.md section 6, step 3).')
     items.append('Open sell.html: the quote questions must appear, not "The instant quote hasn\'t loaded".')
     if opt.trade_ins == 'closed':
         items.append('Trade-ins stay closed: the quote tool still gives guide prices only. To open them, add a quote-sending form '
                      f'(#{", #".join(QT_SEND_IDS)}, as quote-ui.js expects) to sell.html and the sell/*.html pages, confirm the '
                      'trade-in prices (GO-LIVE.md section 1, item 7), then run this again with --trade-ins open.')
+    if any(PRIVACY_QUOTE_TOOL in g.text and 'this tab' not in g.text
+           for g in segments('privacy.html', files.get('privacy.html', ''))):
+        items.append(f'privacy.html still says "{PRIVACY_QUOTE_TOOL}" while cookies.html says the quote tool keeps your answers '
+                     'in your browser for this tab only. Make them say the same thing: add that sentence to your --rewrites '
+                     'file, for example "The quote tool works in your browser: it keeps your answers there for this tab only, '
+                     'and they\'re never sent to us." (GO-LIVE.md section 7).')
     items.append('Check the sections it can\'t judge: VAT line in the footers, WEEE take-back wording, the privacy policy naming '
                  'your host and email provider (GO-LIVE.md sections 1 to 3).')
     return items
@@ -1302,8 +1570,9 @@ def build_report(mode, site, opt, edits, edited_from, notes, blockers, warnings,
     L.append(f'Full Bars go-live switch: {mode}')
     L.append(f'Site: {os.path.abspath(site)}')
     dates = (f'{opt.launch_date.day} {opt.launch_date:%B %Y}' if opt.set_dates else 'left as they are (site already live)')
-    L.append(f'Domain: {opt.bare} (pages at https://{opt.host}/, email hello@{opt.bare})   Checkout: {opt.checkout or "NOT CHOSEN"}   '
-             f'Trade-ins: {opt.trade_ins}   Launch date: {dates}')
+    L.append(f'Domain: {opt.bare} (pages at https://{opt.host}/, email hello@{opt.bare})   Checkout: {opt.checkout or "NOT CHOSEN"}'
+             + (f' ({opt.shop_url or "NO --shop-url"})' if opt.checkout == 'shopify' else '')
+             + f'   Trade-ins: {opt.trade_ins}   Launch date: {dates}')
     if edits is not None:
         L.append('')
         changed_files = len({e.rel for e in edits})
@@ -1314,7 +1583,8 @@ def build_report(mode, site, opt, edits, edited_from, notes, blockers, warnings,
             L.append(describe(edited_from[e], e))
         kinds = {}
         for e in edits:
-            k = re.sub(r':.*', '', e.what) if e.prio else e.what
+            # one summary line per kind of change: addresses that differ page by page are left out
+            k = re.sub(r':.*', '', e.what) if e.prio else re.sub(r' \(https?://[^)]*\)$| -> (?:https?://|\.\./)\S+$', '', e.what)
             kinds[k] = kinds.get(k, 0) + 1
         L.append('  Summary:')
         for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]):
@@ -1336,6 +1606,26 @@ def build_report(mode, site, opt, edits, edited_from, notes, blockers, warnings,
                 L.extend(group_lines(hand, '      '))
         else:
             L.append('  1. Preview wording: none left on the pages.')
+        cw, cwh = left.get('checkout', {}), left.get('checkout-hand', {})
+        cpieces, cplaces = checkout_left(left)
+        if cpieces:
+            why = ('your Order buttons go to Shopify, so anything about Stripe, Buy now buttons, payment links, ordering by '
+                   'email or confirming before you pay must say how Shopify checkout works. That includes terms section 3 '
+                   '(when the contract is made) and the FAQ\'s "How do I pay?" answer (GO-LIVE.md section 5, step 7)'
+                   if opt.checkout == 'shopify' else
+                   'it describes a payment provider you only intend to use')
+            L.append(f'    Checkout wording that doesn\'t fit --checkout {opt.checkout}: {cpieces} piece(s) of text in {cplaces} '
+                     f'place(s). Rewrite it in the same --rewrites file: {why}. A sentence that is still true can stay: give '
+                     'it its own text as the new wording.')
+            L.extend(group_lines(cw))
+            if cwh:
+                L.append('    Edit these by hand: scripts read these attributes too, so --rewrites leaves them alone.')
+                L.extend(group_lines(cwh, '      '))
+        elif opt.checkout:
+            L.append(f'    Checkout wording: nothing left that contradicts --checkout {opt.checkout}.')
+        if left.get('checkout-kept'):
+            L.append('    Checkout wording you kept as it is (your --rewrites gives it its own text):')
+            L.extend(group_lines(left['checkout-kept'], '      '))
         if rewrite_skipped:
             L.append(f'    ({len(rewrite_skipped)} entr{"y" if len(rewrite_skipped) == 1 else "ies"} in your --rewrites file still null, so skipped)')
         for i, item in enumerate(manual_items(opt, result), 2):
@@ -1344,6 +1634,10 @@ def build_report(mode, site, opt, edits, edited_from, notes, blockers, warnings,
             L.append('')
             L.append('LEFT FOR WHEN TRADE-INS OPEN (true while they are closed; rewrite these when you run with --trade-ins open)')
             L.extend(group_lines(left['later']))
+        if left.get('hidden'):
+            L.append('')
+            L.append('SHOWN ONLY BESIDE A STRIPE BUY NOW LINK (hidden on every Shopify-route page: no action)')
+            L.extend(group_lines(left['hidden']))
         if left.get('kept'):
             L.append('')
             L.append('PREVIEW HOOKS KEPT ON PURPOSE (trade-ins closed: the quote tool stays in guide-price mode)'
@@ -1409,11 +1703,19 @@ def parse_args(argv):
                     'buttons, preview notes, dates, domain, and your --rewrites of the preview wording), and refuses while '
                     'launch blockers remain. Do the real run on a copy or a git branch. Plain-English guide: the top of this file.',
         epilog='Example: python3 launch/full-bars/go_live.py --site ~/full-bars-copy --domain fullbars.co.uk --checkout stripe '
-               '--dry-run --out ~/go-live-report.txt --rewrites-template ~/rewrites.json   (exit 0 = done and ready to publish, '
-               '1 = blockers or a failed check, 2 = bad arguments, 3 = switched but NOT READY TO PUBLISH: preview wording left)')
+               '--dry-run --out ~/go-live-report.txt --rewrites-template ~/rewrites.json   (Shopify: --checkout shopify '
+               '--shop-url https://your-shop.example)   (exit 0 = done and ready to publish, '
+               '1 = blockers or a failed check, 2 = bad arguments, 3 = switched but NOT READY TO PUBLISH: preview or checkout '
+               'wording left)')
     ap.add_argument('--site', required=True, metavar='DIR', help='the site folder to switch (edited in place unless --dry-run)')
     ap.add_argument('--domain', required=True, help='the shop\'s domain, e.g. fullbars.co.uk (pages go on www.DOMAIN, email hello@DOMAIN)')
     ap.add_argument('--checkout', choices=('shopify', 'stripe'), help='GO-LIVE.md decision 1. Required before it will switch anything')
+    ap.add_argument('--shop-url', dest='shop_url', metavar='https://SHOP',
+                    help='with --checkout shopify (required there): your Shopify store\'s own address (not a /products/ page). Each product page\'s Order '
+                         'button goes to SHOP/products/<handle>, the handle being the page\'s URL handle in products-shopify.csv')
+    ap.add_argument('--shopify-csv', dest='shopify_csv', metavar='CSV', default=SHOPIFY_CSV,
+                    help='the Shopify product CSV whose URL handles the Order links must match (default: products-shopify.csv '
+                         'next to this script)')
     ap.add_argument('--trade-ins', dest='trade_ins', choices=('closed', 'open'), default='closed',
                     help='closed (default): the quote tool keeps giving guide prices only. open: switch it on (needs a send form)')
     ap.add_argument('--dry-run', action='store_true', help='print exactly what would change (file, line, before, after); write nothing')
@@ -1421,8 +1723,9 @@ def parse_args(argv):
                     help='only list the launch blockers (exit 1 if there are any); writes nothing')
     ap.add_argument('--force-preview-check-only', dest='check_only', action='store_true', help=argparse.SUPPRESS)  # old name
     ap.add_argument('--allow-preview-wording', action='store_true',
-                    help='switch even though preview wording ("When we open ...") is still on the pages; the run then ends '
-                         'NOT READY TO PUBLISH (exit 3) and you rewrite it by hand before publishing')
+                    help='switch even though preview wording ("When we open ...") or checkout wording that doesn\'t fit '
+                         '--checkout is still on the pages; the run then ends NOT READY TO PUBLISH (exit 3) and you rewrite '
+                         'it by hand before publishing')
     ap.add_argument('--out', metavar='REPORT', help='also save the full report to this file (must be outside --site)')
     ap.add_argument('--launch-date', metavar='YYYY-MM-DD',
                     help='date for "Last updated" and the sitemap (default: today, and only in the run that switches the site '
@@ -1472,11 +1775,20 @@ def run(opt):
         return 2
     try:
         opt.bare, opt.host = parse_domain(opt.domain, opt.no_www)
+        if opt.shop_url is not None:
+            if opt.checkout != 'shopify':
+                raise Fail('--shop-url is only for --checkout shopify (the Order buttons go to Shopify only on that route)')
+            opt.shop_url = parse_shop_url(opt.shop_url)
+            shop_host = re.match(r'https://([^/:]+)', opt.shop_url).group(1)
+            if shop_host in (opt.host, opt.bare):
+                raise Fail(f'--shop-url {opt.shop_url} is the static site\'s own address (--domain). The Shopify store needs '
+                           'its own address, such as shop.' + opt.bare + ' or your-shop.myshopify.com')
     except Fail as e:
         print(f'go_live.py: {e}', file=sys.stderr)
         return 2
 
     files = load_site(site)
+    opt.shop_targets, opt.shop_blockers, opt.shop_warnings = shop_targets(files, opt)
     blockers, warnings = find_blockers(site, files, opt)
 
     old_host = current_host(files)
@@ -1496,9 +1808,10 @@ def run(opt):
     switched = apply_edits(files, stage_a)
     edited_from = {e: files for e in stage_a}
     edits = list(stage_a)
-    skipped, rewritten = [], set()
+    skipped, rewritten, keep = [], set(), set()
     if opt.rewrites:
         rewrites, skipped = load_rewrites(opt.rewrites)
+        keep = {k for k, v in rewrites.items() if k == v}
         rw_edits, rw_notes = rewrite_edits(switched, rewrites, opt.bare, opt.host, old_host if old_host != opt.host else None)
         stage_b = resolve(switched, rw_edits)
         notes += rw_notes
@@ -1508,7 +1821,7 @@ def run(opt):
         rewritten = {e.rel for e in stage_b}
     else:
         result = switched
-    left = leftovers(result, opt)
+    left = leftovers(result, opt, keep)
     changed_host = old_host if old_host != opt.host else None
     problems = verify(result, opt, opt.host, changed_host) + rewrite_damage(switched, result, rewritten)
 
@@ -1528,6 +1841,14 @@ def run(opt):
     elif pieces:
         warnings.append(f'--allow-preview-wording: {pieces} piece(s) of preview wording in {places} place(s) would stay on the '
                         'pages, so the switched site is NOT READY TO PUBLISH until they are rewritten.')
+    cpieces, cplaces = checkout_left(left)
+    if cpieces and not opt.allow_preview_wording:
+        blockers.append(checkout_blocker(left, opt, listing=opt.check_only))
+    elif cpieces:
+        warnings.append(f'--allow-preview-wording: {cpieces} piece(s) of checkout wording that doesn\'t fit --checkout '
+                        f'{opt.checkout} in {cplaces} place(s) would stay on the pages, so the switched site is NOT READY TO '
+                        'PUBLISH until they are rewritten.')
+    pieces += cpieces
 
     if opt.check_only:
         report = build_report('BLOCKER CHECK ONLY (nothing written)', site, opt, None, None, notes if opt.rewrites_template else [],
@@ -1537,7 +1858,7 @@ def run(opt):
             return finish(report, opt, 1)
         if pieces:
             report.append(f'RESULT: no blockers, but NOT READY TO PUBLISH: the switch would leave {pieces} piece(s) of preview '
-                          'wording on the pages (--allow-preview-wording).')
+                          'or checkout wording on the pages (--allow-preview-wording).')
             return finish(report, opt, 3)
         report.append('RESULT: no blockers: ready to switch.')
         return finish(report, opt, 0)
@@ -1550,7 +1871,7 @@ def run(opt):
             return finish(report, opt, 1)
         if pieces:
             report.append(head + 'No blockers: a real run would go ahead, but end NOT READY TO PUBLISH, because preview '
-                          'wording would still be on the pages (--allow-preview-wording).')
+                          'or checkout wording would still be on the pages (--allow-preview-wording).')
             return finish(report, opt, 3)
         report.append(head + 'No blockers: a real run would go ahead.')
         return finish(report, opt, 0)
@@ -1563,8 +1884,8 @@ def run(opt):
     n = write_site(site, files, result)
     after = load_site(site)
     problems = verify(after, opt, opt.host, changed_host) + run_checks(site)
-    left_after = leftovers(after, opt)
-    pieces, places = wording_left(left_after)
+    left_after = leftovers(after, opt, keep)
+    pieces, places = (a + b for a, b in zip(wording_left(left_after), checkout_left(left_after)))
     mode = 'WRITTEN, BUT CHECKS FAILED' if problems else 'WRITTEN, NOT READY TO PUBLISH' if pieces else 'DONE'
     report = build_report(mode, site, opt, edits, edited_from, notes, [f'after writing: {p}' for p in problems], warnings,
                           left_after, skipped, after)
@@ -1573,12 +1894,13 @@ def run(opt):
         return finish(report, opt, 1)
     if pieces:
         report.append(f'RESULT: NOT READY TO PUBLISH. {len(edits)} change(s) written to {n} file(s) and the checks pass, but '
-                      f'{pieces} piece(s) of preview wording in {places} place(s) are still on the pages (you passed '
+                      f'{pieces} piece(s) of preview or checkout wording in {places} place(s) are still on the pages (you passed '
                       '--allow-preview-wording). Rewrite them (STILL TO DO BY HAND, item 1), for example by running this again '
                       'with --rewrites, before you publish.')
         return finish(report, opt, 3)
-    report.append(f'RESULT: done. {len(edits)} change(s) written to {n} file(s); checks pass and no preview wording is left. '
-                  'Now do the items under STILL TO DO BY HAND, then publish.')
+    report.append(f'RESULT: done. {len(edits)} change(s) written to {n} file(s); checks pass and no preview wording is left '
+                  f'(nor checkout wording that doesn\'t fit --checkout {opt.checkout}). Now do the items under STILL TO DO BY '
+                  'HAND, then publish.')
     return finish(report, opt, 0)
 
 
@@ -1590,6 +1912,19 @@ def wording_blocker(left, listing=False):
            'hand before you publish')
     if listing:
         groups = list(left.get('rewrite', {}).items()) + [(k + '  [edit by hand]', v) for k, v in left.get('hand', {}).items()]
+        for k, locs in sorted(groups, key=lambda kv: (-len(kv[1]), kv[0])):
+            msg += f'\n       - {show(k, 110)} ({len(locs)} place{"s" if len(locs) != 1 else ""})'
+    return msg
+
+
+def checkout_blocker(left, opt, listing=False):
+    pieces, places = checkout_left(left)
+    msg = (f'checkout wording that doesn\'t fit --checkout {opt.checkout}: {pieces} piece(s) of text in {places} place(s) '
+           f'({"listed below" if listing else "STILL TO DO BY HAND, item 1"}). Put the new wording in the same --rewrites file '
+           '(--rewrites-template lists it; a sentence that is still true can be kept by giving it its own text), or pass '
+           '--allow-preview-wording to switch anyway and rewrite it by hand before you publish')
+    if listing:
+        groups = list(left.get('checkout', {}).items()) + [(k + '  [edit by hand]', v) for k, v in left.get('checkout-hand', {}).items()]
         for k, locs in sorted(groups, key=lambda kv: (-len(kv[1]), kv[0])):
             msg += f'\n       - {show(k, 110)} ({len(locs)} place{"s" if len(locs) != 1 else ""})'
     return msg

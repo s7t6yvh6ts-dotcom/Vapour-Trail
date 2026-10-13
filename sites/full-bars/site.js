@@ -117,8 +117,11 @@
 
   /* ---------- product option picker ----------
      The form carries every price as JSON in data-prices: { "128GB": { "Excellent": 249, ... }, ... }.
-     The Order button goes to the contact page with the chosen phone filled in. If pay.js has a
-     Stripe Payment Link for "<model> <storage> <grade>", the button becomes "Buy now" instead. */
+     Static route: the Order button goes to the contact page with the chosen phone filled in. If pay.js has a
+     Stripe Payment Link for "<model> <storage> <grade>", the button becomes "Buy now" instead.
+     Shopify route: go_live.py puts data-shop="https://<shop>/products/<handle>" on #picker. The Order button then
+     always goes to that Shopify product (Shopify picks the variant and holds the stock), and no email-order
+     (contact.html?order=) or Payment Link is ever built on that page, so the same phone can't be sold twice. */
   /* The picker's fieldsets ship disabled, so without this script (JavaScript off, or site.js failing to load) the
      ticked options can't be changed and always match the price shown. They are enabled below, once the script has
      taken over; if data-prices can't be read they stay disabled. Disabled rather than hidden: no layout shift. */
@@ -139,10 +142,22 @@
     var model = picker.getAttribute('data-model');
     var contactUrl = picker.getAttribute('data-contact');
     var grades = dataJSON(picker, 'data-grades') || {};
-    /* data-stock goes on the product page's #picker form once there is real stock: { "128GB|Very Good": 1, ... }.
-       Without it, every option counts as available and no 'not in stock' note is shown. If it isn't valid JSON
-       it is ignored (with a console warning), so a typo can't freeze the price. */
+    /* data-stock goes on the product page's #picker form once there is real stock: { "128GB|Good": 2, ... }, the
+       number of units held for each storage and condition (colour isn't tracked). A missing key, 0 or anything
+       that isn't a whole number above 0 means not in stock. Without data-stock, every option counts as available
+       and no 'not in stock' note is shown (go_live.py won't launch the static route like that). If it isn't valid
+       JSON it is ignored (with a console warning), so a typo can't freeze the price. */
     var stock = dataJSON(picker, 'data-stock');
+    function inStock(key) {
+      var n = stock[key];
+      return typeof n === 'number' && isFinite(n) && Math.floor(n) === n && n > 0;
+    }
+    /* Shopify route (see above). Only an https:// address is used; any other value is ignored with a warning,
+       and the page still never offers an email order or a Payment Link. */
+    var shopAttr = picker.getAttribute('data-shop');
+    var shopMode = shopAttr !== null;
+    var shopUrl = shopMode && /^https:\/\/[^\s"'<>]+$/.test(shopAttr) ? shopAttr : '';
+    if (shopMode && !shopUrl && window.console) console.warn('Full Bars: data-shop is not an https:// address, so the Order button only offers a question');
     var priceEl = $('#pdPrice'), orderBtn = $('#orderBtn'), lineEl = $('#selLine'), gradeNote = $('#gradeNote');
     var buyNote = $('#buyNote'), stockNote = $('#stockNote'), emailNote = $('#emailNote'), fromEl = $('#pdFrom');
     /* the lowest price across every option, and which option it is: the 'from' price the cards show */
@@ -204,17 +219,27 @@
       if (gradeNote && grades[gr]) gradeNote.textContent = grades[gr];
       $all('#pdArt [data-colour]').forEach(function (v) { v.hidden = v.getAttribute('data-colour') !== co; });
       var label = model + ' ' + st + ', ' + gr + (co ? ', ' + co : '');
-      var held = !stock || stock[st + '|' + gr] === 1;
+      var held = !stock || inStock(st + '|' + gr);
       if (lineEl) lineEl.textContent = 'Selected: ' + label + ' — ' + gbp(price) + (held ? '' : ' (not in stock right now)');
       /* show which options are in stock when the owner tracks stock */
       if (stock) {
-        $all('input[name="storage"]', picker).forEach(function (r) { r.parentNode.classList.toggle('na', stock[r.value + '|' + gr] !== 1); });
-        $all('input[name="grade"]', picker).forEach(function (r) { r.parentNode.classList.toggle('na', stock[st + '|' + r.value] !== 1); });
+        $all('input[name="storage"]', picker).forEach(function (r) { r.parentNode.classList.toggle('na', !inStock(r.value + '|' + gr)); });
+        $all('input[name="grade"]', picker).forEach(function (r) { r.parentNode.classList.toggle('na', !inStock(st + '|' + r.value)); });
       }
-      var link = PAY[model + ' ' + st + ' ' + gr];
+      /* never a Payment Link on a Shopify-route page */
+      var link = shopMode ? '' : PAY[model + ' ' + st + ' ' + gr];
       var buyNow = !preview && held && link && /^https:\/\//.test(link) && price <= BUY_NOW_MAX;
       if (preview) {
         orderBtn.textContent = 'Opening soon';
+      } else if (shopMode && held && shopUrl) {
+        /* Shopify route: the product's Shopify page; the customer picks storage, condition and colour there */
+        orderBtn.setAttribute('href', shopUrl);
+        orderBtn.setAttribute('rel', 'noopener');
+        orderBtn.textContent = 'Order — ' + gbp(price);
+      } else if (shopMode && held) {
+        orderBtn.setAttribute('href', contactUrl + '?ask=' + encodeURIComponent(label) + '#form');
+        orderBtn.removeAttribute('rel');
+        orderBtn.textContent = 'Ask us about this phone';
       } else if (buyNow) {
         orderBtn.setAttribute('href', link);
         orderBtn.setAttribute('rel', 'noopener');
@@ -337,9 +362,11 @@
        and says so plainly. Copy is hidden too: the address isn't live until we open. */
     var formPreview = form.getAttribute('data-preview') === '1';
     /* only pick a topic the list actually has (preview mode has no "Order a phone"); otherwise keep the first one */
-    function setTopic(v) { for (var j = 0; j < topic.options.length; j++) if (topic.options[j].value === v) { topic.value = v; return; } }
-    /* no Order route in preview, so an ?order= link (only a crafted one could exist) is ignored */
-    if (q.get('order') && !formPreview) {
+    function hasTopic(v) { for (var j = 0; j < topic.options.length; j++) if (topic.options[j].value === v) return true; return false; }
+    function setTopic(v) { if (hasTopic(v)) topic.value = v; }
+    /* no Order route in preview, or on the Shopify route (go_live.py adds the "Order a phone" topic only on the
+       static route), so an ?order= link there (an old or crafted one) is ignored instead of starting an email order */
+    if (q.get('order') && !formPreview && hasTopic('Order a phone')) {
       setTopic('Order a phone');
       var pr = q.get('price') && /^\d+$/.test(q.get('price')) ? ' (' + gbp(q.get('price')) + ')' : '';
       msgEl.value = 'I’d like to order:\n- ' + q.get('order') + pr + '\n\nDelivery address:\n\n\nPhone number (for the courier):\n';

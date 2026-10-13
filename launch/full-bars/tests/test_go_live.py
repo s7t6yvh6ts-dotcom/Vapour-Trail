@@ -6,6 +6,7 @@ Each test works on a fresh copy of sites/full-bars in a temporary folder (set TM
 The real site folder is only ever read. Python 3 standard library only.
 """
 import hashlib
+import html
 import json
 import os
 import re
@@ -49,6 +50,8 @@ SEND_FORM = ('<form class="form" id="qtSend" hidden novalidate><label for="qtNam
              '<button type="submit" class="btn btn-solid">Email my quote</button><button type="button" class="btn btn-line" '
              'id="qtCopy">Copy quote</button></div><p class="status" id="qtStatus" role="status"></p></form>')
 LINK_KEY, LINK = 'iPhone 13 128GB Good', 'https://buy.stripe.com/test_fullbars_example'
+SHOP = 'https://shop.example'   # an obviously fake Shopify store address
+CSV = os.path.join(PACK, 'products-shopify.csv')
 
 
 def snapshot(root):
@@ -104,12 +107,37 @@ def add_send_forms(site):
             write(site, rel, src[:i] + SEND_FORM + src[i:])
 
 
+def product_pages(site):
+    return [r for r in html_files(site) if r.startswith('products/')]
+
+
+def picker_tag(src):
+    return re.search(r'<form class="picker" id="picker"[^>]*>', src).group(0)
+
+
+def set_stock(site, rel, raw):
+    """Put data-stock (raw JSON text, as Ash would type it) on one product page's #picker, replacing any there."""
+    src = read(site, rel)
+    tag = picker_tag(src)
+    new = re.sub(r' data-stock="[^"]*"', '', tag)
+    if raw is not None:
+        new = new[:-1] + ' data-stock="' + html.escape(raw, quote=True) + '">'
+    write(site, rel, src.replace(tag, new, 1))
+
+
+def add_stock(site):
+    """data-stock on every product page, as Ash adds it on the static route: nothing held, except one iPhone 13
+    128GB Good (the phone with the test Payment Link)."""
+    for rel in product_pages(site):
+        set_stock(site, rel, '{"128GB|Good": 1}' if rel == 'products/iphone-13.html' else '{}')
+
+
 def ld_blocks(src):
     return [json.loads(b) for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', src, re.S)]
 
 
 class GoLiveTest(unittest.TestCase):
-    TEMPLATE_KEYS = {}   # trade-ins mode -> the --rewrites-template keys for the ready site (the same for every test)
+    TEMPLATE_KEYS = {}   # (checkout, trade-ins) -> the --rewrites-template keys for the ready site (the same for every test)
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix='go_live_test_')
@@ -130,16 +158,18 @@ class GoLiveTest(unittest.TestCase):
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         return r.returncode, r.stdout + r.stderr
 
-    def template(self, trade_ins='closed'):
-        """The keys --rewrites-template writes for this copy, made once per trade-ins mode."""
-        if trade_ins not in GoLiveTest.TEMPLATE_KEYS:
-            tpl = os.path.join(self.tmp, f'template-{trade_ins}.json')
-            code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--trade-ins', trade_ins,
+    def template(self, trade_ins='closed', checkout='stripe'):
+        """The keys --rewrites-template writes for this copy, made once per checkout and trade-ins mode."""
+        if (checkout, trade_ins) not in GoLiveTest.TEMPLATE_KEYS:
+            tpl = os.path.join(self.tmp, f'template-{checkout}-{trade_ins}.json')
+            shop = ['--shop-url', SHOP] if checkout == 'shopify' else []
+            code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', checkout, *shop, '--trade-ins', trade_ins,
                                       '--dry-run', '--rewrites-template', tpl, rewrites=False)
             self.assertIn(code, (0, 1), out[-2000:])
             with open(tpl, encoding='utf-8') as fh:
-                GoLiveTest.TEMPLATE_KEYS[trade_ins] = list(json.load(fh))
-        return GoLiveTest.TEMPLATE_KEYS[trade_ins]
+                GoLiveTest.TEMPLATE_KEYS[(checkout, trade_ins)] = list(json.load(fh))
+            os.remove(tpl)
+        return GoLiveTest.TEMPLATE_KEYS[(checkout, trade_ins)]
 
     def write_rewrites(self, mapping, name='rewrites.json'):
         path = os.path.join(self.tmp, name)
@@ -147,17 +177,22 @@ class GoLiveTest(unittest.TestCase):
             json.dump(mapping, fh, ensure_ascii=False)
         return path
 
-    def fill_rewrites(self, trade_ins='closed', value=lambda i, key: f'Rewritten line {i}.'):
+    def fill_rewrites(self, trade_ins='closed', value=lambda i, key: f'Rewritten line {i}.', checkout='stripe'):
         """A --rewrites file with every template key filled in: Ash's finished wording."""
-        self.rw = self.write_rewrites({k: value(i, k) for i, k in enumerate(self.template(trade_ins))}, f'rewrites-{trade_ins}.json')
+        name = f'rewrites-{trade_ins}.json' if checkout == 'stripe' else f'rewrites-{checkout}-{trade_ins}.json'
+        self.rw = self.write_rewrites({k: value(i, k) for i, k in enumerate(self.template(trade_ins, checkout))}, name)
         return self.rw
 
-    def ready(self, link=True, rewrites=True):
+    def ready(self, link=True, rewrites=True, checkout='stripe'):
+        """The copy as Ash would have it on launch day: placeholders filled, and for the static (Stripe) route a
+        Payment Link and data-stock on every product page; then the finished --rewrites file for that route."""
         fill_placeholders(self.site)
-        if link:
-            set_link(self.site, LINK_KEY, LINK)
+        if checkout == 'stripe':
+            if link:
+                set_link(self.site, LINK_KEY, LINK)
+            add_stock(self.site)
         if rewrites:
-            self.fill_rewrites()
+            self.fill_rewrites(checkout=checkout)
 
     # ------------------------------------------------------------------ blockers
     def test_help(self):
@@ -200,19 +235,23 @@ class GoLiveTest(unittest.TestCase):
         code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--check-only')
         self.assertEqual(code, 1, out)
         self.assertIn('[Phone number] still on 2 pages', out)
+        self.assertIn('--checkout shopify needs --shop-url', out)
         self.assertNotIn('CHANGES', out)
-        self.ready(link=False)
+        self.ready(checkout='shopify', rewrites=False)
         before = snapshot(self.site)
-        # the preview wording is a blocker too, listed sentence by sentence
-        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--check-only', rewrites=False)
+        # the preview wording is a blocker too, listed sentence by sentence (and the Shopify route's checkout wording)
+        shop = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--check-only')
+        code, out = self.run_tool(*shop, rewrites=False)
         self.assertEqual(code, 1, out)
         self.assertIn('preview wording would still be on the live pages', out)
         self.assertIn('- Preview prices: we’re not taking orders yet. (33 places)', out)
-        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--check-only', '--allow-preview-wording',
-                                  rewrites=False)
+        self.assertIn("checkout wording that doesn't fit --checkout shopify", out)
+        self.assertIn('- In both cases the contract is made when we email to confirm your order has been accepted. (1 place)', out)
+        code, out = self.run_tool(*shop, '--allow-preview-wording', rewrites=False)
         self.assertEqual(code, 3, out)
         self.assertIn('NOT READY TO PUBLISH', out)
-        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--check-only')
+        self.fill_rewrites(checkout='shopify')
+        code, out = self.run_tool(*shop)
         self.assertEqual(code, 0, out)
         self.assertIn('BLOCKERS: none', out)
         self.assertEqual(snapshot(self.site), before)
@@ -285,14 +324,18 @@ class GoLiveTest(unittest.TestCase):
 
     def test_bad_data_stock_blocks(self):
         self.ready()
-        edit(self.site, 'products/iphone-13.html', ' data-preview="1">', ' data-stock="{&quot;128GB|Good&quot;:1," data-preview="1">')
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good":1,')
         code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
         self.assertEqual(code, 1, out)
         self.assertIn('data-stock is not valid JSON', out)
-        edit(self.site, 'products/iphone-13.html', '1," data-preview', '1,&quot;9TB|Good&quot;:1}" data-preview')
+        # a key no option uses was a warning before R7; now a blocker, since that phone would show as not in stock
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good":1,"9TB|Good":1}')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
+        self.assertEqual(code, 1, out)
+        self.assertIn('products/iphone-13.html:84: data-stock key(s) that aren\'t a storage and condition on this page: 9TB|Good', out)
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good":1}')
         code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
         self.assertEqual(code, 0, out)
-        self.assertIn('data-stock has keys no option uses', out)
 
     def test_out_and_template_must_be_outside_site(self):
         code, out = self.run_tool('--domain', 'fullbars.co.uk', '--dry-run', '--out', os.path.join(self.site, 'report.txt'))
@@ -656,6 +699,251 @@ class GoLiveTest(unittest.TestCase):
         self.assertEqual(snapshot(self.site), before)
 
 
+    # ------------------------------------------------------------------ R7: Shopify order route, stock, checkout wording
+    def assert_shopify_switched(self, shop=SHOP):
+        for rel in product_pages(self.site):
+            src = read(self.site, rel)
+            url = f'{shop}/products/{rel[len("products/"):-len(".html")]}'
+            tag = picker_tag(src)
+            self.assertIn(f' data-shop="{url}"', tag, rel)
+            self.assertNotIn('data-preview', tag, rel)
+            self.assertIn(f'<a class="btn btn-hot btn-block" id="orderBtn" href="{url}">Order</a>', src, rel)
+        for rel in html_files(self.site):
+            self.assertNotIn('?order=', read(self.site, rel), rel)
+        contact = read(self.site, 'contact.html')
+        self.assertNotIn('Order a phone', contact)
+        self.assertIn('<select id="cTopic"><option>Question about a phone</option><option>Selling my phone</option>', contact)
+        r = subprocess.run([sys.executable, '-B', CHECKER, '--site', self.site, '--quiet'], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_shopify_route_points_every_order_button_at_shopify(self):
+        """--checkout shopify: data-shop and the Order link go to <shop>/products/<handle>, there is no email-order route,
+        and the checklist covers the order confirmation email, Shopify stock and which static pages stay."""
+        self.ready(checkout='shopify')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP + '/')
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('RESULT: done.', out)
+        self.assertIn('Checkout: shopify (https://shop.example)', out)
+        self.assertEqual(len(re.findall(r'^  products/[\w-]+\.html:84  product picker: data-shop added \(https://shop\.example/products/[\w-]+\)$', out, re.M)), 19)
+        self.assertEqual(len(re.findall(r'^  products/[\w-]+\.html:93  Order button: dead "Opening soon" span -> link to the Shopify product$', out, re.M)), 19)
+        self.assertIn('  19  product picker: data-shop added\n', out)   # the summary: one line per kind of change
+        self.assert_shopify_switched()
+        todo = out.split('STILL TO DO BY HAND')[1]
+        for text in ('order-confirmation-email.html into Shopify\'s Settings > Notifications > Order confirmation',
+                     'Place a test order', 'add stock only for units with all original manufacturer parts',
+                     'Keep the static site live as the information front', 'no "Order a phone" topic, no ?order= links',
+                     'send a Shopify draft order (a custom item whose title names the replaced part) as an invoice',
+                     'Never a Payment Link: pay.js stays empty on this route', 'Decide the IMEI question at the top of both files'):
+            self.assertIn(text, todo)
+        self.assertNotIn('IMEI last 4', todo)
+        self.assertNotIn('privacy.html still says', todo)   # privacy.html already matches cookies.html
+        # a rerun changes nothing
+        before = snapshot(self.site)
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('RESULT: done. 0 change(s) written to 0 file(s)', out)
+        self.assertEqual(snapshot(self.site), before)
+        # and the Stripe route is refused while data-shop is on the pages (both checkouts at once = double-selling)
+        set_link(self.site, LINK_KEY, LINK)
+        add_stock(self.site)
+        before = snapshot(self.site)
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe')
+        self.assertEqual(code, 1, out[-3000:])
+        self.assertIn('--checkout stripe, but 19 product page(s) have data-shop (an Order link to Shopify)', out)
+        self.assertEqual(snapshot(self.site), before)
+
+    def test_moving_a_live_static_site_to_shopify(self):
+        """Switched for Stripe first, then moved to Shopify: Order links follow, and the "Order a phone" topic goes."""
+        self.ready()
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe')
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('<option>Order a phone</option>', read(self.site, 'contact.html'))
+        edit(self.site, 'pay.js', LINK, '')
+        tpl = os.path.join(self.tmp, 'shopify-template.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--dry-run',
+                                  '--rewrites-template', tpl, rewrites=False)
+        self.assertEqual(code, 1, out[-3000:])   # the Shopify route's checkout wording is still to rewrite
+        with open(tpl, encoding='utf-8') as fh:
+            keys = list(json.load(fh))
+        self.assertIn('In both cases the contract is made when we email to confirm your order has been accepted.', keys)
+        self.rw = self.write_rewrites({k: f'Shopify line {i}.' for i, k in enumerate(keys)}, 'shopify.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('contact form: "Order a phone" topic removed (Shopify takes the orders)', out)
+        self.assertEqual(len(re.findall(r'^  products/[\w-]+\.html:\d+  Order button: link -> https://shop\.example/products/[\w-]+$', out, re.M)), 19)
+        self.assert_shopify_switched()
+
+    def test_shopify_route_refusals(self):
+        self.ready(checkout='shopify')
+        before = snapshot(self.site)
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify')
+        self.assertEqual(code, 1, out[-3000:])
+        self.assertIn('RESULT: REFUSED', out)
+        self.assertIn('--checkout shopify needs --shop-url https://', out)
+        for bad in ('http://shop.example', 'https://shop.example/?ref=1', 'shop.example', 'https://shop example',
+                    'https://www.fullbars.co.uk', 'https://fullbars.co.uk/shop', 'https://shop.example/products'):
+            code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', bad, '--check-only')
+            self.assertEqual(code, 2, f'{bad}: {out}')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--shop-url', SHOP, '--check-only')
+        self.assertEqual(code, 2, out)
+        self.assertIn('--shop-url is only for --checkout shopify', out)
+        # a product page whose handle isn't in the Shopify CSV: its Order button would have nowhere to go
+        with open(CSV, encoding='utf-8', newline='') as fh:
+            rows = fh.read().splitlines(True)
+        short = os.path.join(self.tmp, 'short.csv')
+        with open(short, 'w', encoding='utf-8', newline='') as fh:
+            fh.writelines(r for r in rows if not r.startswith('iphone-13,') and ',iphone-13,' not in r[:80])
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--shopify-csv', short)
+        self.assertEqual(code, 1, out[-3000:])
+        self.assertIn('products/iphone-13.html: no product with URL handle "iphone-13" in short.csv', out)
+        self.assertIn('data-shop is None, not the page\'s Shopify product (https://shop.example/products/iphone-13)', out)
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--shopify-csv',
+                                  os.path.join(self.tmp, 'missing.csv'), '--check-only')
+        self.assertEqual(code, 1, out)
+        self.assertIn("can't read", out)
+        # the older column names (Handle) are read as well
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--shopify-csv',
+                                  os.path.join(PACK, 'products-shopify-legacy-headers.csv'), '--check-only')
+        self.assertEqual(code, 0, out)
+        self.assertEqual(snapshot(self.site), before)
+
+    def test_stock_validation_and_blockers(self):
+        self.ready()
+        stripe = ('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 1.5, "256GB|Good": "2", "512GB|Good": true, "128GB|Excellent": -1}')
+        set_stock(self.site, 'products/iphone-14.html', '{"128GB|Good|Blue": 1}')
+        set_stock(self.site, 'products/iphone-15.html', '{"128GB|Mint": 1}')
+        set_stock(self.site, 'products/pixel-8.html', "{'128GB|Good': 1}")
+        set_stock(self.site, 'products/galaxy-s23.html', None)
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out)
+        self.assertIn('products/iphone-13.html:84: data-stock count(s) that aren\'t a whole number of units (0 or more): '
+                      '"128GB|Good": 1.5, "256GB|Good": "2", "512GB|Good": true, "128GB|Excellent": -1', out)
+        self.assertIn('products/iphone-14.html:84: data-stock key(s) with a colour in them: 128GB|Good|Blue', out)
+        self.assertIn('products/iphone-15.html:84: data-stock key(s) that aren\'t a storage and condition on this page: 128GB|Mint', out)
+        self.assertIn('products/pixel-8.html:84: data-stock is not valid JSON', out)
+        self.assertIn('data-stock is missing on 1 of 19 product pages (products/galaxy-s23.html)', out)
+        # the right format passes: units per storage and condition, any whole number, {} = none held
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 2, "256GB|Very Good": 0}')
+        for rel in ('products/iphone-14.html', 'products/iphone-15.html', 'products/pixel-8.html', 'products/galaxy-s23.html'):
+            set_stock(self.site, rel, '{}')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out)
+        # 2.0 and 1e0 are whole numbers in JSON (site.js counts them as held); NaN and Infinity aren't JSON at all
+        set_stock(self.site, 'products/iphone-14.html', '{"128GB|Good": 2.0, "256GB|Good": 1e0}')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out)
+        set_stock(self.site, 'products/iphone-14.html', '{"128GB|Good": NaN}')
+        set_stock(self.site, 'products/iphone-15.html', '{"128GB|Good": Infinity}')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out)
+        self.assertIn('products/iphone-14.html:84: data-stock is not valid JSON (NaN isn\'t allowed in JSON)', out)
+        self.assertIn('products/iphone-15.html:84: data-stock is not valid JSON (Infinity isn\'t allowed in JSON)', out)
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 1.5}')
+        code, out = self.run_tool(*stripe)
+        self.assertIn('site.js treats them as not in stock. Write each as a plain number of units, such as 2', out)
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 2, "256GB|Very Good": 0}')
+        for rel in ('products/iphone-14.html', 'products/iphone-15.html'):
+            set_stock(self.site, rel, '{}')
+        # a Payment Link for a phone data-stock says isn't held: never offered, so flagged
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 0}')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out)
+        self.assertIn('pay.js has Payment Link(s) for phones data-stock says you don\'t hold', out)
+        # Shopify: Shopify's stock decides, so no data-stock is fine, and data-stock that is there gets a warning
+        edit(self.site, 'pay.js', LINK, '')
+        self.fill_rewrites(checkout='shopify')
+        shopify = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--check-only')
+        code, out = self.run_tool(*shopify)
+        self.assertEqual(code, 0, out)
+        self.assertIn('19 product page(s) have data-stock. On the Shopify route Shopify\'s own stock decides', out)
+        for rel in product_pages(self.site):
+            set_stock(self.site, rel, None)
+        code, out = self.run_tool(*shopify)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn('data-stock', out)
+
+    def test_checkout_wording_report(self):
+        """The wording about ordering and paying that doesn't fit the chosen checkout is listed and blocks; a sentence
+        that is still true can be kept by mapping it to itself, but preview wording can't."""
+        self.ready(rewrites=False)
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--dry-run')
+        self.assertEqual(code, 1, out[-3000:])
+        todo = out.split('STILL TO DO BY HAND')[1].split('\n  2. ')[0]
+        stripe_line = 'Payment will be by card through Stripe, our intended payment provider; we will never see or store your card details.'
+        self.assertIn("Checkout wording that doesn't fit --checkout stripe: 1 piece(s) of text in 1 place(s)", todo)
+        self.assertIn(f'- 1 file: {stripe_line}\n      at terms.html:', todo)
+        self.assertIn("checkout wording that doesn't fit --checkout stripe: 1 piece(s)", out.split('BLOCKERS')[-1])
+        self.assertNotIn('ask when you order', todo.lower())   # still true on the static route: you order, then pay
+        self.assertIn('order-confirmation-email.md, filled in, as the confirmation email for every order', out)
+        edit(self.site, 'pay.js', LINK, '')   # Shopify needs pay.js empty
+        # Shopify: terms section 3 (how the contract is made) and the FAQ's "How do I pay?" are listed in full
+        tpl = os.path.join(self.tmp, 'shopify.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--dry-run',
+                                  '--rewrites-template', tpl)
+        self.assertEqual(code, 1, out[-3000:])
+        todo, rest = out.split('STILL TO DO BY HAND')[1].split('\n  2. ', 1)
+        preview_part, checkout_part = todo.split("Checkout wording that doesn't fit --checkout shopify")
+        terms3 = ['When you send us an order by email, we reply to confirm availability, the exact phone and the total price, '
+                  'with a secure payment link.',
+                  'If you buy using a “Buy now” payment link on our website, you’ll be asked to accept these terms before '
+                  'paying, and your payment is an offer to buy.',
+                  'Buy now is only offered on phones with all original manufacturer parts.',
+                  'In both cases the contract is made when we email to confirm your order has been accepted.']
+        faq_pay = ['If you order by email, we’ll reply with a payment link once we’ve confirmed your exact phone, its battery '
+                   'health and colour.',
+                   'Some phones will also have a Buy now button: those have all original manufacturer parts, and we’ll confirm '
+                   'the exact battery health and colour by email within one working day of payment, with a full refund if we '
+                   'can’t match your choice.']
+        for text in terms3 + faq_pay + [stripe_line, 'Contact Us & Order by Email | Full Bars', 'subject to stock; we confirm before you pay',
+                                        'For orders: the phone, storage, grade and colour, your delivery address and a phone number for the courier.',
+                                        'Phones with any replaced part are sold by email order only, never through a Buy now button.',
+                                        'Card payments will be handled by Stripe; we will never see or store your card details.']:
+            self.assertIn(f': {text}\n', checkout_part)
+        # "ask when you order" promises: on Shopify, ordering is paying, so "before you pay" can't be kept as worded.
+        # The photos answer is in the page and in the FAQ structured data; the battery answer on the FAQ and home page.
+        photos = 'If you’d like photos of the exact phone you’re buying, ask when you order and we’ll send them before you pay.'
+        self.assertRegex(checkout_part, re.escape(f'- 1 file: {photos}\n') + r'      at faq\.html:28, faq\.html:\d+\n')
+        self.assertRegex(checkout_part, r'- 2 files: Ask when you order\.\n      at faq\.html:28, faq\.html:\d+, index\.html:\d+\n')
+        # the FAQ answer's other two sentences are preview wording, listed (and rewritten) with the rest of it
+        for text in ('Once we open, by card through a secure Stripe payment page; we’ll never see or store your card details.',
+                     'We’re not taking payments yet.'):
+            self.assertIn(f': {text}\n', preview_part)
+        self.assertNotIn('buy now, pay later', checkout_part.lower())
+        self.assertIn('SHOWN ONLY BESIDE A STRIPE BUY NOW LINK', rest)
+        self.assertIn('Buy now phones have all original manufacturer parts.', rest.split('SHOWN ONLY BESIDE')[1])
+        self.assertNotIn('Buy now phones have all original manufacturer parts.', todo)
+        with open(tpl, encoding='utf-8') as fh:
+            keys = json.load(fh)
+        for text in terms3 + faq_pay + [stripe_line, photos, 'Ask when you order.']:
+            self.assertIn(text, keys)
+        # keep a sentence that is still true on Shopify by giving it its own text: listed as kept, not changed
+        keep = 'Colour and grade availability is subject to stock and confirmed before you pay.'
+        data = {k: (k if k == keep else f'Shopify line {i}.') for i, k in enumerate(keys)}
+        # privacy.html's quote-tool line already matches cookies.html, so there is no reminder about it
+        self.rw = self.write_rewrites(data, 'shopify-filled.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('for this tab only', html.unescape(read(self.site, 'privacy.html')))
+        self.assertNotIn('privacy.html still says', out)
+        self.assertIn(keep, read(self.site, 'terms.html'))
+        self.assertIn('Checkout wording you kept as it is', out)
+        self.assertIn(f': {keep}\n', out.split('Checkout wording you kept as it is')[1])
+        self.assertIn('Shopify line', read(self.site, 'faq.html'))
+        faq = read(self.site, 'faq.html')
+        self.assertNotIn('ask when you order', faq.lower())   # gone from the page text and the structured data
+        self.assertEqual(len(re.findall(r'Shopify line \d+\.', ld_blocks(faq)[0]['mainEntity'][2]['acceptedAnswer']['text'])), 1)
+        # preview wording can't be "kept": mapping it to itself still blocks
+        shutil.rmtree(self.site)
+        shutil.copytree(SITE, self.site, ignore=shutil.ignore_patterns('*.png'))
+        self.ready(checkout='shopify', rewrites=False)
+        data['We’re not taking payments yet.'] = 'We’re not taking payments yet.'
+        self.rw = self.write_rewrites(data, 'shopify-keep-preview.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--dry-run')
+        self.assertEqual(code, 1, out[-3000:])
+        self.assertIn('preview wording would still be on the live pages: 1 piece(s) of text in 2 place(s)', out)
+
+
 class UnitTest(unittest.TestCase):
     def test_segments_decode_and_map_back(self):
         src = ('<p>We&rsquo;re open.\n   Order <a href="x">here</a> now.</p><meta name="description" content="A &amp; B">'
@@ -709,6 +997,82 @@ class UnitTest(unittest.TestCase):
     def test_element_end(self):
         src = '<div a><div><p>x</p></div><div></div></div><div>after</div>'
         self.assertEqual(src[:go_live.element_end(src, 0)], '<div a><div><p>x</p></div><div></div></div>')
+
+    def test_parse_shop_url(self):
+        self.assertEqual(go_live.parse_shop_url(' HTTPS://Shop.Example/ '), 'https://shop.example')
+        self.assertEqual(go_live.parse_shop_url('https://fullbars.myshopify.com'), 'https://fullbars.myshopify.com')
+        self.assertEqual(go_live.parse_shop_url('https://shop.example/en-gb/'), 'https://shop.example/en-gb')
+        for bad in ('http://shop.example', 'https://shop.example/?a=1', 'https://shop.example/#x', 'shop.example',
+                    'https://shop example', 'https://shop.example/"><script>', 'javascript:alert(1)',
+                    # a page inside the store, not its address: /products/<handle> would be doubled
+                    'https://shop.example/products', 'https://shop.example/products/', 'https://shop.example/Products/iphone-13',
+                    'https://shop.example/en-gb/products', 'https://shop.example/collections/all', 'https://shop.example/cart'):
+            with self.assertRaises(go_live.Fail, msg=bad):
+                go_live.parse_shop_url(bad)
+        self.assertEqual(go_live.parse_shop_url('https://products.example'), 'https://products.example')   # a host, not a path
+        with self.assertRaises(go_live.Fail) as cm:
+            go_live.parse_shop_url('https://shop.example/products')
+        self.assertIn('adds /products/<handle> for each phone itself', str(cm.exception))
+
+    def test_csv_handles_and_whole_counts(self):
+        tmp = tempfile.mkdtemp(prefix='go_live_unit_')
+        try:
+            for head in ('Title,URL handle,Price', 'Handle,Title,Variant Price'):
+                p = os.path.join(tmp, 'a.csv')
+                with open(p, 'w', encoding='utf-8') as fh:
+                    col = head.split(',').index('URL handle' if 'URL handle' in head else 'Handle')
+                    rows = [['x', 'y', 'z'], ['x', 'y', 'z']]
+                    rows[0][col], rows[1][col] = 'iphone-13', 'pixel-8'
+                    fh.write(head + '\n' + '\n'.join(','.join(r) for r in rows) + '\n')
+                self.assertEqual(go_live.csv_handles(p), ({'iphone-13', 'pixel-8'}, None))
+            with open(p, 'w', encoding='utf-8') as fh:
+                fh.write('Title,Price\nA,1\n')
+            self.assertIsNone(go_live.csv_handles(p)[0])
+        finally:
+            shutil.rmtree(tmp)
+        # JSON has one kind of number: site.js reads 2, 2.0 and 2e0 all as 2 (held), so go_live accepts them too
+        self.assertEqual([go_live.whole_count(v) for v in (0, 2, 1.0, 2e0, 1.5, -1, -2.0, True, False, '1', None,
+                                                           float('nan'), float('inf'))],
+                         [True, True, True, True, False, False, False, False, False, False, False, False, False])
+
+    def test_checkout_patterns(self):
+        rx = go_live.CHECKOUT_WORDS
+        self.assertTrue(rx['stripe'].search('through Stripe, our intended payment provider;'))
+        self.assertFalse(rx['stripe'].search('Some phones will also have a Buy now button'))
+        for hit in ('a Buy now button', 'a secure Stripe payment page', 'with a payment link', 'If you order by email',
+                    'sold by email order only', 'we confirm before you pay',
+                    'ask when you order and we&rsquo;ll send them before you pay', 'Ask when you order.'):
+            self.assertTrue(rx['shopify'].search(hit), hit)
+        self.assertFalse(rx['stripe'].search('ask when you order and we’ll send them before you pay'))
+        self.assertFalse(rx['shopify'].search('ask us before you order and we’ll send them'))
+        self.assertFalse(rx['shopify'].search('We do not offer credit, finance, pay monthly or buy now, pay later.'))
+        # the sentences the Shopify route lists by name are still on the site, word for word
+        pages = ''
+        for f in ('terms.html', 'contact.html'):
+            with open(os.path.join(SITE, f), encoding='utf-8') as fh:
+                pages += fh.read()
+        for sentence in go_live.SHOPIFY_SENTENCES:
+            self.assertIn(sentence, pages)
+
+    def test_verify_checks_the_order_route(self):
+        import datetime
+        import types
+        opt = types.SimpleNamespace(trade_ins='closed', set_dates=False, launch_date=datetime.date(2026, 10, 20),
+                                    checkout='shopify', shop_url=SHOP)
+        head = '<link rel="canonical" href="https://www.fullbars.co.uk/x">'
+        good = (head + f'<form class="picker" id="picker" data-model="X" data-shop="{SHOP}/products/x">'
+                f'<a class="btn" id="orderBtn" href="{SHOP}/products/x">Order</a>')
+        files = {'products/x.html': good, 'robots.txt': 'User-agent: *\nAllow: /\n'}
+        self.assertEqual(go_live.verify(files, opt, 'www.fullbars.co.uk', None), [])
+        files['products/x.html'] = good.replace(f'href="{SHOP}/products/x"', 'href="../contact.html"')
+        self.assertIn('Order link goes to ../contact.html', ' '.join(go_live.verify(files, opt, 'www.fullbars.co.uk', None)))
+        files['products/x.html'] = good.replace('/products/x"', '/products/y"', 1)
+        self.assertIn('data-shop is', ' '.join(go_live.verify(files, opt, 'www.fullbars.co.uk', None)))
+        files['contact.html'] = head + '<form id="contactForm"><select id="cTopic"><option>Order a phone</option></select></form>'
+        self.assertIn('still has the "Order a phone" topic', ' '.join(go_live.verify(files, opt, 'www.fullbars.co.uk', None)))
+        opt.checkout = 'stripe'
+        files['products/x.html'] = good
+        self.assertIn('data-shop is still on the page', ' '.join(go_live.verify(files, opt, 'www.fullbars.co.uk', None)))
 
     def test_parse_domain(self):
         self.assertEqual(go_live.parse_domain('https://www.FullBars.co.uk/', False), ('fullbars.co.uk', 'www.fullbars.co.uk'))

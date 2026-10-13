@@ -364,7 +364,7 @@ class SiteFactsTest(unittest.TestCase):
         r = subprocess.run([sys.executable, VALIDATOR, os.path.join(out, 'products-shopify.csv'), '--site', SITE],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn('41/41 checks passed', r.stdout)
+        self.assertIn('42/42 checks passed', r.stdout)   # 41 before R7 added the all-original-parts check
 
     def test_builder_takes_weights_from_facts_json(self):
         p = self.facts_copy(lambda ms: ms['iphone-14'].update(weight_g=173))
