@@ -28,8 +28,10 @@
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
+<section class="notices" aria-label="Shop notices">
 <div class="preview-bar" role="note"><div class="wrap"><b>Preview:</b> Full Bars isn&rsquo;t trading yet. Browse the phones and try the quote tool; orders and trade-ins open soon.</div></div>
 <div class="topbar"><div class="wrap"><span>Free tracked, signed-for UK delivery</span><span>12-month warranty</span><span>30-day satisfaction guarantee</span><span>Battery 85%+ on every phone</span></div></div>
+</section>
 <header class="site">
   <div class="nav wrap">
     <a href="index.html" class="logo" aria-label="Full Bars home"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect class="mark-bg" width="32" height="32" rx="9" fill="#16223B"/><rect class="mark-edge" x=".5" y=".5" width="31" height="31" rx="8.5" fill="none" stroke="#2B3A5B"/><rect class="mark-bar" x="6.5" y="19" width="3.6" height="6" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="11.7" y="15" width="3.6" height="10" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="16.9" y="11" width="3.6" height="14" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="22.1" y="7" width="3.6" height="18" rx="1.2" fill="#FFB020"/></svg><span>Full Bars</span></a>
@@ -67,10 +69,11 @@
 <article class="wrap page"><div class="prose"><h1>How we grade phones</h1>
 <p class="lead">Every grade is 100% working. Cosmetic condition is the only thing that changes. The same published standard applies whether we&rsquo;re buying a phone from you or selling one to you.</p>
 </div>
+<h2 class="sr-only">The grades at a glance</h2>
 <div style="margin:28px 0"><div class="grades"><div class="grade g1"><h3>Excellent <small>Cosmetic grade</small></h3><p>Screen flawless, with no marks visible at any angle. Body near-mint: at most one micro-mark, invisible at arm&rsquo;s length. Battery 90%+. All functions perfect, genuine parts.</p><ul><li>100% working: passes our full function test</li><li>Battery 90%+</li><li>12-month warranty</li></ul></div><div class="grade g2"><h3>Very Good <small>Cosmetic grade</small></h3><p>One or two light scratches on the screen, invisible when it&rsquo;s on. Light marks or minor edge wear on the body, no dents. Battery 88%+. All functions perfect.</p><ul><li>100% working: passes our full function test</li><li>Battery 88%+</li><li>12-month warranty</li></ul></div><div class="grade g3"><h3>Good <small>Cosmetic grade</small></h3><p>Visible light scratches on the screen, but no cracks or display defects. Noticeable scuffs on the body; small dents possible. Battery 85%+. All functions perfect.</p><ul><li>100% working: passes our full function test</li><li>Battery 85%+</li><li>12-month warranty</li></ul></div></div></div>
 <div class="prose">
 <h2>Our grading standard</h2>
-<div class="table-wrap"><table>
+<div class="table-wrap" role="region" aria-label="Our grading standard" tabindex="0"><table>
   <thead><tr><th>Grade</th><th>Battery</th><th>Screen</th><th>Body</th></tr></thead>
   <tbody>
     <tr><td><b>Excellent</b></td><td>&ge;&nbsp;90%</td><td>Flawless, no marks visible at any angle</td><td>Near-mint; may have one micro-mark invisible at arm&rsquo;s length</td></tr>
@@ -129,7 +132,7 @@
   </div>
 </footer>
 <div class="toast" id="toast" hidden></div>
-<script src="pay.js"></script>
+<script src="pay.js" defer></script>
 
 <script src="site.js" defer></script>
 </body>

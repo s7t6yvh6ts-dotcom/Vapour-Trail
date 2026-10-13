@@ -28,6 +28,30 @@
     });
   }
 
+  /* ---------- wide tables ----------
+     Each .table-wrap ships as a focusable, labelled region so keyboard users can scroll it sideways.
+     When the table fits, that's a tab stop that does nothing, so drop it; put it back if the table overflows again. */
+  var wraps = $all('.table-wrap[tabindex]');
+  if (wraps.length) {
+    wraps.forEach(function (w) { w.setAttribute('data-label', w.getAttribute('aria-label') || ''); });
+    var fitWraps = function () {
+      wraps.forEach(function (w) {
+        if (w.scrollWidth > w.clientWidth + 1) {
+          w.setAttribute('tabindex', '0'); w.setAttribute('role', 'region'); w.setAttribute('aria-label', w.getAttribute('data-label'));
+        } else if (document.activeElement !== w) {
+          w.removeAttribute('tabindex'); w.removeAttribute('role'); w.removeAttribute('aria-label');
+        }
+      });
+    };
+    fitWraps();
+    /* watch the table as well as the wrapper: a late web font can widen the table without resizing the wrapper */
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(fitWraps);
+      wraps.forEach(function (w) { ro.observe(w); if (w.firstElementChild) ro.observe(w.firstElementChild); });
+    }
+    else window.addEventListener('resize', fitWraps);
+  }
+
   /* ---------- toast + copy ---------- */
   var toastEl = $('#toast'), toastT;
   function toast(msg) {

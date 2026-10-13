@@ -60,6 +60,13 @@
   var figEl = $('#qtFig'), labelEl = $('#qtLabel'), subEl = $('#qtSub'), bar = $('#qtBar');
   var noticeEl = $('#qtNotice'), working = $('#qtWorking'), tableEl = $('#qtTable'), send = $('#qtSend'), jump = $('#qtJump');
   var previewNote = $('#qtPreview');
+  /* the bar sticks to the bottom of the screen on phones: keep its height in --qt-bar-h so styles.css can
+     scroll keyboard focus clear of it (WCAG 2.4.11). Its height changes with the answer shown. */
+  if (bar && window.ResizeObserver) {
+    new ResizeObserver(function () {
+      document.documentElement.style.setProperty('--qt-bar-h', Math.ceil(bar.getBoundingClientRect().height) + 'px');
+    }).observe(bar);
+  }
   if (preview) send = null;   /* belt and braces: never offer to send a quote while not trading */
 
   function optHtml(name, value, title, detail, type) {
