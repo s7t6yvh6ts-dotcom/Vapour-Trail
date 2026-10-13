@@ -3,9 +3,10 @@
 
 Every price comes from the data-prices JSON on each product page's picker form, the same data
 site.js uses to show prices on the site. Change a price on the site, run this again, then run
-validate_shopify_csv.py. Nothing here is typed in by hand except the shipping-weight estimate.
+validate_shopify_csv.py. Handset weights come from facts.json (the file check_site_facts.py checks
+the site against). Nothing here is typed in by hand except the packing-weight estimate.
 
-  python3 build_shopify_csv.py [--site PATH] [--out DIR]
+  python3 build_shopify_csv.py [--site PATH] [--out DIR] [--facts FACTS.json]
 
 Writes products-shopify.csv (Shopify's current column names) and
 products-shopify-legacy-headers.csv (the same rows under Shopify's older column names, only for
@@ -25,16 +26,29 @@ TYPE = 'Refurbished smartphone'
 CATEGORY = 'Electronics > Communications > Telephony > Mobile & Smart Phones'
 OPTION_NAMES = ('Storage', 'Condition', 'Colour')   # same labels as the site's picker
 GRADE_CODE = {'Excellent': 'EX', 'Very Good': 'VG', 'Good': 'GD'}
-# Handset weight in grams from the manufacturer's spec sheet, plus PACKING_G for box, cable, SIM tool,
+# Handset weight in grams is the maker's figure, weight_g in facts.json (the same file the site's specs are
+# checked against, so the CSV and the site can't drift apart), plus PACKING_G for box, cable, SIM tool,
 # test printout and outer packaging. PACKING_G is an estimate: weigh one packed parcel and change it.
-HANDSET_G = {
-    'iphone-12': 164, 'iphone-12-pro': 189, 'iphone-13-mini': 141, 'iphone-13': 174,
-    'iphone-13-pro': 204, 'iphone-13-pro-max': 240, 'iphone-14': 172, 'iphone-14-plus': 203,
-    'iphone-14-pro': 206, 'iphone-14-pro-max': 240, 'iphone-15': 171, 'iphone-15-plus': 201,
-    'iphone-15-pro': 187, 'iphone-15-pro-max': 221, 'iphone-16': 170, 'iphone-16-pro': 199,
-    'iphone-16-pro-max': 227, 'galaxy-s23': 168, 'pixel-8': 187,
-}
+FACTS_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'facts.json')
 PACKING_G = 200
+
+
+def handset_weights(path, handles):
+    """weight_g for each product handle, from facts.json. Stops with a message if any is missing."""
+    try:
+        with open(path, encoding='utf-8') as f:
+            models = json.load(f)['models']
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        sys.exit(f'Could not read handset weights from {path}: {e!r}')
+    if not isinstance(models, dict):
+        sys.exit(f'{path}: "models" is not an object')
+    weights = {}
+    for h in handles:
+        w = models.get(h, {}).get('weight_g') if isinstance(models.get(h), dict) else None
+        if not isinstance(w, int) or isinstance(w, bool) or not 80 <= w <= 400:
+            sys.exit(f'{path}: no usable weight_g for {h} (got {w!r}); add the handset weight in grams')
+        weights[h] = w
+    return weights
 
 # Current product CSV columns used here, in the order of Shopify's template. Columns we have no data for
 # (barcode, compare-at price, cost, images per variant, Google Shopping...) are left out: Shopify only
@@ -192,10 +206,11 @@ def body_html(p):
     return ''.join(parts)
 
 
-def build(site):
+def build(site, facts=FACTS_JSON):
     cards = shop_cards(site)
     files = sorted(f for f in os.listdir(os.path.join(site, 'products')) if f.endswith('.html'))
     products = [read_product(site, f) for f in files]
+    handset_g = handset_weights(facts, [p['handle'] for p in products])
     # shop.html order: newest first, the same order the site lists them
     order = list(cards)
     products.sort(key=lambda p: order.index(p['handle']))
@@ -213,7 +228,7 @@ def build(site):
                         'Price': f"{p['prices'][st][gr]:.2f}",
                         'Charge tax': 'TRUE', 'Inventory tracker': 'shopify', 'Inventory quantity': '0',
                         'Continue selling when out of stock': 'deny',
-                        'Weight value (grams)': str(HANDSET_G[p['handle']] + PACKING_G),
+                        'Weight value (grams)': str(handset_g[p['handle']] + PACKING_G),
                         'Weight unit for display': 'g', 'Requires shipping': 'TRUE',
                         'Fulfillment service': 'manual', 'Product image URL': '',
                     })
@@ -243,9 +258,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--site')
     ap.add_argument('--out', default=os.path.dirname(os.path.abspath(__file__)))
+    ap.add_argument('--facts', default=FACTS_JSON, help='where the handset weights come from (default: facts.json here)')
     a = ap.parse_args()
     site = a.site or find_site()
-    products, rows = build(site)
+    products, rows = build(site, a.facts)
     write(os.path.join(a.out, 'products-shopify.csv'), CURRENT, rows)
     legacy_rows = [{LEGACY[k]: v for k, v in r.items()} for r in rows]
     write(os.path.join(a.out, 'products-shopify-legacy-headers.csv'), LEGACY_ORDER, legacy_rows)
