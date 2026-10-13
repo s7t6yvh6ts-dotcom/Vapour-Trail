@@ -44,7 +44,10 @@
   --body: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
   --gutter: max(16px, env(safe-area-inset-left, 0px));
+  /* the side padding .wrap actually uses: the gutter on phones, 24px from 600px up */
+  --wrap-pad: var(--gutter);
 }
+@media (min-width: 600px) { :root { --wrap-pad: max(24px, env(safe-area-inset-left, 0px)); } }
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
 /* scroll-padding keeps anchor jumps and keyboard focus clear of the sticky header (WCAG 2.4.11) */
@@ -65,8 +68,7 @@ h3 { font-size: 20px; }
 p { margin: 0 0 1em; }
 b, strong { font-weight: 600; color: var(--ink); }
 ::selection { background: var(--accent); color: var(--accent-ink); }
-.wrap { width: 100%; max-width: 1180px; margin-inline: auto; padding-inline: var(--gutter); }
-@media (min-width: 600px) { .wrap { padding-inline: max(24px, env(safe-area-inset-left, 0px)); } }
+.wrap { width: 100%; max-width: 1180px; margin-inline: auto; padding-inline: var(--wrap-pad); }
 .tnum { font-variant-numeric: tabular-nums; }
 .skip { position: absolute; left: -9999px; top: 0; }
 .skip:focus { left: 12px; top: calc(12px + env(safe-area-inset-top, 0px)); z-index: 100; background: var(--accent); color: var(--accent-ink); padding: 8px 14px; border-radius: 8px; }
@@ -143,6 +145,9 @@ header.site { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
 .hero .lead { margin-bottom: 26px; }
 .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; }
 .hero-art { max-width: 520px; margin-inline: auto; width: 100%; }
+/* phones: keep the illustration small so the first phones and prices come sooner */
+@media (max-width: 599.98px) { .hero-art { max-width: 210px; } }
+.chips.hero-quick { margin: 16px 0 0; }
 .hero-points { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 26px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--ink-2); }
 .hero-points li { position: relative; padding-left: 26px; }
 .hero-points li::before { content: ""; position: absolute; left: 0; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line); }
@@ -182,10 +187,17 @@ header.site { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
 
 /* ---------- product cards ---------- */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+/* the narrowest phones: still two cards a row, so 19 phones aren't 13 screens of scrolling */
+@media (max-width: 359.98px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .card-body { padding: 10px 11px 13px; } .card-body h3 { font-size: 16px; } }
 @media (min-width: 700px) { .grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; } }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; min-width: 0; }
 .card:hover { transform: translateY(-3px); border-color: var(--line-2); box-shadow: var(--shadow-lift); }
 .card > a { display: flex; flex-direction: column; height: 100%; color: inherit; text-decoration: none; }
+/* .card clips its overflow (rounded art), which hides the link's own focus ring: draw the ring on the card instead,
+   for keyboard focus only (a tapped or clicked card doesn't light up) */
+.card:has(> a:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+@supports not selector(:has(*)) { .card:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; } }
+.card > a:focus, .card > a:focus-visible { outline: none; }
 .card-art { position: relative; background: radial-gradient(circle at 50% 38%, var(--surface-3) 0%, var(--surface) 72%); aspect-ratio: 1 / 1; display: grid; place-items: center; border-bottom: 1px solid var(--line); }
 .card-art svg { width: 92%; height: 92%; }
 .card-badge { position: absolute; top: 10px; left: 10px; background: var(--bg); color: var(--ink-2); font: 600 10.5px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line-2); max-width: calc(100% - 20px); }
@@ -261,6 +273,7 @@ header.site { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
 .page { padding-block: 22px 60px; }
 .page-head { padding-block: 22px 8px; }
 .page-head .lead { margin-bottom: 0; }
+.page-head .lead + p { margin-top: 18px; }
 .prose { max-width: 760px; }
 .prose h2 { font-size: clamp(23px, 3.6vw, 30px); margin-top: 1.6em; }
 .prose h3 { margin-top: 1.4em; }
@@ -275,6 +288,29 @@ header.site { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
 .callout p:last-child { margin: 0; }
 .preview-note { margin-top: 1em; }
 .table-wrap { overflow-x: auto; margin: 1.2em 0 1.6em; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); -webkit-overflow-scrolling: touch; }
+/* site.js adds .more-right while there's more table off to the right: fade that edge so it's clear it scrolls */
+.table-wrap.more-right:not(:focus-visible) { -webkit-mask-image: linear-gradient(to right, var(--bg) calc(100% - 40px), transparent); mask-image: linear-gradient(to right, var(--bg) calc(100% - 40px), transparent); }
+/* comparison tables: the model name stays put while you scroll sideways. Model and price stay on one line;
+   the other columns (headers included) wrap, so the whole table fits a laptop screen without sideways scrolling */
+.compare th:first-child, .compare td:first-child { position: sticky; left: 0; z-index: 1; box-shadow: inset -1px 0 0 var(--line); }
+.compare td:first-child { background: var(--surface); }
+.compare th:first-child { background: var(--surface-2); }
+.compare td:nth-child(-n+2) { white-space: nowrap; }
+.compare th:nth-child(n+3) { white-space: normal; }
+.compare td:nth-child(3) { min-width: 10em; }
+/* phones: the model name wraps onto two lines, so the sticky column takes about a quarter of the screen
+   and model, price and software updates are all readable before you swipe */
+@media (max-width: 599.98px) {
+  .compare th, .compare td { padding-inline: 10px; }
+  .compare td:first-child { white-space: normal; width: 6.5em; min-width: 6.5em; }
+  .compare td:nth-child(n+4) { min-width: 6em; }
+}
+@media (max-width: 359.98px) {
+  .compare td:first-child { width: 6em; min-width: 6em; }
+  .compare td:nth-child(3) { min-width: 9.5em; }
+}
+/* comparison tables may use the page's full width on wide screens instead of the 760px text column */
+@media (min-width: 1000px) { .prose > .table-wrap.compare { margin-right: calc(760px - min(1132px, 100vw - 64px)); } }
 table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
 td b, td a { color: var(--ink); }
@@ -297,6 +333,12 @@ code, kbd { font: 500 .9em/1.5 var(--mono); background: var(--surface-3); color:
 .pd > *, .picker > *, .pd-more > *, .two-col > *, .split > *, .hero-grid > * { min-width: 0; }
 .pd-art { background: radial-gradient(circle at 50% 40%, var(--surface-3) 0%, var(--surface) 70%); border: 1px solid var(--line); border-radius: var(--radius-lg); aspect-ratio: 4 / 3; display: grid; place-items: center; max-width: 100%; }
 @media (min-width: 900px) { .pd-art { aspect-ratio: 1 / 1; } }
+/* phones: a shorter picture brings the name, price and storage into the first screen (it's an illustration, not a photo) */
+@media (max-width: 699.98px) {
+  .pd-art { aspect-ratio: auto; height: min(220px, 52vw); grid-template: 100% / 100%; }
+  /* the delivery line in the top bar is repeated right under the price on product pages */
+  body:has(.pd) .topbar { display: none; }
+}
 .pd-art .art-v { width: 94%; height: 94%; }
 .pd-art .art-v[hidden] { display: none; }
 .pd-art .art-v svg { width: 100%; height: 100%; }
@@ -305,6 +347,9 @@ code, kbd { font: 500 .9em/1.5 var(--mono); background: var(--surface-3); color:
 .pd-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 6px 0 4px; }
 .pd-price b { font: 800 42px/1 var(--head); letter-spacing: -0.03em; color: var(--ink); }
 .pd-price span { color: var(--ink-3); font-size: 14px; }
+.pd-config { font-size: 14px; color: var(--ink-2); margin: 0 0 12px; }
+.grade-tip { font-size: 13.5px; line-height: 1.5; color: var(--ink-3); margin: -8px 0 0; }
+.grade-tip b { color: var(--ink-2); }
 .picker { display: grid; gap: 18px; margin: 18px 0 20px; padding: 0; border: 0; }
 .opt-group { border: 0; margin: 0; padding: 0; min-width: 0; }
 .opt-group legend { font-weight: 600; font-size: 14px; margin-bottom: 8px; padding: 0; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; color: var(--ink); }
@@ -334,6 +379,8 @@ code, kbd { font: 500 .9em/1.5 var(--mono); background: var(--surface-3); color:
 .promises { list-style: none; margin: 22px 0 0; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--radius); font-size: 13.5px; line-height: 1.3; color: var(--ink-2); }
 .promises li { display: flex; gap: 8px; align-items: center; min-width: 0; }
 .promises svg { width: 22px; height: 22px; color: var(--accent); flex: none; }
+.promises a { display: flex; gap: 8px; align-items: center; min-height: 24px; min-width: 0; color: inherit; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.promises a:hover { color: var(--ink); text-decoration-color: var(--accent); }
 .promise-note { margin: 10px 2px 0; font-size: 13px; line-height: 1.5; color: var(--ink-3); }
 .promise-note a { white-space: nowrap; }
 .spec-list { display: grid; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -355,7 +402,8 @@ select, input[type="text"], input[type="email"], input[type="tel"], input[type="
 select:focus, input:focus, textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
 select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 textarea { min-height: 150px; resize: vertical; }
-.result-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 14px; color: var(--ink-2); }
+.result-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 10px; margin-bottom: 14px; font-size: 14px; color: var(--ink-2); }
+.shop-note { margin: -4px 0 18px; }
 .empty { display: none; padding: 30px; text-align: center; background: var(--surface); border: 1px dashed var(--line-2); border-radius: var(--radius); }
 .empty.show { display: block; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }
@@ -364,6 +412,12 @@ textarea { min-height: 150px; resize: vertical; }
 .prose .chips { padding-left: 0; }
 .prose .chips li { margin-bottom: 0; }
 .chips a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+/* phones and tablets: one sideways-scrolling row of range links instead of three or four wrapped rows */
+@media (max-width: 899.98px) {
+  .chips-scroll { flex-wrap: nowrap; overflow-x: auto; margin-inline: calc(-1 * var(--wrap-pad)); padding: 2px var(--wrap-pad) 6px; scrollbar-width: none; scroll-padding-inline: var(--wrap-pad); }
+  .chips-scroll::-webkit-scrollbar { display: none; }
+  .chips-scroll li { flex: none; }
+}
 
 /* ---------- forms ---------- */
 .form { display: grid; gap: 14px; }
@@ -412,6 +466,7 @@ textarea { min-height: 150px; resize: vertical; }
 .toc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 16px 20px; margin: 0 0 1.6em; font-size: 15px; }
 .toc b { display: block; margin-bottom: 4px; font: 600 11.5px/1.4 var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); }
 .toc ol { margin: 0; padding-left: 20px; }
+.toc ul { margin: 0; padding-left: 0; list-style: none; }
 .toc li::marker { color: var(--ink-3); }
 
 /* ---------- sell ---------- */
@@ -450,6 +505,9 @@ footer.site ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8p
 .cta-band p { color: var(--ink-2); margin: 0; max-width: 60ch; }
 @media (min-width: 800px) { .cta-band { grid-template-columns: 1fr auto; padding: 40px 44px; } .cta-band::after { display: block; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } .card:hover, .guide-card:hover { transform: none; } }
+
+/* keeps short terms like USB-C on one line */
+.nw { white-space: nowrap; }
 
 /* ---------- logo ---------- */
 .logo span { letter-spacing: -0.035em; white-space: nowrap; }
@@ -490,6 +548,14 @@ footer.site ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8p
 .qt-bar .qt-sub { display: block; font-size: 12.5px; color: var(--ink-2); margin-top: 3px; }
 .qt-jump { flex: none; color: var(--ink); font-weight: 600; font-size: 14px; border: 1px solid var(--line-2); border-radius: 999px; padding: 8px 14px; text-decoration: none; }
 .qt-jump:hover { color: var(--ink); border-color: var(--ink-3); }
+/* small phones: a slimmer bar covers less of the questions (after the base rules above, so it wins) */
+@media (max-width: 559.98px) {
+  .qt-bar { padding: 11px 14px; gap: 10px; }
+  .qt-bar .qt-label { font-size: 11px; letter-spacing: .03em; }
+  .qt-bar .qt-fig { font-size: 32px; }
+  .qt-bar .qt-sub { font-size: 12px; margin-top: 2px; }
+  .qt-jump { padding: 8px 12px; }
+}
 .qt-jump[hidden] { display: none; }
 .qt-detail { display: grid; gap: 14px; min-width: 0; }
 .qt-detail .callout { margin: 0; }
@@ -499,6 +565,7 @@ footer.site ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8p
 .qt-working table { margin-bottom: 10px; font-size: 14px; }
 .qt-working td { padding: 7px 0; border-bottom: 1px dotted var(--line-2); }
 .qt-working tr.total td { font-weight: 700; border-bottom: 0; padding-top: 10px; color: var(--ink); }
+.qt-working td.num { white-space: nowrap; padding-left: 12px; }
 td.num, th.num { text-align: right; }
 /* phones: the side wrapper disappears so the quote bar can stick to the bottom while you answer */
 .qt-side { display: contents; }

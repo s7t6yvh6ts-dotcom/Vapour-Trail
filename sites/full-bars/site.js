@@ -34,8 +34,12 @@
   var wraps = $all('.table-wrap[tabindex]');
   if (wraps.length) {
     wraps.forEach(function (w) { w.setAttribute('data-label', w.getAttribute('aria-label') || ''); });
+    /* .more-right fades the right edge while there is more table to scroll to (styles.css) */
+    var edge = function (w) { w.classList.toggle('more-right', w.scrollLeft + w.clientWidth < w.scrollWidth - 2); };
+    wraps.forEach(function (w) { w.addEventListener('scroll', function () { edge(w); }, { passive: true }); });
     var fitWraps = function () {
       wraps.forEach(function (w) {
+        edge(w);
         if (w.scrollWidth > w.clientWidth + 1) {
           w.setAttribute('tabindex', '0'); w.setAttribute('role', 'region'); w.setAttribute('aria-label', w.getAttribute('data-label'));
         } else if (document.activeElement !== w) {
@@ -51,6 +55,14 @@
     }
     else window.addEventListener('resize', fitWraps);
   }
+
+  /* ---------- range chips ----------
+     On phones the chips are one sideways-scrolling row: bring the current page's chip into view within the row
+     (the row only, never the page). */
+  $all('.chips-scroll').forEach(function (ul) {
+    var cur = $('[aria-current="page"]', ul);
+    if (cur && ul.scrollWidth > ul.clientWidth) ul.scrollLeft += cur.getBoundingClientRect().left - ul.getBoundingClientRect().left - 16;
+  });
 
   /* ---------- toast + copy ---------- */
   var toastEl = $('#toast'), toastT;
@@ -83,16 +95,44 @@
        Without it, every option counts as available and no 'not in stock' note is shown. */
     var stock = picker.getAttribute('data-stock') ? JSON.parse(picker.getAttribute('data-stock')) : null;
     var priceEl = $('#pdPrice'), orderBtn = $('#orderBtn'), lineEl = $('#selLine'), gradeNote = $('#gradeNote');
-    var buyNote = $('#buyNote'), stockNote = $('#stockNote'), emailNote = $('#emailNote');
+    var buyNote = $('#buyNote'), stockNote = $('#stockNote'), emailNote = $('#emailNote'), fromEl = $('#pdFrom');
+    /* the lowest price across every option, and which option it is: the 'from' price the cards show */
+    var minP = null, minSt = '', minGr = '';
+    Object.keys(prices).forEach(function (s) {
+      Object.keys(prices[s]).forEach(function (g) { if (minP === null || prices[s][g] < minP) { minP = prices[s][g]; minSt = s; minGr = g; } });
+    });
     /* data-preview="1" on #picker in the page's HTML: not trading yet, so no Order or Buy now route at all.
        Remove the attribute at launch. */
     var preview = picker.getAttribute('data-preview') === '1';
     function val(name) { var el = picker.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : ''; }
+    /* The choice is kept in the address (?storage=256GB&grade=Good&colour=Green), so Back, refresh and a shared
+       link all show the same phone at the same price. Unknown values are ignored. */
+    var KEYS = ['storage', 'grade', 'colour'];
+    try {
+      var want = new URLSearchParams(location.search);
+      KEYS.forEach(function (k) {
+        var v = want.get(k);
+        var r = v ? $all('input[name="' + k + '"]', picker).filter(function (i) { return i.value === v; })[0] : null;
+        if (r) r.checked = true;
+      });
+    } catch (e) { /* no URLSearchParams: keep the page's own default */ }
+    function rememberPick() {
+      try {
+        var q = new URLSearchParams(location.search);
+        KEYS.forEach(function (k) { var v = val(k); if (v) q.set(k, v); });
+        history.replaceState(history.state, '', location.pathname + '?' + q.toString() + location.hash);
+      } catch (e) { /* sandboxed frame or old browser: the picker still works, the address just doesn't follow it */ }
+    }
     function update() {
       var st = val('storage'), gr = val('grade'), co = val('colour');
       var price = prices[st] && prices[st][gr];
       if (price == null) return;
       priceEl.textContent = gbp(price);
+      /* say which option the big price is for, and the lowest price, so it matches the 'from' price on the cards */
+      if (fromEl) {
+        fromEl.textContent = 'Price for ' + st + ' in ' + gr + (price === minP ? ': the lowest for this phone.'
+          : '. From ' + gbp(minP) + (minSt === st ? '' : ' for ' + minSt) + ' in ' + minGr + '.');
+      }
       /* show each grade's price for the chosen storage */
       $all('input[name="grade"]', picker).forEach(function (r) {
         var s = r.parentNode.querySelector('small'); if (s) s.textContent = gbp(prices[st][r.value]);
@@ -132,8 +172,17 @@
       if (stockNote) stockNote.hidden = buyNow;
       if (emailNote) emailNote.hidden = buyNow;
     }
-    picker.addEventListener('change', update);
+    picker.addEventListener('change', function () { update(); rememberPick(); });
     update();
+    /* Coming Back to the page, the browser can re-tick the options after this script has run, without a change
+       event: refresh everything (price, notes, Order link) from what is actually ticked. */
+    window.addEventListener('pageshow', update);
+    /* Preview: questions can't be sent yet, so point 'Ask a question' at the answers on this page instead */
+    var askBtn = $('#askBtn');
+    if (preview && askBtn) {
+      askBtn.setAttribute('href', $('#questions') ? '#questions' : '../faq.html');
+      askBtn.textContent = 'Common questions';
+    }
   }
 
   /* ---------- shop filters ---------- */
@@ -165,11 +214,26 @@
       countEl.textContent = shown + (shown === 1 ? ' phone' : ' phones');
       empty.classList.toggle('show', shown === 0);
     }
-    filters.addEventListener('change', apply);
+    /* keep the filters in the address (same names as above), so Back, refresh and shared links show the same list */
+    function rememberFilters() {
+      try {
+        var f = filters.elements, q = new URLSearchParams(location.search);
+        ['series', 'type', 'max', 'sort', 'usbc'].forEach(function (k) { q.delete(k); });
+        ['series', 'type', 'max', 'sort'].forEach(function (k) {
+          var v = f[k].value; if (v && !(k === 'sort' && v === 'newest')) q.set(k, v);
+        });
+        if (f.usbc.checked) q.set('usbc', '1');
+        var qs = q.toString();
+        history.replaceState(history.state, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+      } catch (e) { /* the filters still work; the address just doesn't follow them */ }
+    }
+    filters.addEventListener('change', function () { apply(); rememberFilters(); });
     filters.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
     var reset = $('#resetFilters');
-    if (reset) reset.addEventListener('click', function () { filters.reset(); apply(); });
+    if (reset) reset.addEventListener('click', function () { filters.reset(); apply(); rememberFilters(); });
     apply();
+    /* the browser can restore the dropdowns on Back after this script ran: re-filter from what they actually show */
+    window.addEventListener('pageshow', apply);
   }
 
   /* ---------- email-composing forms ---------- */

@@ -90,7 +90,21 @@
       var st = steps[k]; if (!st || (k === 'model' && preset)) return;
       n++; var badge = $('.qt-n', st); if (badge) badge.textContent = n;
     });
+    stepCount = n;
   }
+
+  /* the first question still to answer, for the 'Next:' prompt in the quote bar */
+  function nextStep() {
+    var order = [['model', !state.modelId], ['storage', !state.storage], ['screen', !state.screen], ['body', !state.body]];
+    for (var i = 0; i < order.length; i++) if (order[i][1] && steps[order[i][0]] && !(order[i][0] === 'model' && preset)) return steps[order[i][0]];
+    return null;
+  }
+  function stepTitle(st) {
+    var lg = $('legend', st); if (!lg) return '';
+    var c = lg.cloneNode(true), n = $('.qt-n', c); if (n) n.parentNode.removeChild(n);
+    return c.textContent.trim();
+  }
+  var stepCount = 0;
 
   function flag(name) { var el = $('input[name="qtFlag"][value="' + name + '"]', tool); return !!(el && el.checked); }
 
@@ -104,8 +118,8 @@
   }
 
   var BLOCKS = {
-    'activation-locked': ['We can&rsquo;t quote this phone yet: it&rsquo;s still signed in',
-      'A phone still signed in to iCloud (Find My and Activation Lock), a Google account (Factory Reset Protection) or a Samsung account (Reactivation Lock) can&rsquo;t be reset or used by anyone else, so we can&rsquo;t buy it. This is a hard stop, not a discount. Sign out on the phone, or remove it from your account online, then come back and we&rsquo;ll quote it properly. <a href="__PRE__guides/remove-find-my-before-selling-iphone.html">How to sign out and reset</a>.'],
+    'activation-locked': ['We can&rsquo;t quote a phone that can&rsquo;t be signed out',
+      'A phone still signed in to iCloud (Find My and Activation Lock), a Google account (Factory Reset Protection) or a Samsung account (Reactivation Lock) can&rsquo;t be reset or used by anyone else, so we can&rsquo;t buy it. This is a hard stop, not a discount. If you&rsquo;ve forgotten the password, recover the account first, then come back and we&rsquo;ll quote it properly. Still using the phone and able to sign out? That&rsquo;s fine: untick this box and sign out just before you post it. <a href="__PRE__guides/remove-find-my-before-selling-iphone.html">How to sign out and reset</a>.'],
     'blacklisted': ['We can&rsquo;t buy a phone that&rsquo;s blocked or reported lost or stolen',
       'If a phone is on a loss, theft or network blocklist, nobody in the UK can legally buy or use it, at any price. If it&rsquo;s yours and has been recovered, ask your network or insurer to clear the record first, then come back for a quote.'],
     'outstanding-finance': ['We can&rsquo;t buy a phone with money still owed on it',
@@ -139,10 +153,14 @@
     var m = Q.getModel(state.modelId);
     var notes = '';
 
+    var next = null;
     if (!r) {
       labelEl.textContent = 'Your quote';
       figEl.textContent = 'Answer the questions';
-      bar.classList.add('pending'); subEl.textContent = 'Takes under a minute.';
+      bar.classList.add('pending');
+      next = nextStep();
+      var badge = next ? $('.qt-n', next) : null;
+      subEl.textContent = next ? 'Next: ' + stepTitle(next) + (badge && stepCount ? ' (question ' + badge.textContent + ' of ' + stepCount + ')' : '') : 'Takes under a minute.';
     } else if (r.kind === 'blocked') {
       labelEl.textContent = 'We can’t quote this phone';
       figEl.textContent = 'No quote';
@@ -152,7 +170,7 @@
       labelEl.textContent = 'Below our ' + Q.formatPounds(Q.ECONOMICS.minimumQuote) + ' minimum';
       figEl.textContent = 'Not worth posting';
       bar.classList.add('pending'); subEl.textContent = 'See why below.';
-      notes += notice('warn', 'This one&rsquo;s worth less than the postage', 'In this condition the phone is worth less to us than ' + esc(Q.formatPounds(Q.ECONOMICS.minimumQuote)) + ' after testing, repairs and postage, so it isn&rsquo;t worth sending. Please recycle it responsibly, or <a href="#other">email us</a> if you think we&rsquo;ve got it wrong.');
+      notes += notice('warn', 'This one&rsquo;s worth less than the postage', 'In this condition the phone is worth less to us than ' + esc(Q.formatPounds(Q.ECONOMICS.minimumQuote)) + ' after testing, repairs and postage, so it isn&rsquo;t worth sending. Please recycle it responsibly, or see <a href="' + pre + (pre ? 'sell.html' : '') + '#other">Another model?</a> if you think we&rsquo;ve got it wrong.');
     } else if (preview) {
       labelEl.textContent = m.name + ' ' + a.storage + ' · ' + conditionLabel(a, r);
       figEl.textContent = Q.formatPounds(r.customerQuote);
@@ -166,7 +184,12 @@
       notes += notice('', 'Provisional quote: ' + esc(Q.formatPounds(r.customerQuote)), 'This is what we pay if the phone matches your answers when we inspect it. It&rsquo;s locked for 14 days. If something is genuinely different, we send you photos and a revised offer, and if you&rsquo;d rather not accept it we post the phone back free.');
     }
     noticeEl.innerHTML = notes;
-    if (jump) jump.hidden = !r;
+    /* on phones the pill in the bar jumps to the next question while answers are missing, then to the details */
+    if (jump) {
+      if (r) { jump.textContent = 'Details'; jump.setAttribute('href', '#qtDetail'); jump.hidden = false; }
+      else if (next && next.id) { jump.textContent = 'Next'; jump.setAttribute('href', '#' + next.id); jump.hidden = false; }
+      else jump.hidden = true;
+    }
 
     /* how we worked it out: the same steps as quote.js, in words */
     if (r && r.kind === 'quote') {
@@ -174,8 +197,10 @@
       var rows = [['What a working ' + m.name + ' ' + a.storage + ' sells for', Q.formatPence(b.basePrice)],
         ['Adjusted for condition (' + conditionLabel(a, r).toLowerCase() + ')', '×' + b.conditionFactor.toFixed(2)]];
       if (b.networkLocked) rows.push(['Locked to one network', '×' + E.networkLockedMultiplier.toFixed(2)]);
+      rows.push(['What it sells for in this condition', Q.formatPence(b.adjustedPrice)]);
       if (b.refurbCost > 0) rows.push(['Repairs we’ll need to do', '−' + Q.formatPence(b.refurbCost)]);
-      rows.push(['Testing, postage, warranty and VAT', '−' + Q.formatPence(b.adjustedPrice - r.customerQuote - b.refurbCost)]);
+      /* this row is everything else between the selling price and the quote, so it names our margin too */
+      rows.push(['Testing, postage, warranty, VAT and our margin', '−' + Q.formatPence(b.adjustedPrice - r.customerQuote - b.refurbCost)]);
       rows.push(['We pay you', Q.formatPounds(r.customerQuote)]);
       tableEl.innerHTML = rows.map(function (row, i) {
         return '<tr' + (i === rows.length - 1 ? ' class="total"' : '') + '><td>' + esc(row[0]) + '</td><td class="num tnum">' + esc(row[1]) + '</td></tr>';
@@ -192,10 +217,43 @@
     }
   }
 
+  /* Answers are kept for this visit only (sessionStorage, this tab, this page), so following a link such as
+     the sign-out guide and coming Back doesn't wipe them. Only the answers are kept: no device identifiers,
+     nothing sent anywhere. Blocked storage just means no restore. */
+  var SAVE_KEY = 'fullbars-quote:' + location.pathname;
+  function tick(name, value) {
+    var el = $all('input[name="' + name + '"]', tool).filter(function (i) { return i.value === value; })[0];
+    if (el) el.checked = true;
+    return !!el;
+  }
+  function save() {
+    try {
+      sessionStorage.setItem(SAVE_KEY, JSON.stringify({
+        m: preset ? null : state.modelId, s: state.storage, sc: state.screen, b: state.body,
+        f: $all('input[name="qtFlag"]:checked', tool).map(function (i) { return i.value; })
+      }));
+    } catch (e) { /* storage blocked: nothing to do */ }
+  }
+  function restore() {
+    var v = null;
+    try { v = JSON.parse(sessionStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { v = null; }
+    if (!v || typeof v !== 'object') return;
+    var model = preset || (v.m && Q.getModel(v.m) ? v.m : null);
+    if (!model) return;
+    if (!preset) tick('qtModel', model);
+    state.modelId = model;
+    renderStorage();
+    if (v.s) tick('qtStorage', String(v.s));
+    if (v.sc) tick('qtScreen', String(v.sc));
+    if (v.b) tick('qtBody', String(v.b));
+    (Array.isArray(v.f) ? v.f : []).forEach(function (f) { tick('qtFlag', String(f)); });
+  }
+
   /* Bring the script's answers into line with what is actually ticked on the page. Browsers can
      re-tick answers when someone comes Back to the page; without this the panel would say
      "Answer the questions" while the ticks look answered. It only reads ticks, never clears them. */
   function syncFromPage() {
+    if (!$('input:checked', tool)) restore();
     var mi = $('input[name="qtModel"]:checked', tool);
     var model = preset || (mi ? mi.value : null);
     var si = $('input[name="qtStorage"]:checked', tool);
@@ -215,11 +273,17 @@
 
   tool.addEventListener('change', function (e) {
     var t = e.target;
-    if (t.name === 'qtModel') { state.modelId = t.value; state.storage = null; renderStorage(); }
+    if (t.name === 'qtModel') {
+      /* keep the storage answer when the new model comes in that size too */
+      var keep = state.storage;
+      state.modelId = t.value; renderStorage();
+      state.storage = keep && tick('qtStorage', keep) ? keep : null;
+    }
     else if (t.name === 'qtStorage') state.storage = t.value;
     else if (t.name === 'qtScreen') state.screen = t.value;
     else if (t.name === 'qtBody') state.body = t.value;
     update();
+    save();
   });
 
   /* ---------- send the quote by email (mailto; nothing is stored by the site) ---------- */
@@ -237,8 +301,8 @@
       'Battery worn out: ' + yesNo(a.wornBattery) + '\n' +
       'Locked to a network: ' + yesNo(a.networkLocked) + '\n' +
       'Won’t switch on: ' + yesNo(a.deadDevice) + '\n' +
-      'Signed out of iCloud / Google / Samsung account: yes\n' +
-      'Not lost, stolen or blocked, and no finance owed: confirmed\n' +
+      'Will be signed out of iCloud / Google / Samsung account and reset before posting: yes\n' +
+      'Not lost, stolen or blocked, and no finance owed when posted: confirmed\n' +
       'Grade from my answers: ' + Q.GRADE_WORDS[r.breakdown.grade] + (a.screen === 'cracked' ? ' (cracked screen)' : '') + '\n' +
       'Quote: ' + Q.formatPounds(r.customerQuote) + ' (provisional until inspected; quoted ' + when + ', locked for 14 days)\n' +
       'Full Bars re-checks this price against the answers above; a changed figure won’t be honoured.\n\n' +
