@@ -384,6 +384,8 @@ code, kbd { font: 500 .9em/1.5 var(--mono); background: var(--surface-3); color:
 .opt-group:disabled .opt:hover input:not(:checked) + span { border-color: var(--line-2); }
 .opt.na span { border-style: dashed; color: var(--ink-3); }
 .opt.na span small::after { content: " \00B7  not in stock"; }
+/* a storage we hold, but not in the condition chosen (site.js): same look as an available option, only the words differ */
+.opt.na-cond span small::after { content: " \00B7  not in this condition"; }
 .stock-note { font-size: 14px; color: var(--ink-2); margin: 8px 0 16px; padding-left: 12px; border-left: 2px solid var(--accent-line); }
 .buy-note { font-size: 14px; color: var(--ink); background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 14px; margin: 0 0 12px; }
 .buy-note[hidden], .stock-note[hidden], #emailNote[hidden], .handoff-note[hidden] { display: none; }

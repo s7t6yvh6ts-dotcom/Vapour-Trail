@@ -206,16 +206,33 @@
     /* The choice is kept in the address (?storage=256GB&grade=Good&colour=Green), so Back, refresh and a shared
        link all show the same phone at the same price. Unknown values are ignored, and replaced in the address
        below (pickDropped) so it matches what's ticked, as the shop does with its filters. */
-    var KEYS = ['storage', 'grade', 'colour'], pickDropped = false;
+    var KEYS = ['storage', 'grade', 'colour'], pickDropped = false, pickNamed = {};
     try {
       var want = new URLSearchParams(location.search);
       KEYS.forEach(function (k) {
         if (!want.has(k)) return;
         var v = want.get(k);
         var r = v ? $all('input[name="' + k + '"]', picker).filter(function (i) { return i.value === v; })[0] : null;
-        if (r) r.checked = true; else pickDropped = true;
+        if (r) { r.checked = true; pickNamed[k] = true; } else pickDropped = true;
       });
     } catch (e) { /* no URLSearchParams: keep the page's own default */ }
+    /* Every phone is a one-off, so with stock data the storage and condition ticked in the HTML is often one we don't
+       hold. When the ticked pair isn't held, open on the cheapest storage and condition that is (on a tie, the first in
+       the page's order), keeping the colour ticked. A storage or condition the address names is kept, held or not: the
+       customer chose it. So with both named nothing moves; with one named (?storage=256GB) only the other can, to the
+       cheapest held with it; with neither (a card's plain link) both can. Without stock data nothing changes here. */
+    if (stock && !(pickNamed.storage && pickNamed.grade) && !inStock(val('storage') + '|' + val('grade'))) {
+      var pickBest = null;
+      $all('input[name="storage"]', picker).forEach(function (s) {
+        if (pickNamed.storage && !s.checked) return;
+        $all('input[name="grade"]', picker).forEach(function (g) {
+          if (pickNamed.grade && !g.checked) return;
+          var p = prices[s.value][g.value];
+          if (inStock(s.value + '|' + g.value) && (!pickBest || p < pickBest.p)) pickBest = { s: s, g: g, p: p };
+        });
+      });
+      if (pickBest) { pickBest.s.checked = true; pickBest.g.checked = true; }
+    }
     function rememberPick() {
       try {
         var q = new URLSearchParams(location.search);
@@ -228,10 +245,12 @@
       var price = prices[st] && prices[st][gr];
       if (price == null) return;
       priceEl.textContent = gbp(price);
-      /* say which option the big price is for, and the lowest price, so it matches the 'from' price on the cards */
+      /* say which option the big price is for, and the lowest price, so it matches the 'from' price on the cards
+         (which is the lowest of any option, held or not: with stock data, say when that one isn't held) */
       if (fromEl) {
         fromEl.textContent = 'Price for ' + st + ' in ' + gr + (price === minP ? ': the lowest for this phone.'
-          : '. From ' + gbp(minP) + (minSt === st ? '' : ' for ' + minSt) + ' in ' + minGr + '.');
+          : '. From ' + gbp(minP) + (minSt === st ? '' : ' for ' + minSt) + ' in ' + minGr
+            + (stock && !inStock(minSt + '|' + minGr) ? ' (not in stock right now)' : '') + '.');
       }
       /* show each grade's price for the chosen storage */
       $all('input[name="grade"]', picker).forEach(function (r) {
@@ -245,10 +264,19 @@
       var label = model + ' ' + st + ', ' + gr + (co ? ', ' + co : '');
       var held = !stock || inStock(st + '|' + gr);
       if (lineEl) lineEl.textContent = 'Selected: ' + label + ' — ' + gbp(price) + (held ? '' : ' (not in stock right now)');
-      /* show which options are in stock when the owner tracks stock */
+      /* show which options are in stock when the owner tracks stock. styles.css adds the words after the price on the
+         label, and screen readers read them with it. Class 'na', "· not in stock": a storage we hold in no condition; a
+         condition we don't hold in the storage chosen (its price is for that storage). Class 'na-cond', "· not in this
+         condition": a storage we hold, but not in the condition chosen, so the price on it (for that condition) isn't
+         one we can sell; it stays solid, as choosing it can still lead to a held phone. */
       if (stock) {
-        $all('input[name="storage"]', picker).forEach(function (r) { r.parentNode.classList.toggle('na', !inStock(r.value + '|' + gr)); });
-        $all('input[name="grade"]', picker).forEach(function (r) { r.parentNode.classList.toggle('na', !inStock(st + '|' + r.value)); });
+        var gradeEls = $all('input[name="grade"]', picker);
+        $all('input[name="storage"]', picker).forEach(function (r) {
+          var none = !gradeEls.some(function (g) { return inStock(r.value + '|' + g.value); });
+          r.parentNode.classList.toggle('na', none);
+          r.parentNode.classList.toggle('na-cond', !none && !inStock(r.value + '|' + gr));
+        });
+        gradeEls.forEach(function (r) { r.parentNode.classList.toggle('na', !inStock(st + '|' + r.value)); });
       }
       /* never a Payment Link on a Shopify-route page */
       var link = shopMode ? '' : PAY[model + ' ' + st + ' ' + gr];
