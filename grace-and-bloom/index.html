@@ -306,9 +306,12 @@
   <div class="drawer" id="cart" hidden role="dialog" aria-modal="true" aria-labelledby="cart-title">
     <aside class="drawer-box">
       <header><h2 id="cart-title">Your basket</h2><button class="drawer-close" type="button" aria-label="Close basket">×</button></header>
+      <p class="sr" id="cart-status" role="status"></p>
       <div class="ship"><p id="ship-msg"></p><div class="bar-track"><i id="ship-bar"></i></div></div>
-      <ul id="cart-list"></ul>
-      <div class="upsell" id="upsell" hidden></div>
+      <div class="drawer-scroll">
+        <ul id="cart-list"></ul>
+        <div class="upsell" id="upsell" hidden></div>
+      </div>
       <footer>
         <div class="sum">
           <div class="sum-row"><span>Subtotal</span><span id="cart-sub">£0.00</span></div>

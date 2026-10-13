@@ -224,7 +224,7 @@
   }
 
   /* ---------- quick view ---------- */
-  var modal = $('#modal'), mbody = $('#modal-body'), lastFocus, qv, modalT, drawerT;
+  var modal = $('#modal'), mbody = $('#modal-body'), lastFocus, qv, modalT, drawerT, mOpen = false;
   /* while a dialog is open, everything behind it is inert (no focus, hidden from screen readers) */
   var drawerEl = $('#cart');
   var behind = $$('body > *').filter(function (el) { return el !== modal && el !== drawerEl && el.id !== 'toast' && el.tagName !== 'SCRIPT'; });
@@ -237,17 +237,20 @@
     }).join('') + '</div></div>';
   }
   function openModal(p) {
-    if (modal.hidden) lastFocus = document.activeElement; qv = { p: p, v: 0, q: 1 }; clearTimeout(modalT);
+    // swap: a related product replaces the one on show, so focus still returns to whatever first opened the dialog
+    var swap = mOpen;
+    if (!swap) lastFocus = document.activeElement;
+    mOpen = true; qv = { p: p, v: 0, q: 1 }; clearTimeout(modalT);
     var vr = p.variants;
     mbody.innerHTML =
       '<div class="qv-stage"></div><div class="qv-info">' +
-      '<p class="cat">' + esc(catLabel(p.cat)) + '</p><h2 id="modal-title">' + esc(p.name) + '</h2>' +
+      '<p class="cat">' + esc(catLabel(p.cat)) + '</p><h2 id="modal-title" tabindex="-1">' + esc(p.name) + '</h2>' +
       '<p class="qv-price" id="qv-price"></p><p class="blurb">' + esc(p.blurb) + '</p>' +
       (vr ? '<fieldset class="opts"><legend>' + esc(vr.label) + '</legend>' + vr.options.map(function (o, i) { return '<label><input type="radio" name="v" value="' + i + '"' + (i === 0 ? ' checked' : '') + '><span>' + esc(o[0]) + '</span></label>'; }).join('') + '</fieldset>' : '') +
       '<div class="qty-row"><div class="qty" role="group" aria-label="Quantity"><button type="button" data-q="-1" aria-label="One fewer">−</button><output id="qv-q" aria-live="polite">1</output><button type="button" data-q="1" aria-label="One more">+</button></div>' +
       '<button class="btn btn--primary" id="qv-add" type="button">Add to basket</button></div>' +
       (p.etsyUrl ? '<a class="etsy" href="' + esc(p.etsyUrl) + '" target="_blank" rel="noopener">Also available on Etsy →</a>' : '') + '<ul class="details">' + p.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' + relatedHtml(p) + '</div>';
-    $$('[data-rel]', mbody).forEach(function (b) { b.addEventListener('click', function () { openModal(GB.byId(b.dataset.rel)); $('.modal-box', modal).scrollTop = 0; }); });
+    $$('[data-rel]', mbody).forEach(function (b) { b.addEventListener('click', function () { openModal(GB.byId(b.dataset.rel)); }); });
     $$('.related img[data-art]', mbody).forEach(function (im) { bindArt(im, GB.byId(im.dataset.art), 1); });
     var st = $('.qv-stage', mbody); st.appendChild(mock(p, 1.3, p.name)); tilt(st, $('.mock', st));
     function price() { return p.price + (vr ? vr.options[qv.v][1] : 0); }
@@ -257,10 +260,12 @@
     $$('[data-q]', mbody).forEach(function (b) { b.addEventListener('click', function () { qv.q = Math.max(1, Math.min(20, qv.q + +b.dataset.q)); upd(); }); });
     $('#qv-add').addEventListener('click', function () { add(p.id, qv.v, qv.q, true); closeModal(); openCart(); });
     modal.hidden = false; document.body.classList.add('locked'); setInert(true);
-    requestAnimationFrame(function () { modal.classList.add('on'); $('.modal-close', modal).focus(); });
+    // the clicked related button has just been replaced, so focus moves to the new product's name (screen readers hear what changed)
+    if (swap) { $('.modal-box', modal).scrollTop = 0; $('#modal-title').focus({ preventScroll: true }); }
+    else requestAnimationFrame(function () { modal.classList.add('on'); $('.modal-close', modal).focus(); });
   }
   function closeModal() {
-    modal.classList.remove('on'); document.body.classList.remove('locked'); setInert(false);
+    mOpen = false; modal.classList.remove('on'); document.body.classList.remove('locked'); setInert(false);
     modalT = setTimeout(function () { modal.hidden = true; }, 250); if (lastFocus) lastFocus.focus();
   }
   $('.modal-close', modal).addEventListener('click', closeModal);
@@ -303,14 +308,32 @@
     var up = $('#upsell'), tags = GB.byId('posy-gift-tags');
     var want = tags && cart.some(function (l) { return GB.byId(l.id).cat === 'cards'; }) && !cart.some(function (l) { return l.id === tags.id; });
     up.hidden = !want;
-    if (want) { up.innerHTML = '<img alt="" data-art="' + tags.id + '"><div><b>Complete the gift</b>Add ' + esc(tags.name) + ' for ' + money(tags.price) + '</div><button class="btn btn--ghost" type="button" data-upsell>Add</button>'; bindArt($('img', up), tags, 1); }
+    if (want) { up.innerHTML = '<img alt="" data-art="' + tags.id + '"><div><b>Complete the gift</b>Add ' + esc(tags.name) + ' for ' + money(tags.price) + '</div><button class="btn btn--ghost" type="button" data-upsell>Add<span class="sr"> ' + esc(tags.name) + '</span></button>'; bindArt($('img', up), tags, 1); }
   }
-  $('#upsell').addEventListener('click', function (e) { if (e.target.hasAttribute('data-upsell')) add('posy-gift-tags', 0, 1, true); });
+  /* the basket redraws on every change, so keyboard focus is put back by hand and the change is announced */
+  var cartStatus = $('#cart-status');
+  function say(msg) { cartStatus.textContent = ''; status(cartStatus, msg + ' Total ' + $('#cart-total').textContent + '.', 60); }
+  $('#upsell').addEventListener('click', function (e) {
+    if (!e.target.closest('[data-upsell]')) return;
+    add('posy-gift-tags', 0, 1, true);
+    checkout.focus(); // the offer has gone, so carry on to the next control rather than dropping focus to the page
+    say(GB.byId('posy-gift-tags').name + ' added.');
+  });
   list.addEventListener('click', function (e) {
-    var t = e.target;
-    if (t.dataset.d) { var l = cart[+t.dataset.ci]; l.q += +t.dataset.d; if (l.q < 1) cart.splice(+t.dataset.ci, 1); save(); }
-    if (t.dataset.rm) { cart.splice(+t.dataset.rm, 1); save(); }
-    if (t.hasAttribute('data-close')) closeCart();
+    var t = e.target.closest('button, a'); if (!t) return;
+    var i = +(t.dataset.ci || t.dataset.rm), l = cart[i], gone = false;
+    if (t.dataset.d) { l.q += +t.dataset.d; if (l.q < 1) { cart.splice(i, 1); gone = true; } save(); }
+    else if (t.dataset.rm) { cart.splice(i, 1); gone = true; save(); }
+    else if (t.hasAttribute('data-close')) return closeCart();
+    else return;
+    if (gone) {
+      // next line's Remove button, else the one before, else the empty-basket link
+      ($('[data-rm="' + Math.min(i, cart.length - 1) + '"]', list) || $('a[data-close]', list)).focus();
+      say(GB.byId(l.id).name + ' removed.');
+    } else {
+      $('[data-ci="' + i + '"][data-d="' + t.dataset.d + '"]', list).focus();
+      say(GB.byId(l.id).name + ', quantity ' + l.q + '.');
+    }
   });
   var cartFocus;
   function openCart() { hideToast(); clearTimeout(drawerT); cartFocus = document.activeElement; drawer.hidden = false; document.body.classList.add('locked'); setInert(true); requestAnimationFrame(function () { drawer.classList.add('on'); $('.drawer-close', drawer).focus(); }); }
@@ -374,8 +397,13 @@
   $$('.nav a').forEach(function (a) { a.addEventListener('click', closeNav); });
   var scrolled = function () { document.body.classList.toggle('scrolled', window.scrollY > 24); };
   window.addEventListener('scroll', scrolled, { passive: true }); scrolled();
-  var prog = $('#progress');
-  window.addEventListener('scroll', function () { var m = document.documentElement.scrollHeight - innerHeight; prog.style.width = (m > 0 ? Math.min(100, scrollY / m * 100) : 0) + '%'; }, { passive: true });
+  /* reading progress: decorative; scaled (not resized) once per frame, so scrolling never triggers layout */
+  var prog = $('#progress'), progQ = false;
+  function progress() { progQ = false; var m = document.documentElement.scrollHeight - innerHeight; prog.style.transform = 'scaleX(' + (m > 0 ? Math.min(1, Math.max(0, scrollY / m)) : 0).toFixed(4) + ')'; }
+  function progressSoon() { if (!progQ) { progQ = true; requestAnimationFrame(progress); } }
+  window.addEventListener('scroll', progressSoon, { passive: true });
+  window.addEventListener('resize', progressSoon);
+  progressSoon();
 
   var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (en) {
     en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
