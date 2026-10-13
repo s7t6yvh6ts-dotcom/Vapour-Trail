@@ -128,6 +128,39 @@ class SiteMarkupTest(unittest.TestCase):
         para = sec3.split('If you buy online')[1]
         self.assertIsNone(go_live.CHECKOUT_WORDS['shopify'].search(para))
 
+    def test_replaced_part_sentences_rewrite_one_at_a_time(self):
+        """grading.html's replaced-parts paragraph ends in two sentences, each wholly inside one run of text (no tag inside
+        it), so go_live.py --rewrites can replace either on its own; the Shopify route lists only the one about Buy now."""
+        src = self.pages['grading.html']
+        first = 'Phones with any replaced part are sold by email order only, so you always hear about it before paying.'
+        second = 'Phones with a “Buy now” button have all original manufacturer parts.'
+        found = {}
+        for seg in go_live.segments('grading.html', src):
+            for a, b in go_live.sentence_bounds(seg.text):
+                if seg.text[a:b] in (first, second):
+                    found[seg.text[a:b]] = seg
+        self.assertEqual(set(found), {first, second})
+        self.assertIs(found[first], found[second])   # the same paragraph, one after the other
+        self.assertIn(first + ' ' + second, found[first].text)
+        self.assertNotIn('<b>Buy now</b>', src)
+        opt = type('O', (), {'checkout': 'shopify', 'trade_ins': 'closed'})()
+        listed = go_live.leftovers({'grading.html': src}, opt).get('checkout', {})
+        self.assertEqual(sorted(listed), [second])
+        # the FAQ's sentence mentions Buy now, so it is listed there (its page text and its structured data)
+        faq = go_live.leftovers({'faq.html': self.pages['faq.html']}, opt).get('checkout', {})
+        self.assertEqual(len(faq.get('Phones with any replaced part are sold by email order only, never through a Buy now button.', [])), 2)
+
+    def test_regulator_named_as_it_is_now(self):
+        """Since 30 September 2026 the data protection regulator is the Information Commission, still known as the ICO."""
+        named = {r: s for r, s in self.pages.items() if re.search(r'Information Commission|\bICO\b|ico\.org\.uk', s)}
+        self.assertEqual(sorted(named), ['privacy.html'])
+        text = html.unescape(named['privacy.html'])
+        self.assertIn('you can complain to the Information Commission, the UK’s data protection regulator, still known as the '
+                      'ICO (ico.org.uk).', text)
+        for old in ('Information Commission’s Office', 'Information Commissioner', 'Commissioner’s Office'):
+            for rel, src in self.pages.items():
+                self.assertNotIn(old, html.unescape(src), rel)
+
     def test_faq_page_and_structured_data_agree(self):
         faq = self.pages['faq.html']
         asked = [html.unescape(q) for q in re.findall(r'<summary>(.*?)</summary>', faq)]

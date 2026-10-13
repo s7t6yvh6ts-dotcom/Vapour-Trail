@@ -11,6 +11,8 @@ What they pin down:
     hand-off note, never a price;
   - stock.js: it wins over a page's data-stock; a phone it lists with no units gets "None in stock right now" on its
     cards (and a range tile when every phone in the range has none); the card stays; a missing stock.js breaks nothing;
+    on the Shopify route a snapshot written by fetch_shopify_variants.py --write-stock turns an option Shopify can't sell
+    into "Not in stock — ask us" instead of an Order link to a sold-out variant;
   - contact.html ignores ?order= unless the form has the "Order a phone" topic (the static route only).
 
 Pages are opened straight from a temporary copy of the site (file://), so no web server is needed. Skipped if Node
@@ -123,6 +125,21 @@ class SiteJsTest(unittest.TestCase):
         cls.site3 = os.path.join(cls.tmp, 'site3')
         shutil.copytree(cls.site, cls.site3)
         os.remove(os.path.join(cls.site3, 'stock.js'))
+        # Shopify route with a stock snapshot, written as fetch_shopify_variants.py --write-stock writes it: the iPhone 13
+        # has one 128GB Good available (any colour), the iPhone 12 nothing; variant IDs for 128GB Good and Very Good, Blue
+        cls.site4 = os.path.join(cls.tmp, 'site4')
+        shutil.copytree(cls.site, cls.site4)
+        sys.path.insert(0, PACK)
+        import fetch_shopify_variants as fv   # noqa: E402
+        import datetime
+        snap = fv.stock_js({'iphone-13': {'128GB|Good': 1}, 'iphone-12': {}}, fv.stock_header(os.path.join(SITE, 'stock.js'), SITE),
+                           'https://shop.example', datetime.datetime(2026, 10, 13, 9, 0))
+        with open(os.path.join(cls.site4, 'stock.js'), 'w', encoding='utf-8') as fh:
+            fh.write(snap)
+        cls.snap_variants = {'128GB|Good|Blue': '44000000000333', '128GB|Very Good|Blue': '44000000000111'}
+        with open(os.path.join(cls.site4, 'products', 't-shop-snap.html'), 'w', encoding='utf-8') as fh:
+            fh.write(src.replace(tag, live[:-1] + f' data-shop="{SHOP_URL}" data-variants="'
+                                 + html.escape(json.dumps(cls.snap_variants), quote=True) + '">'))
         contact = cls.read('contact.html').replace(' data-preview="1"', '')
         with open(os.path.join(cls.site, 't-contact-shopify.html'), 'w', encoding='utf-8') as fh:
             fh.write(contact)
@@ -246,6 +263,28 @@ class SiteJsTest(unittest.TestCase):
         static, shop = self.browse([{'page': 'products/t-static.html'}, {'page': 'shop.html'}], site=self.site3)
         self.assertEqual(static['text'], 'Order — £230')   # the page's data-stock still works
         self.assertEqual(shop['noneCards'], [])
+
+    def test_shopify_route_with_a_stock_snapshot(self):
+        """Shopify route plus a stock.js snapshot: a storage and condition Shopify can't sell reads "Not in stock — ask us"
+        (never an Order link to a sold-out variant); one it can opens the variant; a phone with nothing available shows
+        "None in stock right now" on its cards."""
+        unheld, held, held_other_colour, shop = self.browse([
+            {'page': 'products/t-shop-snap.html'},                                   # 128GB Very Good: not in the snapshot
+            {'page': 'products/t-shop-snap.html', 'query': '?grade=Good'},           # 128GB Good: 1 available
+            {'page': 'products/t-shop-snap.html', 'query': '?grade=Good&colour=Midnight'},
+            {'page': 'shop.html'},
+        ], site=self.site4)
+        self.assertEqual(unheld['text'], 'Not in stock — ask us')
+        self.assertIn('../contact.html?ask=', unheld['href'])
+        self.assertNotIn('variant=', unheld['href'])
+        self.assertFalse(unheld['handoff'])
+        self.assertIn('Very Good', unheld['na'])
+        self.assertEqual((held['text'], held['href']), ('Order — £209', SHOP_URL + '?variant=44000000000333'))
+        # colour isn't in the stock key: a held storage and condition in a colour with no variant ID hands off to Shopify
+        self.assertEqual((held_other_colour['text'], held_other_colour['href']), ('Choose and pay on the next page', SHOP_URL))
+        self.assertEqual(shop['noneCards'], ['products/iphone-12.html: None in stock right now'])
+        for b in (unheld, held, held_other_colour):
+            self.assertEqual(b['orderLinks'], [])
 
     def test_contact_form_takes_email_orders_only_with_the_topic(self):
         q = '?order=iPhone%2013%20128GB%2C%20Good%2C%20Blue&price=209'

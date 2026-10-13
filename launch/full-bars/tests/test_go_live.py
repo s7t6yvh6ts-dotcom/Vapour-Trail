@@ -874,14 +874,19 @@ class GoLiveTest(unittest.TestCase):
         code, out = self.run_tool(*stripe)
         self.assertEqual(code, 0, out)
         self.assertIn('pay.js has Payment Link(s) for phones your stock data says you don\'t hold', out)
-        # Shopify: Shopify's stock decides, so no data-stock is fine, and data-stock that is there gets a warning
+        # Shopify: Shopify's stock decides, so no data-stock is fine, and hand-kept data-stock that is there gets a warning
         edit(self.site, 'pay.js', LINK, '')
         self.fill_rewrites(checkout='shopify')
         shopify = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--check-only')
         code, out = self.run_tool(*shopify)
         self.assertEqual(code, 0, out)
-        self.assertIn('19 product page(s) have stock data (stock.js or data-stock). On the Shopify route Shopify\'s own '
-                      'stock decides', out)
+        self.assertIn('19 product page(s) have the older data-stock attribute, kept by hand, which doesn\'t follow Shopify\'s '
+                      'stock', out)
+        # and it is checked there just as on the Stripe route: a bad count blocks
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 1.5}')
+        code, out = self.run_tool(*shopify)
+        self.assertEqual(code, 1, out)
+        self.assertIn('products/iphone-13.html:84: data-stock count(s) that aren\'t a whole number of units', out)
         for rel in product_pages(self.site):
             set_stock(self.site, rel, None)
         code, out = self.run_tool(*shopify)
@@ -1049,7 +1054,9 @@ class GoLiveTest(unittest.TestCase):
         shopify = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--check-only')
         code, out = self.run_tool(*shopify)
         self.assertEqual(code, 0, out)
-        self.assertIn('18 product page(s) have stock data (stock.js or data-stock). On the Shopify route', out)
+        self.assertIn('stock.js lists 18 phone(s) but wasn\'t written by fetch_shopify_variants.py --write-stock, so it '
+                      'doesn\'t follow Shopify\'s stock', out)
+        self.assertIn('1 product page(s) have no stock data while stock.js lists other phones: products/galaxy-s23.html', out)
         os.remove(os.path.join(self.site, 'stock.js'))
         code, out = self.run_tool(*shopify)
         self.assertEqual(code, 0, out)
@@ -1264,6 +1271,190 @@ class GoLiveTest(unittest.TestCase):
         self.assertIn('hello@info.fullbars.co.uk', step12)
 
 
+    # ------------------------------------------------------------------ R9: replaced-part wording, stock snapshot, prices
+    def golive_examples(self):
+        """GO-LIVE.md section 4's example rewrites for the replaced-part sentences, read from the file, so this test follows
+        whatever the checklist tells Ash to write."""
+        with open(GOLIVE, encoding='utf-8') as fh:
+            md = fh.read()
+        block = md.split('- **Replaced parts.**')[1].split('- **Weights.**')[0]
+        faq = re.search(r'"(Phones with any replaced part are sold by email order only, never through a Buy now button\.)" In '
+                        r'your `--rewrites` file, reword it without the Buy now part, for example "([^"]+)"', block)
+        grading = re.search(r'"(Phones with a “Buy now” button have all original manufacturer parts\.)", for example "([^"]+)"', block)
+        self.assertTrue(faq and grading, 'GO-LIVE.md section 4 no longer has the replaced-part examples')
+        return {faq.group(1): faq.group(2), grading.group(1): grading.group(2)}
+
+    def test_replaced_parts_rewrite_follows_go_live_md(self):
+        """On the Shopify route, a sentence saying replaced-part phones are sold by email order is still true (GO-LIVE.md
+        section 4), so it isn't listed; one that also mentions Buy now is. GO-LIVE.md's own example rewrites switch cleanly,
+        in the page text and the FAQ's structured data, even with the new sentence also given as a keep-as-is key."""
+        examples = self.golive_examples()
+        self.assertEqual(examples['Phones with any replaced part are sold by email order only, never through a Buy now button.'],
+                         'Phones with any replaced part are sold by email order only: ask us about one through the contact page.')
+        self.ready(checkout='shopify', rewrites=False)
+        keys = self.template(checkout='shopify')
+        kept = 'Phones with any replaced part are sold by email order only, so you always hear about it before paying.'
+        self.assertNotIn(kept, keys)                 # grading.html, first half: true on Shopify too
+        for k in examples:
+            self.assertIn(k, keys)                   # the FAQ sentence and grading.html's second half: they mention Buy now
+        data = {k: examples.get(k, f'Shopify line {i}.') for i, k in enumerate(keys)}
+        new_faq = examples['Phones with any replaced part are sold by email order only, never through a Buy now button.']
+        data[new_faq] = new_faq                      # Ash keeping his own new sentence: this used to fail "not on any page"
+        self.rw = self.write_rewrites(data, 'shopify-parts.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('RESULT: done.', out)
+        self.assertIn('is your new wording for another sentence in the same file, so it isn\'t on the pages yet: nothing to keep', out)
+        grading = html.unescape(read(self.site, 'grading.html'))
+        self.assertIn(kept + ' ' + examples['Phones with a “Buy now” button have all original manufacturer parts.'] + '</p>', grading)
+        self.assertNotIn('Buy now', grading)
+        faq = read(self.site, 'faq.html')
+        genuine = [q for q in ld_blocks(faq)[0]['mainEntity'] if q['name'] == 'Are they genuine phones?'][0]['acceptedAnswer']['text']
+        self.assertIn(new_faq + ' Full Bars is an independent business', genuine)
+        self.assertIn(new_faq + ' Full Bars is an independent business', html.unescape(faq).split('<summary>Are they genuine phones?')[1])
+        self.assertNotIn('never through a Buy now button', html.unescape(faq))
+        # nothing about replaced parts is left to rewrite, and a rerun with the same file changes nothing
+        before = snapshot(self.site)
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('RESULT: done. 0 change(s) written to 0 file(s)', out)
+        self.assertEqual(snapshot(self.site), before)
+        self.assertNotIn('replaced part', out.split('STILL TO DO BY HAND')[1].split('\n  2. ')[0])
+
+    def test_own_wording_is_never_checkout_wording(self):
+        """Wording Ash supplies in --rewrites is his decision: checkout words in it are shown, never blocking. Preview
+        wording in it is still caught."""
+        self.ready(checkout='shopify', rewrites=False)
+        keys = self.template(checkout='shopify')
+        pay = 'If you order by email, we’ll reply with a payment link once we’ve confirmed your exact phone, its battery health and colour.'
+        self.assertIn(pay, keys)
+        mine = 'You pay at checkout in our Shopify shop; if you’d rather order by email, ask us first.'
+        data = {k: (mine if k == pay else f'Shopify line {i}.') for i, k in enumerate(keys)}
+        self.rw = self.write_rewrites(data, 'shopify-own.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--dry-run')
+        self.assertEqual(code, 0, out[-3000:])
+        own = out.split('Checkout words in your own new wording')[1].split('\n  2. ')[0]
+        self.assertIn(f': {mine}\n', own)
+        self.assertNotIn(mine, out.split('BLOCKERS')[-1])
+        # the same words in a sentence that is still the site's own are listed and block, as before
+        self.assertIsNotNone(go_live.CHECKOUT_WORDS['shopify'].search(mine))
+        data[pay] = 'Payments open soon.'
+        self.rw = self.write_rewrites(data, 'shopify-own-preview.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--dry-run')
+        self.assertEqual(code, 1, out[-3000:])
+        self.assertIn('preview wording would still be on the live pages', out)
+
+    def snapshot_stock(self, available=lambda h, key: True, fetched='now', shop=SHOP):
+        """stock.js as fetch_shopify_variants.py --write-stock writes it from a saved copy of Shopify's answers (no
+        network). fetched: when the copy was fetched ("now", a datetime, or None for a copy that doesn't say); the
+        snapshot carries that time, as it would from a real --save-dump file."""
+        sys.path.insert(0, HERE)
+        import test_fetch_variants as tfv   # noqa: E402  (its fake live store)
+        prices = tfv.csv_prices()
+        dump = {'shop': shop, 'products': {h: tfv.live_product(h, pr, lambda k, h=h: available(h, k))
+                                           for h, pr in prices.items()}}
+        if fetched == 'now':
+            fetched = go_live.utc_now()
+        if fetched is not None:
+            dump['fetched'] = fetched.strftime('%Y-%m-%dT%H:%M:%SZ')
+        path = os.path.join(self.tmp, 'dump.json')
+        with open(path, 'w', encoding='utf-8') as fh:
+            json.dump(dump, fh)
+        r = subprocess.run([sys.executable, '-B', os.path.join(PACK, 'fetch_shopify_variants.py'), '--from-dump', path,
+                            '--write-stock', os.path.join(self.site, 'stock.js')], capture_output=True, text=True, timeout=120)
+        fresh = fetched is not None and go_live.staleness(fetched) is None
+        self.assertEqual(r.returncode, 0 if fresh else 1, r.stdout + r.stderr)   # a stale copy is reported as such
+        return r.stdout
+
+    def test_shopify_stock_snapshot_is_checked_but_optional(self):
+        """On the Shopify route stock.js is optional; a snapshot from Shopify is checked just as on the Stripe route, and
+        a stale, other-store, hand-kept or partial one gets a warning."""
+        self.ready(checkout='shopify')
+        shopify = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
+        code, out = self.run_tool(*shopify, '--dry-run')
+        self.assertEqual(code, 0, out[-3000:])
+        todo = out.split('STILL TO DO BY HAND')[1]
+        self.assertIn('Stock on the site (optional, recommended): stock.js has no Shopify stock snapshot', todo)
+        self.assertIn(f'fetch_shopify_variants.py --shop-url {SHOP} --check-prices', todo)
+        self.assertIn('never by importing the CSV again', todo)
+        # a fresh snapshot of every phone: no stock warnings, and the checklist says to keep it fresh
+        self.snapshot_stock(available=lambda h, k: h != 'iphone-12' and not (h == 'iphone-13' and k.startswith('128GB|Very Good')))
+        code, out = self.run_tool(*shopify, '--dry-run')
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertNotIn('stock.js', out.split('WARNINGS')[-1].split('BLOCKERS')[0] if 'WARNINGS' in out else '')
+        todo = out.split('STILL TO DO BY HAND')[1]
+        self.assertIn('Stock snapshot: stock.js holds Shopify\'s stock for 19 phone(s) as of ', todo)
+        self.assertIn('straight after you add stock and at least daily', todo)
+        entries = go_live.read_stock_js(go_live.load_site(self.site))[0]
+        self.assertEqual(entries['iphone-12'], {})
+        self.assertNotIn('128GB|Very Good', entries['iphone-13'])
+        # checked as on the Stripe route: a bad key or count blocks
+        js = read(self.site, 'stock.js')
+        self.assertIn('\n  "iphone-13": {"', js)
+        write(self.site, 'stock.js', js.replace('\n  "iphone-13": {', '\n  "iphone-13": {"128GB|Mint": 1, "128GB|Very Good": 1.5, ', 1))
+        code, out = self.run_tool(*shopify, '--check-only')
+        self.assertEqual(code, 1, out)
+        self.assertIn('stock.js "iphone-13" key(s) that aren\'t a storage and condition on that phone\'s page: 128GB|Mint', out)
+        self.assertIn('stock.js "iphone-13" count(s) that aren\'t a whole number of units (0 or more): "128GB|Very Good": 1.5', out)
+        write(self.site, 'stock.js', js)
+        # stale, or from another store: warnings, not blockers. A saved copy fetched long ago keeps its own time
+        self.snapshot_stock(fetched=go_live.datetime.datetime(2026, 1, 2, 9, 0, tzinfo=go_live.datetime.timezone.utc))
+        self.assertIn('Shopify stock snapshot: 2026-01-02 09:00 UTC', read(self.site, 'stock.js'))
+        code, out = self.run_tool(*shopify, '--check-only')
+        self.assertEqual(code, 0, out)
+        self.assertIn('stock.js is a Shopify stock snapshot from 2026-01-02 09:00 UTC (', out)
+        self.assertIn('more than 24 hours old', out)
+        self.snapshot_stock(shop='https://other-shop.example')
+        code, out = self.run_tool(*shopify, '--check-only')
+        self.assertEqual(code, 0, out)
+        self.assertIn('stock.js is a stock snapshot from https://other-shop.example, not from --shop-url https://shop.example', out)
+        # a partial snapshot: the phones it leaves out show every option as orderable
+        js = read(self.site, 'stock.js')
+        write(self.site, 'stock.js', re.sub(r'\n  "pixel-8": \{[^\n]*\}', '', js).replace('},\n};', '}\n};'))
+        self.assertNotIn('pixel-8', go_live.read_stock_js(go_live.load_site(self.site))[0])
+        code, out = self.run_tool(*shopify, '--check-only')
+        self.assertEqual(code, 0, out)
+        self.assertIn('1 product page(s) have no stock data while stock.js lists other phones: products/pixel-8.html', out)
+
+    def test_snapshot_age_is_in_hours_and_comes_from_shopify(self):
+        """go_live.py measures a snapshot's age in hours, from the time fetch_shopify_variants.py stamped on it: the time
+        Shopify sent the data, so a snapshot written today from an old saved copy is still old. Over 24 hours, or with
+        no time at all, it warns (never blocks); the checklist says a pre-deploy fetch must be live, not --from-dump."""
+        self.ready(checkout='shopify')
+        shopify = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
+        now = go_live.utc_now().replace(second=0, microsecond=0)
+
+        def stock_warnings(out):
+            return [ln for ln in out.split('\n') if ln.startswith('  - stock.js is')]
+        # 20 hours old: fresh, and the checklist gives its age
+        self.snapshot_stock(fetched=now - go_live.datetime.timedelta(hours=20))
+        code, out = self.run_tool(*shopify, '--dry-run')
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertEqual(stock_warnings(out), [])
+        todo = out.split('STILL TO DO BY HAND')[1]
+        when = now - go_live.datetime.timedelta(hours=20)
+        self.assertIn(f'Stock snapshot: stock.js holds Shopify\'s stock for 19 phone(s) as of {when:%Y-%m-%d %H:%M} UTC '
+                      '(20 hours ago)', todo)
+        self.assertIn('not --from-dump, which only repeats an old copy', todo)
+        self.assertIn('Before a deploy it must be a live fetch (--shop-url), not --from-dump', todo)
+        # 30 hours old (one or two calendar days, depending on the hour): stale, to the hour
+        self.snapshot_stock(fetched=now - go_live.datetime.timedelta(hours=30))
+        code, out = self.run_tool(*shopify, '--check-only')
+        self.assertEqual(code, 0, out)
+        warned = stock_warnings(out)
+        self.assertEqual(len(warned), 1, out)
+        self.assertIn('(30 hours ago), more than 24 hours old', warned[0])
+        self.assertIn(f'fetch_shopify_variants.py --shop-url {SHOP} --write-stock', warned[0])
+        # a copy that doesn't say when it was fetched: "time unknown", treated as stale
+        self.snapshot_stock(fetched=None)
+        self.assertIn('Shopify stock snapshot: time unknown from', read(self.site, 'stock.js'))
+        code, out = self.run_tool(*shopify, '--check-only')
+        self.assertEqual(code, 0, out)
+        warned = stock_warnings(out)
+        self.assertEqual(len(warned), 1, out)
+        self.assertIn('stock.js is a Shopify stock snapshot with no time on it', warned[0])
+
+
 class UnitTest(unittest.TestCase):
     def test_segments_decode_and_map_back(self):
         src = ('<p>We&rsquo;re open.\n   Order <a href="x">here</a> now.</p><meta name="description" content="A &amp; B">'
@@ -1433,6 +1624,102 @@ class UnitTest(unittest.TestCase):
         sec3 = terms.split('<h2>3. Ordering and when the contract is made</h2>')[1].split('<h2>4.')[0]
         para = sec3.split('If you buy online')[1]
         self.assertIsNone(rx['shopify'].search(para))
+
+    def test_replaced_part_email_order_is_true_on_shopify(self):
+        """Shopify route: "replaced-part phones are sold by email order" isn't checkout wording; a Buy now beside it is."""
+        opt = type('O', (), {'checkout': 'shopify', 'trade_ins': 'closed'})()
+
+        def listed(sentence, own=()):
+            left = go_live.leftovers({'x.html': f'<p>{sentence}</p>'}, opt, own=own)
+            return [k for cat in ('checkout', 'checkout-hand') for k in left.get(cat, {})], list(left.get('checkout-own', {}))
+        for ok in ('Phones with any replaced part are sold by email order only, so you always hear about it before paying.',
+                   'Phones with any replaced part are sold by email order only: ask us about one through the contact page.',
+                   'If a part has been replaced, we sell that phone by email order only.'):
+            self.assertEqual(listed(ok), ([], []), ok)
+        for bad in ('Phones with any replaced part are sold by email order only, never through a Buy now button.',
+                    'If you order by email, we’ll reply with a payment link.',
+                    'Phones with a replaced part are sold through Stripe.'):
+            self.assertEqual(listed(bad)[0], [bad], bad)
+        # wording Ash wrote himself: shown, never listed for rewriting
+        mine = 'You can also order by email if you prefer.'
+        self.assertEqual(listed(mine, own=[mine]), ([], [mine]))
+        self.assertEqual(listed(mine, own=['Something else.'])[0], [mine])
+
+    def test_golive_md_shopify_prices_and_stock(self):
+        """GO-LIVE.md: on Shopify, prices change in Shopify admin in the same sitting as set_prices.py (never by importing
+        the CSV again), a clean price check comes before every deploy, and the stock snapshot is fetched again and deployed
+        whenever stock changes, at least daily; stock.js's header says the same."""
+        with open(GOLIVE, encoding='utf-8') as fh:
+            md = fh.read()
+        prices = md.split('6. **Prices.**')[1].split('7. **Trade-in prices**')[0]
+        for text in ('Bulk edit', 'In the same sitting', 'Never import the CSV again to change a price', '--check-prices',
+                     '"Price check: passed"', 'Then deploy the site'):
+            self.assertIn(text, prices)
+        launch = md.split('## 7. Launch day switches')[1].split('**Sources.**')[0]
+        self.assertIn('**Shopify route: a clean price check, and a fresh stock snapshot, before every deploy.**', launch)
+        self.assertIn("don't deploy until it passes", launch)
+        self.assertIn('It must be a live fetch, run just before you deploy, with `--shop-url` as here: not `--from-dump`', launch)
+        step13 = md.split('13. **Variant IDs')[1].split('## 6.')[0]
+        dump = step13.split('`--save-dump ~/shopify-products.json`')[1]
+        for text in ('**It is never a live check.**', 'carries the copy\'s fetch time, not the time you ran it',
+                     'never ends "Price check: passed"', 'Before a deploy, fetch live with `--shop-url`'):
+            self.assertIn(text, dump)
+        self.assertIn('more than 24 hours old (to the minute', step13)
+        self.assertNotIn('more than a day old', md)
+        stock4 = md.split('## 4. Pictures and stock')[1].split('- **Replaced parts.**')[0]
+        for part in (step13, stock4):
+            self.assertIn('--write-stock', part)
+            self.assertRegex(part, r'[Ff]etch again and deploy (?:the site )?whenever stock changes in Shopify, straight after '
+                                   r'you add stock,? and at least daily')
+        self.assertIn('a phone added since shows "Not in stock — ask us"', step13)   # stale both ways, said precisely
+        self.assertIn('never sell a phone Shopify doesn\'t have', step13)
+        self.assertNotIn('only ever shows more stock', md)
+        after = md.split('**After any edit to the site**')[1]
+        self.assertIn('--check-prices', after)
+        with open(os.path.join(SITE, 'stock.js'), encoding='utf-8') as fh:
+            header = fh.read()
+        self.assertNotIn('leave this empty', header)
+        for text in ('fetch_shopify_variants.py --write-stock', 'straight after you add stock, and at least daily',
+                     'a phone sold since still shows as in stock', 'a phone\n   added since shows "Not in stock — ask us"'):
+            self.assertIn(text, header)
+
+    def test_stock_snapshot_line(self):
+        js = ('/* header */\n/* Shopify stock snapshot: 2026-10-13 09:05 UTC from https://shop.example (19 phones), written by '
+              'fetch_shopify_variants.py --write-stock. */\nwindow.FULLBARS_STOCK = {\n};\n')
+        utc = go_live.datetime.timezone.utc
+        snap = go_live.stock_snapshot(js)
+        self.assertEqual(snap, (go_live.datetime.datetime(2026, 10, 13, 9, 5, tzinfo=utc), 'https://shop.example', 19))
+        self.assertEqual((snap.shop, snap.phones), ('https://shop.example', 19))
+        self.assertEqual(go_live.read_stock_js({'stock.js': js}), ({}, []))
+        self.assertIsNone(go_live.stock_snapshot('window.FULLBARS_STOCK = {};'))
+        # a time that isn't real, or "time unknown": a snapshot of unknown age, which counts as stale
+        self.assertEqual(go_live.stock_snapshot(js.replace('2026-10-13', '2026-13-45')), (None, 'https://shop.example', 19))
+        unknown = js.replace('2026-10-13 09:05 UTC', 'time unknown')
+        self.assertEqual(go_live.stock_snapshot(unknown), (None, 'https://shop.example', 19))
+        self.assertEqual(go_live.read_stock_js({'stock.js': unknown}), ({}, []))
+
+    def test_snapshot_staleness_in_hours(self):
+        """Stale means more than 24 hours old, to the minute and in UTC (not calendar days): 23h59m is fresh, 24h01m is
+        stale, 47h30m is stale even though it is only "2 days" by date. Unknown or future times count as stale."""
+        dt, utc = go_live.datetime, go_live.datetime.timezone.utc
+        now = dt.datetime(2026, 10, 13, 17, 0, tzinfo=utc)
+
+        def warn(when):
+            return go_live.snapshot_age_warning(go_live.Snapshot(when, 'https://shop.example', 19), 'CMD', now)
+        for when in (now, now - dt.timedelta(hours=23, minutes=59), dt.datetime(2026, 10, 12, 17, 0, tzinfo=utc),
+                     now + dt.timedelta(minutes=5)):   # a clock a few minutes fast is not "the future"
+            self.assertIsNone(warn(when), when)
+        # the old check (calendar days, local date) let all of these through
+        self.assertIn('from 2026-10-12 16:59 UTC (24 hours ago), more than 24 hours old', warn(dt.datetime(2026, 10, 12, 16, 59, tzinfo=utc)))
+        self.assertIn('from 2026-10-11 17:30 UTC (47 hours ago)', warn(dt.datetime(2026, 10, 11, 17, 30, tzinfo=utc)))
+        self.assertIn('from 2026-09-01 09:00 UTC (42 days ago)', warn(dt.datetime(2026, 9, 1, 9, 0, tzinfo=utc)))
+        self.assertIn('with no time on it', warn(None))
+        self.assertIn('dated 2026-10-14 17:00 UTC, which is in the future', warn(now + dt.timedelta(days=1)))
+        for w in (warn(None), warn(now - dt.timedelta(days=3)), warn(now + dt.timedelta(days=1))):
+            self.assertIn('Fetch it again from the live store and deploy the site (at least daily): CMD', w)
+        self.assertEqual([go_live.age_words(now - d, now) for d in (dt.timedelta(minutes=59), dt.timedelta(hours=1),
+                                                                     dt.timedelta(hours=47, minutes=59), dt.timedelta(days=2))],
+                         ['less than an hour ago', '1 hour ago', '47 hours ago', '2 days ago'])
 
     def test_buy_now_patterns(self):
         rx = go_live.CHECKOUT_WORDS['stripe-buy-now']

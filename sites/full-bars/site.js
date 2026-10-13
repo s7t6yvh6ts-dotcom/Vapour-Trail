@@ -22,7 +22,9 @@
   /* ---------- stock (stock.js) ----------
      stock.js sets window.FULLBARS_STOCK = { "iphone-13": { "128GB|Good": 2, ... }, ... }: for each product handle (its
      page name), the units held per storage and condition. A handle that isn't there has no stock data. stock.js is
-     loaded before this script; if it is missing or broken, this is {} and nothing changes. */
+     loaded before this script; if it is missing or broken, this is {} and nothing changes. Static route: kept by hand.
+     Shopify route: a snapshot of Shopify's available variants (fetch_shopify_variants.py --write-stock); it never sells
+     anything (every Order button goes to Shopify, which refuses a sold-out variant), it only says what's available. */
   var STOCK = isObj(window.FULLBARS_STOCK) ? window.FULLBARS_STOCK : {};
   function stockFor(handle) {
     var v = handle && Object.prototype.hasOwnProperty.call(STOCK, handle) ? STOCK[handle] : null;
@@ -165,7 +167,8 @@
        A missing key, 0 or anything that isn't a whole number above 0 means not in stock. With neither, every
        option counts as available and no 'not in stock' note is shown (go_live.py won't launch the static route
        like that). A data-stock that isn't valid JSON is ignored (with a console warning), so a typo can't freeze
-       the price. */
+       the price. On the Shopify route too, a storage and condition with no stock reads "Not in stock — ask us"
+       rather than an Order link to a sold-out Shopify variant. */
     var canon = $('link[rel="canonical"]');
     var stock = stockFor(handleOf(canon && canon.getAttribute('href')) || handleOf(location.pathname)) || dataJSON(picker, 'data-stock');
     function inStock(key) { return held1(stock[key]); }

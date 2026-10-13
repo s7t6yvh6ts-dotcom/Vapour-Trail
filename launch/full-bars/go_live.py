@@ -46,8 +46,10 @@ It will NOT run (exit code 1, nothing written) while any of these launch blocker
   - stock that site.js can't use, in stock.js (the one place to keep it: {"<handle>": {"storage|condition": units}})
     or in a page's older data-stock attribute: not valid JSON, a count that isn't a whole number of 0 or more, a key
     that isn't one of that page's "storage|condition" pairs (colour is never part of the key), or a handle that isn't
-    a product page. With --checkout stripe, also a product page with no stock data from either: site.js would offer
-    every option with no stock behind it. stock.js wins over data-stock
+    a product page; on both routes. With --checkout stripe, also a product page with no stock data from either: site.js
+    would offer every option with no stock behind it. On the Shopify route stock data is optional: stock.js is then a
+    snapshot written from Shopify by fetch_shopify_variants.py --write-stock (a hand-kept, partial or other-store one,
+    or a stale one: more than 24 hours old, or with no time on it, is a warning). stock.js wins over data-stock
   - --shop-variants with a key that isn't one of that page's storage, condition and colour options, or an ID that
     isn't a whole number
   - --trade-ins open while the sell pages have no quote-sending form
@@ -62,7 +64,10 @@ It will NOT run (exit code 1, nothing written) while any of these launch blocker
     (Shopify shows it on its order status page). With --checkout stripe
     and a Payment Link in pay.js, also any promise to confirm or send something "before you pay", or to answer "when
     you order", that isn't limited to email orders: Buy now takes payment first. Rewrite them in the same --rewrites
-    file. A sentence that is still true can be kept: give it its own text as the new wording.
+    file. A sentence that is still true can be kept: give it its own text as the new wording. Not listed: your own new
+    wording from --rewrites (your decision: it is shown in the report, never blocks), and on the Shopify route a
+    sentence's email-order words when it says replaced-part phones are sold by email order (GO-LIVE.md section 4 keeps
+    that true on Shopify; a "Buy now" in the same sentence is still listed).
   To switch anyway and fix the preview or checkout wording by hand afterwards, pass --allow-preview-wording: the
   run then ends "NOT READY TO GO LIVE" with exit code 3, and you must not deploy the site to your web host until the
   wording is done.
@@ -115,6 +120,7 @@ must be outside --site, so they never go up with the site). Python 3 standard li
 """
 import argparse
 import bisect
+import collections
 import csv
 import datetime
 import html
@@ -199,6 +205,10 @@ _NOT_ONLINE = r'\bcan(?:not|' + _APOS + r't) (?:view|see)\b[^.;<]{0,60}?\bon (?:
 _PAY_FIRST = (r'\bconfirm(?:ed|s)?\b[^.;<]{0,60}?\bbefore you pay\b|\bsend\b[^.;<]{0,60}?\bbefore you pay\b'
               r'|\bask when you order\b')
 EMAIL_ORDER_ONLY = re.compile(r'\bemail orders?\b|\border(?:s|ing)? (?:it )?by email\b|\bby email order\b', re.I)
+# A sentence about phones with a replaced part. GO-LIVE.md section 4 keeps those units off Shopify (stock 0) and sells them
+# by email order (a Shopify draft order sent as an invoice), so on the Shopify route "replaced-part phones are sold by
+# email order" stays true, and only the email-order words in such a sentence are exempt (a "Buy now" beside them is not)
+REPLACED_PART = re.compile(r'\breplaced parts?\b|\bparts? (?:has|have) been replaced\b', re.I)
 # privacy.html's quote-tool sentence, which must end up saying what cookies.html says (answers kept for this tab only)
 PRIVACY_QUOTE_TOOL = 'The quote tool works in your browser.'
 CHECKOUT_WORDS = {
@@ -433,6 +443,82 @@ def stock_problems(label, stock, combos, place='on this page'):
         out.append(f'{label} key(s) that aren\'t a storage and condition {place}: {", ".join(odd)}. '
                    f'Use one of: {", ".join(sorted(combos))}. A phone under a mistyped key shows as not in stock')
     return out
+
+
+# The line fetch_shopify_variants.py --write-stock puts above the stock in stock.js (Shopify route). Its time is when
+# Shopify sent the data (with --from-dump, when the saved copy was fetched), or "time unknown" when nobody knows
+SNAPSHOT_LINE = re.compile(r'/\* Shopify stock snapshot: (?:(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) UTC|time unknown) from (\S+) '
+                           r'\((\d+) phones?\)')
+SNAPSHOT_MAX_AGE = datetime.timedelta(hours=24)   # older than this, a snapshot (or a saved copy of Shopify's data) is stale
+CLOCK_SLACK = datetime.timedelta(minutes=10)      # a time this far ahead of now is "in the future", not clock drift
+
+
+# when: a timezone-aware UTC datetime, or None if the snapshot doesn't say when
+Snapshot = collections.namedtuple('Snapshot', 'when shop phones')
+
+
+def stock_snapshot(src):
+    """The Snapshot (when, shop, phones) that stock.js holds, or None if it wasn't written by fetch_shopify_variants.py
+    --write-stock (kept by hand, or empty). A time that isn't a real date and time reads as unknown (None)."""
+    m = SNAPSHOT_LINE.search(src or '')
+    if not m:
+        return None
+    when = None
+    if m.group(1):
+        try:
+            when = datetime.datetime.strptime(f'{m.group(1)} {m.group(2)}', '%Y-%m-%d %H:%M').replace(
+                tzinfo=datetime.timezone.utc)
+        except ValueError:
+            when = None
+    return Snapshot(when, m.group(3), int(m.group(4)))
+
+
+def utc_now():
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def age_words(when, now=None):
+    """How long before now (both aware datetimes) when was, in words: "less than an hour ago", "30 hours ago",
+    "42 days ago", or "in the future"."""
+    secs = ((now or utc_now()) - when).total_seconds()
+    if secs < -CLOCK_SLACK.total_seconds():
+        return 'in the future'
+    if secs < 3600:
+        return 'less than an hour ago'
+    hours = int(secs // 3600)
+    if hours < 48:
+        return f'{hours} hour{"" if hours == 1 else "s"} ago'
+    return f'{int(secs // 86400)} days ago'
+
+
+def staleness(when, now=None):
+    """None if Shopify data from when (aware UTC, or None for unknown) is fresh: at most 24 hours old. Otherwise
+    'unknown', 'future' or 'old'."""
+    now = now or utc_now()
+    if when is None:
+        return 'unknown'
+    if when - now > CLOCK_SLACK:
+        return 'future'
+    return 'old' if now - when > SNAPSHOT_MAX_AGE else None
+
+
+def snapshot_age_warning(snap, fetch_cmd, now=None):
+    """The warning for a stock snapshot that is more than 24 hours old, in the future or of unknown age, else None."""
+    state = staleness(snap.when, now)
+    if state is None:
+        return None
+    again = (f'Fetch it again from the live store and deploy the site (at least daily): {fetch_cmd}. A saved copy '
+             '(--from-dump) is stamped with the time it was fetched, so it can\'t freshen a snapshot (GO-LIVE.md section 5, '
+             'step 13)')
+    if state == 'unknown':
+        return (f'{STOCK_JS} is a Shopify stock snapshot with no time on it (written from a saved copy that doesn\'t say when '
+                f'Shopify sent it), so it counts as stale. {again}')
+    t = f'{snap.when:%Y-%m-%d %H:%M} UTC'
+    if state == 'future':
+        return (f'{STOCK_JS} is a Shopify stock snapshot dated {t}, which is in the future: the file was edited or a '
+                f'computer\'s clock is wrong, so its age can\'t be trusted. {again}')
+    return (f'{STOCK_JS} is a Shopify stock snapshot from {t} ({age_words(snap.when, now)}), more than 24 hours old. Stock '
+            f'has probably changed since. {again}')
 
 
 def loads_stock_js(src):
@@ -1034,7 +1120,7 @@ def find_blockers(site, files, opt):
         elif not isinstance(entries[h], dict):
             blockers.append(f'{STOCK_JS}: "{h}" must be its storage and condition counts in braces, such as '
                             f'"{h}": {{"128GB|Good": 2}} ({{}} if you hold none of it), not {json.dumps(entries[h])}')
-    missing, with_stock, both, no_include, held_by_key = [], [], [], [], {}
+    missing, with_stock, both, no_include, held_by_key, with_attr = [], [], [], [], {}, []
     for rel, tag, pos in pickers(files):
         h = page_handle(rel)
         where = f'{rel}:{line_of(files[rel], pos)}'
@@ -1042,6 +1128,7 @@ def find_blockers(site, files, opt):
         page_stock = None
         raw = attr(tag, 'data-stock')
         if raw is not None:
+            with_attr.append(rel)
             try:
                 page_stock = json.loads(raw, parse_constant=_no_constant)   # NaN/Infinity: browsers refuse the attribute
                 if not isinstance(page_stock, dict):
@@ -1079,7 +1166,8 @@ def find_blockers(site, files, opt):
                         f'{STOCK_JS} is the only place to change')
     if sj is None and any(loads_stock_js(src) for rel, src in files.items() if rel.endswith('.html')):
         warnings.append(f'the pages load {STOCK_JS}, but the site folder has none: browsers log a "not found" error for it. '
-                        f'Put back {STOCK_JS} (empty is fine on the Shopify route)')
+                        f'Put back {STOCK_JS} (on the Shopify route, write it with fetch_shopify_variants.py --write-stock, '
+                        'or leave it empty)')
     if opt.checkout == 'stripe' and missing:
         blockers.append(f'no stock data for {len(missing)} of {len(missing) + len(with_stock)} product pages '
                         f'({", ".join(missing)}): neither {STOCK_JS} nor the page\'s data-stock says what you hold. On the '
@@ -1087,11 +1175,33 @@ def find_blockers(site, files, opt):
                         f'phone behind it. Add each phone to {STOCK_JS}: "iphone-13": {{"128GB|Good": 2}} means 2 units of '
                         '128GB in Good, any colour; a missing key or 0 means not in stock; {} means none at all '
                         '(GO-LIVE.md section 6, step 2)')
-    elif opt.checkout == 'shopify' and (with_stock or entries):
-        warnings.append(f'{len(with_stock)} product page(s) have stock data ({STOCK_JS} or data-stock). On the Shopify route '
-                        'Shopify\'s own stock decides what can be bought; this only turns a page\'s button into "Not in stock '
-                        f'— ask us" and puts "None in stock right now" on cards. Keep it in step with Shopify, or empty {STOCK_JS} '
-                        'and remove data-stock')
+    elif opt.checkout == 'shopify':
+        # Shopify's own stock decides what can be bought. Stock data here is optional and checked as above; it only turns
+        # a page's button into "Not in stock — ask us" and puts "None in stock right now" on cards, so it must come from
+        # Shopify (fetch_shopify_variants.py --write-stock) and be fresh
+        snap = stock_snapshot(files.get(STOCK_JS))
+        how = ('Write it from Shopify instead: python3 launch/full-bars/fetch_shopify_variants.py --shop-url '
+               f'{opt.shop_url or "<shop-url>"} --write-stock <this site folder>/{STOCK_JS} (GO-LIVE.md section 5, step 13)')
+        if entries and not snap:
+            warnings.append(f'{STOCK_JS} lists {len(entries)} phone(s) but wasn\'t written by fetch_shopify_variants.py '
+                            '--write-stock, so it doesn\'t follow Shopify\'s stock: a phone Shopify has could show "Not in stock '
+                            f'— ask us". {how}')
+        if snap:
+            # its age to the minute, in UTC as written: a snapshot more than 24 hours old (or of unknown age) is stale
+            stale = snapshot_age_warning(snap, 'python3 launch/full-bars/fetch_shopify_variants.py --shop-url '
+                                         f'{opt.shop_url or "<shop-url>"} --write-stock <this site folder>/{STOCK_JS}')
+            if stale:
+                warnings.append(stale)
+            if snap.shop.startswith('https://') and opt.shop_url and snap.shop.rstrip('/') != opt.shop_url:
+                warnings.append(f'{STOCK_JS} is a stock snapshot from {snap.shop}, not from --shop-url {opt.shop_url}. {how}')
+        if entries and missing:
+            warnings.append(f'{len(missing)} product page(s) have no stock data while {STOCK_JS} lists other phones: '
+                            f'{", ".join(missing)}. They show every option as orderable (Shopify still refuses what it '
+                            'doesn\'t have). fetch_shopify_variants.py --write-stock lists every phone it can read from Shopify')
+        if with_attr:
+            warnings.append(f'{len(with_attr)} product page(s) have the older data-stock attribute, kept by hand, which doesn\'t '
+                            f'follow Shopify\'s stock: {", ".join(with_attr)}. Remove it from each #picker and use a {STOCK_JS} '
+                            'snapshot from Shopify')
     if opt.checkout == 'stripe':
         unheld = [k for k, v in filled if k in held_by_key and not held_by_key[k]]
         if unheld:
@@ -1421,23 +1531,27 @@ def is_sell_page(rel):
     return rel == 'sell.html' or (rel.startswith('sell/') and rel.endswith('.html'))
 
 
-def leftovers(files, opt, keep=()):
+def leftovers(files, opt, keep=(), own=()):
     """Preview and checkout wording still in the site, as {category: {snippet: [rel:line, ...]}}.
     rewrite = customer-facing, needs new wording (one sentence per snippet, as a --rewrites key);
     hand = customer-facing, but in a place scripts read too, so a person edits it;
     checkout / checkout-hand = the same, for wording about ordering and paying that doesn't fit --checkout;
     checkout-kept = such wording that your --rewrites keeps as it is (keep: those sentences);
+    checkout-own = such wording inside your own new text from --rewrites (own: your new wordings): your decision,
+    so it is listed but never blocks;
     hidden = Buy now wording that only shows beside a Payment Link, so never on the Shopify route;
     later = trade-in wording that stays true until trade-ins open; kept = preview hooks deliberately left
-    (class, id and attribute names); code = scripts/styles/comments that never show on the live site."""
+    (class, id and attribute names); code = scripts/styles/comments that never show on the live site.
+    Preview wording is checked in your new text too: "when we open" is wrong on a live site whoever wrote it."""
     items, seen_locs = {}, set()
-    rank = {'rewrite': 0, 'hand': 0, 'checkout': 1, 'checkout-hand': 1, 'later': 2, 'checkout-kept': 3, 'hidden': 3,
-            'kept': 3, 'code': 4}
+    rank = {'rewrite': 0, 'hand': 0, 'checkout': 1, 'checkout-hand': 1, 'later': 2, 'checkout-kept': 3, 'checkout-own': 3,
+            'hidden': 3, 'kept': 3, 'code': 4}
     checkout = getattr(opt, 'checkout', None)
     # static route with a Payment Link: Buy now takes payment first, so "before you pay" promises are checkout wording too
     buy_now = checkout == 'stripe' and any(v.strip() for _, v in pay_links(files.get('pay.js', '')))
     crx = CHECKOUT_WORDS['stripe-buy-now'] if buy_now else CHECKOUT_WORDS.get(checkout)
     keep_fold = {norm_text(k).translate(FOLD) for k in keep}
+    own_fold = [norm_text(v).translate(FOLD) for v in own if v and norm_text(v)]
     for rel in sorted(files):
         if not rel.endswith(SCAN_EXT):
             continue
@@ -1500,10 +1614,14 @@ def leftovers(files, opt, keep=()):
             else:
                 a, b = sentence_at(seg.text, seg.index(pos))
                 snippet = seg.text[a:b]
+                sf = snippet.translate(FOLD)
                 cat = ('hidden' if any(x <= pos < y for x, y in hidden)
-                       else 'checkout-kept' if snippet.translate(FOLD) in keep_fold else 'checkout')
+                       else 'checkout-kept' if sf in keep_fold
+                       else 'checkout-own' if any(sf in o for o in own_fold) else 'checkout')
             if buy_now and not re.search(_CHECKOUT_BOTH, m.group(0), re.I) and EMAIL_ORDER_ONLY.search(snippet):
                 continue   # limited to email orders (you order, we reply, then you pay), so still true beside Buy now
+            if checkout == 'shopify' and EMAIL_ORDER_ONLY.fullmatch(m.group(0)) and REPLACED_PART.search(snippet):
+                continue   # "replaced-part phones are sold by email order": still true on Shopify (GO-LIVE.md section 4)
             key = (snippet, loc)
             if key not in items or rank[cat] < rank[items[key]]:
                 items[key] = cat
@@ -1623,26 +1741,36 @@ def found_whole(files, texts):
     return out
 
 
+def follow_domain(t, bare, host, old_host):
+    """t with the site's old web address and email domain moved to the new ones (--domain), as the switch moves them."""
+    if old_host:
+        ob = old_host[4:] if old_host.startswith('www.') else old_host
+        t = re.sub(r'https?://(?:www\.)?' + re.escape(ob), 'https://' + host, t)
+        t = re.sub(r'(?<=@)' + re.escape(ob), bare, t)
+    return t
+
+
 def rewrite_edits(files, rewrites, bare, host, old_host):
     """The edits for your --rewrites. Refuses (Fail, listing every problem) if a text is nowhere, two texts
     partly overlap, or new wording can't go where its text is."""
-    def follow(t):
-        if old_host:
-            ob = old_host[4:] if old_host.startswith('www.') else old_host
-            t = re.sub(r'https?://(?:www\.)?' + re.escape(ob), 'https://' + host, t)
-            t = re.sub(r'(?<=@)' + re.escape(ob), bare, t)
-        return t
     rw = {}
     for k, v in rewrites.items():
-        rw.setdefault(follow(k), follow(v))
+        rw.setdefault(follow_domain(k, bare, host, old_host), follow_domain(v, bare, host, old_host))
     hits, problems, found = match_rewrites(files, list(rw))
     notes = []
     missing = [k for k in rw if k not in found]
     if missing:
         already = found_whole(files, [rw[k] for k in missing if rw[k]])
+        # your new wording for another entry in the same file, also "kept as it is": nothing to keep until this run
+        # puts it on the pages (and it is never flagged: wording you wrote is your decision)
+        others = [v.translate(FOLD) for k2, v in rw.items() if v and v != k2]
         for k in missing:
             if rw[k] and rw[k] in already:
                 notes.append(f'--rewrites: "{show(k, 80)}" is on no page, but your new wording is: taken as already done.')
+            elif rw[k] == k and any(k.translate(FOLD) in o for o in others):
+                notes.append(f'--rewrites: "{show(k, 80)}" is your new wording for another sentence in the same file, so it '
+                             'isn\'t on the pages yet: nothing to keep. (You don\'t need it as a key: your own wording is never '
+                             'listed as checkout wording.)')
             else:
                 problems.append(f'not on any page (copy it exactly from the report or the template'
                                 f'{"; if you deleted it in an earlier run, set it to null" if not rw[k] else ""}): "{show(k, 120)}"')
@@ -1839,6 +1967,34 @@ def manual_items(opt, files):
                          '--out ~/shopify-variants.json, then rerun this with --shop-variants ~/shopify-variants.json, so each '
                          'button opens the phone chosen at the price shown, and deploy the site again (GO-LIVE.md section 5, '
                          'step 13).')
+        items.append('Shopify prices: Shopify must charge exactly the site\'s prices. Before every deploy, and after every price '
+                     f'change, run: python3 launch/full-bars/fetch_shopify_variants.py --shop-url {shop} --check-prices '
+                     '--site <this site folder>. It must end "Price check: passed" (exit 0): it lists every variant whose '
+                     'Shopify price differs from the site, with both prices. Before a deploy it must be a live fetch '
+                     '(--shop-url), not --from-dump: a saved copy only shows what Shopify charged when it was fetched, and '
+                     'never ends "Price check: passed". Change a price in Shopify admin (Products > Bulk '
+                     'edit, Price column) in the same sitting as set_prices.py, never by importing the CSV again (that puts '
+                     'every product back to draft, unpublished, with stock 0), then run the check and deploy (GO-LIVE.md '
+                     'section 1, item 6).')
+        snap = stock_snapshot(files.get(STOCK_JS))
+        if snap:
+            as_of = (f'as of {snap.when:%Y-%m-%d %H:%M} UTC ({age_words(snap.when)})' if snap.when else
+                     'as of an unknown time (from a saved copy that doesn\'t say when it was fetched)')
+            items.append(f'Stock snapshot: {STOCK_JS} holds Shopify\'s stock for {snap.phones} phone(s) {as_of}, so each page '
+                         'shows "Not in stock — ask us" for a storage and condition Shopify can\'t sell, and "None in stock right '
+                         'now" on the cards of a phone with nothing available. It is right only until stock changes: fetch it '
+                         f'again from the live store (fetch_shopify_variants.py --shop-url {shop} --write-stock <this site '
+                         f'folder>/{STOCK_JS}, not --from-dump, which only repeats an old copy) and deploy the site whenever '
+                         'stock changes in Shopify, straight after you add stock and at least daily, and just before every '
+                         'deploy. A stale snapshot never sells a phone Shopify doesn\'t have, but a phone sold since still shows '
+                         'as in stock (its button opens a sold-out Shopify page) and a phone added since shows "Not in stock — '
+                         'ask us" (GO-LIVE.md section 5, step 13).')
+        else:
+            items.append(f'Stock on the site (optional, recommended): {STOCK_JS} has no Shopify stock snapshot, so every storage '
+                         'and condition shows as orderable and a sold-out choice lands on a sold-out Shopify page. To show '
+                         'what Shopify has, run fetch_shopify_variants.py --shop-url '
+                         f'{shop} --write-stock <this site folder>/{STOCK_JS}, deploy, and repeat whenever stock changes '
+                         '(GO-LIVE.md section 5, step 13).')
         items.append('Shopify stock: add stock only for units with all original manufacturer parts. A unit with any replaced '
                      'part stays at 0 on Shopify and is sold by email order: the customer asks through the contact page, you '
                      'tell them which part was replaced, then send a Shopify draft order (a custom item whose title names the '
@@ -1872,9 +2028,10 @@ def manual_items(opt, files):
         items.append(f'Open all {pages} product pages on the live site. Each needs a clickable button that goes to its own '
                      f'product at {shop}: "Order — £…" for a choice with a Shopify variant ID (Shopify must open on that '
                      'storage, condition and colour, at that price), "Choose and pay on the next page" for one without ("Not in '
-                     'stock — ask us" only if you kept stock data), and the price must change when you change storage, condition '
-                     'or colour. "Opening soon" or greyed-out options mean site.js didn\'t load or data-prices is wrong '
-                     '(GO-LIVE.md section 6, step 3).')
+                     'stock — ask us" for a storage and condition the stock snapshot says Shopify can\'t sell), and the price '
+                     'must change when you change storage, condition or colour. With a snapshot, a phone with nothing available '
+                     'must show "None in stock right now" on its cards. "Opening soon" or greyed-out options mean site.js '
+                     'didn\'t load or data-prices is wrong (GO-LIVE.md section 6, step 3).')
     else:
         items.append(f'Open all {pages} product pages on the live site. Each needs a clickable "Order — £…" button '
                      '("Buy now — £…" with a Payment Link, "Not in stock — ask us" for an option you don\'t hold) that '
@@ -1969,6 +2126,10 @@ def build_report(mode, site, opt, edits, edited_from, notes, blockers, warnings,
         if left.get('checkout-kept'):
             L.append('    Checkout wording you kept as it is (your --rewrites gives it its own text):')
             L.extend(group_lines(left['checkout-kept'], '      '))
+        if left.get('checkout-own'):
+            L.append('    Checkout words in your own new wording (from your --rewrites; your decision, so not blocking). Check '
+                     f'each is true for --checkout {opt.checkout}:')
+            L.extend(group_lines(left['checkout-own'], '      '))
         if rewrite_skipped:
             L.append(f'    ({len(rewrite_skipped)} entr{"y" if len(rewrite_skipped) == 1 else "ies"} in your --rewrites file still null, so skipped)')
         for i, item in enumerate(manual_items(opt, result), 2):
@@ -2162,10 +2323,13 @@ def run(opt):
     switched = apply_edits(files, stage_a)
     edited_from = {e: files for e in stage_a}
     edits = list(stage_a)
-    skipped, rewritten, keep = [], set(), set()
+    skipped, rewritten, keep, own = [], set(), set(), set()
     if opt.rewrites:
         rewrites, skipped = load_rewrites(opt.rewrites)
         keep = {k for k, v in rewrites.items() if k == v}
+        # your new wording, as it lands on the pages: never listed as checkout wording (it is your decision)
+        follow_from = old_host if old_host != opt.host else None
+        own = {follow_domain(v, opt.bare, opt.host, follow_from) for v in rewrites.values() if v}
         rw_edits, rw_notes = rewrite_edits(switched, rewrites, opt.bare, opt.host, old_host if old_host != opt.host else None)
         stage_b = resolve(switched, rw_edits)
         notes += rw_notes
@@ -2175,7 +2339,7 @@ def run(opt):
         rewritten = {e.rel for e in stage_b}
     else:
         result = switched
-    left = leftovers(result, opt, keep)
+    left = leftovers(result, opt, keep, own)
     changed_host = old_host if old_host != opt.host else None
     problems = verify(result, opt, opt.host, changed_host) + rewrite_damage(switched, result, rewritten)
 
@@ -2238,7 +2402,7 @@ def run(opt):
     n = write_site(site, files, result)
     after = load_site(site)
     problems = verify(after, opt, opt.host, changed_host) + run_checks(site)
-    left_after = leftovers(after, opt, keep)
+    left_after = leftovers(after, opt, keep, own)
     pieces, places = (a + b for a, b in zip(wording_left(left_after), checkout_left(left_after)))
     mode = 'WRITTEN, BUT CHECKS FAILED' if problems else 'WRITTEN, NOT READY TO GO LIVE' if pieces else 'DONE'
     report = build_report(mode, site, opt, edits, edited_from, notes, [f'after writing: {p}' for p in problems], warnings,
