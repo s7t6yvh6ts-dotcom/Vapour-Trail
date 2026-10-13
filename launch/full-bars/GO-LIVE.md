@@ -7,7 +7,7 @@ As of 13 October 2026 the site (`sites/full-bars/`) is a preview. Search engines
 1. Accountant: VAT registration and the second-hand margin scheme. Then choose Shopify or Stripe links. ([§1](#1-decide-first-your-call))
 2. Decide WEEE take-back, courier cover, the buy-now cap and the prices. ([§1](#1-decide-first-your-call))
 3. Set up the company, bank, ICO fee, domain, inbox, CheckMEND, Royal Mail account and waste carrier. ([§2](#2-business-and-accounts))
-4. Fill every [placeholder], including the log-retention `[30]` in `privacy.html`, and fix the three handset weights. ([§3](#3-fill-every-placeholder))
+4. Fill every [placeholder], including the log-retention `[30]` in `privacy.html`. ([§3](#3-fill-every-placeholder))
 5. Buy stock, IMEI-check it, photograph it, weigh one packed parcel. ([§4](#4-pictures-and-stock-needs-real-data))
 6. Shopify: prove the CSV on one hand-made test product, then import and set up the store. ([§5](#5-if-you-choose-shopify)) Static site instead: ([§6](#6-if-you-stay-on-the-static-site))
 7. Launch day: flip the switches and put one real order through. ([§7](#7-launch-day-switches))
@@ -17,12 +17,12 @@ The files in this folder are listed at the end.
 ## 1. Decide first (your call)
 
 1. **Checkout: Shopify, or the static site with Stripe Payment Links (`pay.js`).** I'd pick Shopify. Every phone is a one-off. Shopify counts stock per variant and won't sell the same phone twice. A Payment Link has to be switched off by hand after every sale, and `pay.js` has 183 of them. Don't run both at once: you'd double-sell.
-2. **VAT, for your accountant (I'm not deciding this):** do you register for VAT? Registration is compulsory once taxable turnover passes £90,000 in any 12 months. And does the **VAT margin scheme for second-hand goods** apply to these phones? The answer changes four things:
+2. **VAT, for your accountant (I'm not deciding this):** do you register for VAT? Registration is compulsory once taxable turnover passes £90,000 in any rolling 12 months, or as soon as you expect it to pass £90,000 in the next 30 days alone. And does the **VAT margin scheme for second-hand goods** apply to these phones? The answer changes four things:
    - the CSV's `Charge tax` column (currently TRUE);
    - whether receipts may show VAT (`terms.html` already says margin-scheme receipts won't);
    - the trade-in formula in `quote.js`, which assumes the margin scheme;
    - the VAT line in every footer.
-3. **WEEE take-back.** You sell electrical equipment, so you have retailer take-back duties, and the site says nothing about them yet. Either join the Distributor Take Back Scheme (allowed if you sell under £100,000 of electrical equipment a year or sell only online; the current fee covers you to 31 December 2026, so budget for 2027), or offer your own free like-for-like take-back. Then add the wording to `delivery-returns.html` and `faq.html`. If you'll import phones yourself rather than buy them in the UK, ask whether that makes you a "producer" as well.
+3. **WEEE take-back.** You sell electrical equipment, so you may have retailer take-back duties, and the site says nothing about them yet. The duty (regulation 42 of the WEEE Regulations 2013) is worded for distributors that supply *new* electrical equipment, and I couldn't find official guidance on whether refurbished phones (or the new cable in each box) count, so ask, or play safe. Either join the Distributor Take Back Scheme (allowed if you sell under £100,000 of electrical equipment a year or sell only online; the current fee covers you to 31 December 2026, so budget for 2027), or offer your own free like-for-like take-back. Then add the wording to `delivery-returns.html` and `faq.html`. If you'll import phones yourself rather than buy them in the UK, ask whether that makes you a "producer" as well.
 4. **Courier.** The site promises Royal Mail Special Delivery "or an equivalent service" (insured, tracked and signed for). Special Delivery's standard cover is £750. 13 of the site's prices are above that, the highest being the iPhone 16 Pro Max 1TB Excellent at £969, so those parcels need the £1,000 or £2,500 cover band.
 5. **Buy-now cap** (static route only). `BUY_NOW_MAX` in `site.js` is £450, which covers 97 of the 183 prices. Keep it or change it.
 6. **Prices.** The site calls them "preview prices". Check them against the market before launch. To change one, edit `data-prices` on that product page. Then run `check_site_prices.py`: it lists every other place that number appears (cards, "from" lines, titles, structured data). Cutting the iPhone 13's lowest price, for example, needs 36 other edits. Fix those, then rebuild the CSV.
@@ -33,13 +33,13 @@ The files in this folder are listed at the end.
 | Set up | Why |
 |---|---|
 | Company (or sole trader), business bank account | Fills the trader details in section 3. If the company itself is called Full Bars, reword "Full Bars is a trading name of…". |
-| ICO data protection fee | You'll hold customer and seller data. Put the registration number in `privacy.html`. |
+| ICO data protection fee | You'll hold customer and seller data, including ID checks and crime-prevention records, which aren't among the exempt purposes, so expect to pay. Tier 1 (turnover up to £632,000 or no more than 10 staff) is £52 a year, £47 by direct debit; the ICO's online self-assessment confirms it. Put the registration number in `privacy.html`. (The regulator became the Information Commission on 30 September 2026 but still uses the name ICO.) |
 | Domain `fullbars.co.uk` | Check it's free and buy it. It appears 828 times across 60 files: canonical links, social tags, sitemap, structured data and the email address. A different domain means changing all of them. |
 | Inbox `hello@fullbars.co.uk` | Used on every page and in `site.js` / `quote-ui.js`. Set up SPF, DKIM and DMARC so replies don't land in spam. |
 | CheckMEND business account | Before you buy a single phone. Check every IMEI when you buy and again before dispatch, and refuse anything activation-locked, blacklisted or reported stolen. Never alter an IMEI. The site promises all of this. |
 | Shopify **or** Stripe | Depends on decision 1. |
 | Royal Mail business account (Click & Drop) | Special Delivery labels and prepaid return labels, which the site promises for returns and trade-ins. |
-| Licensed waste carrier | `about.html` says old batteries go to one. |
+| Registered waste carrier | `about.html` says old batteries go to one. Carriers are registered, not licensed: check it on the Environment Agency's public register (SEPA or Natural Resources Wales if you're in Scotland or Wales). |
 | Accountant | Decision 2. |
 
 ## 3. Fill every placeholder
@@ -62,7 +62,7 @@ The files in this folder are listed at the end.
 
 **Leave these alone:** `[phone, storage, grade, colour]`, `[date]`, `[your name]` and `[your address]` in the cancellation form on `delivery-returns.html` are for customers to fill in. "Settings > [your name]" in `guides/remove-find-my-before-selling-iphone.html` is an iPhone menu name, and the bracketed text in `site.js` and `quote-ui.js` is code. To find any you've missed, run this from the repo root. It lists every bracketed placeholder in the pages, so only the "leave these alone" ones above should be left: `grep -rnoE "\[[^]<>\"=]+\]" sites/full-bars --include=*.html`
 
-**Also fix before launch:** three handset weights on the site don't match the makers' figures. The iPhone 12 Pro page says 187g (it's 189g). The iPhone 13 mini page compares against the iPhone 13 at 173g (it's 174g). The iPhone 13 Pro Max page says 238g (it's 240g).
+**Done:** the three handset weights that didn't match the makers' figures (iPhone 12 Pro 189g, iPhone 13 174g on the iPhone 13 mini page, iPhone 13 Pro Max 240g) were corrected on 13 October 2026.
 
 ## 4. Pictures and stock (needs real data)
 
@@ -132,8 +132,11 @@ The files in this folder are listed at the end.
 - The older column names come from [Common import issues](https://help.shopify.com/en/manual/products/import-export/common-import-issues).
 - I couldn't open help.shopify.com from my sandbox (DNS lookup fails). I checked both pages only through search results that quote them, so the validator's built-in column list is my transcription, not proof. Step 5.3 is the real check: it compares the CSV with files your own store produces.
 - Category: Shopify Standard Product Taxonomy `el-4-8-5`.
-- Take-back: [gov.uk Distributor Take Back Scheme](https://www.gov.uk/electricalwaste-producer-supplier-responsibilities/join-the-distributor-takeback-scheme).
+- Take-back: [gov.uk Distributor Take Back Scheme](https://www.gov.uk/electricalwaste-producer-supplier-responsibilities/join-the-distributor-takeback-scheme) and [WEEE Regulations 2013, regulation 42](https://www.legislation.gov.uk/uksi/2013/3113/regulation/42).
+- VAT threshold: [gov.uk When to register for VAT](https://www.gov.uk/register-for-vat).
+- ICO fee: [ICO guide to the data protection fee](https://ico.org.uk/for-organisations/data-protection-fee/data-protection-fee/).
 - Courier cover: [Royal Mail Special Delivery](https://www.royalmail.com/sending/uk/special-delivery-guaranteed-1pm).
+- I couldn't open gov.uk, legislation.gov.uk, ico.org.uk or royalmail.com from my sandbox on 13 October 2026, so the take-back, VAT, ICO and courier figures were checked through search results that quote those pages.
 
 **In this folder**
 
