@@ -42,19 +42,30 @@ HOW TO USE IT (from the repo root; put a model name with spaces in quotes)
   After any change: rebuild the Shopify CSV (build_shopify_csv.py, then validate_shopify_csv.py).
 
   If a change needs a hand edit (below), --set and --write refuse and write nothing, so the site never
-  goes out half-done (a £305 phone still on "Under £300", say). Make the hand edit first and run it
-  again, or add --allow-hand-edits to write everything else now and do the hand edit straight after,
-  before you publish.
+  goes out half-done (a £305 phone still on "Under £300", say, or a Buy now button whose Payment Link
+  charges the old price). Make the hand edit first and run it again, or add --allow-hand-edits to write
+  everything else now and do the hand edit straight after, before you publish.
 
 WHAT IT WON'T DO (it tells you instead, under "NEEDS A HAND EDIT")
   - Change which phones are on the "Under £300" page. That page has hand-written cards, a table,
     a description and sentences naming the phones, so a phone crossing £300 needs a person.
   - Move the "Lowest price" badge when a different phone becomes the cheapest.
-  - Touch pay.js (Payment Links are per phone, storage and condition, not prices) or quote.js
-    (trade-in pricing). quote.js works out trade-in offers from the shop's Very Good price for the
-    six phones it buys (iPhone 13, 13 Pro, 14, 14 Pro, Galaxy S23, Pixel 8, 128GB and 256GB), and
-    check_site_prices.py insists they match. Change one of those Very Good prices and the tool tells
-    you the sellPrice to type into quote.js, or you put the price back.
+  - Touch pay.js (the static route's Stripe Payment Links, keyed "<model> <storage> <condition>", the
+    way site.js looks them up). A Payment Link charges the price it was made with, and a Stripe price
+    can't be changed, so when --set changes a price that has a link in pay.js, it lists it: deactivate
+    that link in Stripe, make a new one at the new price with the same settings (payment limit), and
+    paste it into pay.js. --check lists every link in pay.js with the site's price for it now, so you
+    can compare them in Stripe; it can't see what Stripe charges. Change prices with --set, not by
+    hand in data-prices: only --set knows the old price, so only it can name the link to replace.
+    It reads pay.js only as it ships: one entry per line, "iPhone 13 128GB Good": "https://...",
+    double quotes, nothing else on the line, one entry for every phone, storage and condition. site.js
+    would use a link written any other way (a comment after it, single quotes, two on a line), but
+    this tool might not see it, so --set and --write refuse (exit 2, nothing written) and --check
+    fails until pay.js is back in that layout.
+  - Touch quote.js (trade-in pricing). quote.js works out trade-in offers from the shop's Very Good
+    price for the six phones it buys (iPhone 13, 13 Pro, 14, 14 Pro, Galaxy S23, Pixel 8, 128GB and
+    256GB), and check_site_prices.py insists they match. Change one of those Very Good prices and the
+    tool tells you the sellPrice to type into quote.js, or you put the price back.
   - Write outside the folder you give it, write through a symlink, or write anything at all when
     the input is wrong (unknown phone, a price that would make Good dearer than Very Good, broken
     data-prices).
@@ -64,13 +75,15 @@ WHAT IT WON'T DO (it tells you instead, under "NEEDS A HAND EDIT")
 
 --check is a little stricter than check_site_prices.py on its own: it also fails when any derived
 price is out of date that the checker doesn't look at (the #pdFrom line) and when the "Lowest price"
-badge sits on a phone that is no longer the cheapest.
+badge sits on a phone that is no longer the cheapest. It also lists every Payment Link in pay.js
+under "PAYMENT LINKS IN pay.js", each with the site's price for it now, for you to compare with what
+Stripe shows. That list never fails the check: this tool can't see what Stripe charges.
 
 EXIT CODES
   0  all good: prices consistent (and written, for --write/--set), check_site_prices.py passes.
   1  something needs you: stale prices (--check), a hand edit (nothing written, unless you passed
      --allow-hand-edits), or check_site_prices.py fails.
-  2  bad command or bad input: nothing was written.
+  2  bad command or bad input (including a pay.js it can't read in full): nothing was written.
 
 Python 3 standard library only. It finds what to rewrite with the same patterns check_site_prices.py
 uses, and runs that checker after every write, so the two can't silently disagree.
@@ -94,6 +107,12 @@ LOWEST_BADGE = 'Lowest price'
 SD_COVER = 750               # Royal Mail Special Delivery standard cover (GO-LIVE.md section 1, courier)
 MAX_PRICE = 999_999          # a sanity limit on --set: anything bigger is a typo
 GRADE_ALIASES = {'ex': 'Excellent', 'vg': 'Very Good', 'gd': 'Good'}
+PAY_FILE = 'pay.js'          # the static route's Stripe Payment Links (GO-LIVE.md section 6, step 1)
+# One pay.js entry per line, after window.FULLBARS_PAY: "iPhone 13 128GB Good": "https://buy.stripe.com/...",
+# (the same pattern go_live.py and check_site_prices.py read it with). read_pay() refuses any other layout.
+PAY_LINE_RX = re.compile(r'^\s*"([^"]+)":\s*"([^"]*)",?\s*$', re.M)
+PAY_OPEN_RX = re.compile(r'^\s*window\.FULLBARS_PAY\s*=\s*\{\s*$')
+PAY_CLOSE_RX = re.compile(r'^\s*\}\s*;?\s*$')
 
 # A £ amount, as the site writes it (&pound;209 or £209, thousands with commas: £1,049).
 NUM = r'(?:\d{1,3}(?:,\d{3})+(?!\d)|\d+)'
@@ -739,6 +758,7 @@ def apply_sets(site, sets):
         products[p['handle']] = p
     done, touched, records, notes = [], {}, [], []
     cap = buy_now_cap(site)
+    before = {h: {st: dict(row) for st, row in p['prices'].items()} for h, p in products.items()}
     for model, storage, grade, price in sets:
         p, st, gr, new = resolve(products, model, storage, grade, price)
         old = p['prices'][st][gr]
@@ -759,6 +779,20 @@ def apply_sets(site, sets):
     if problems:
         raise InputError('Not changed, because the new prices would break the price order:\n  ' + '\n  '.join(problems)
                          + '\nChange the neighbouring price in the same command (repeat --set).')
+    # A Payment Link in pay.js charges the price it was made with, whatever data-prices says now: every price this run
+    # changes (old price before the first --set, new after the last) that has a link needs a new link, by hand.
+    # A pay.js this tool can't read in full could hide a link from it, so that stops the run before anything is written.
+    links, pay_problems = read_pay(site, products)
+    if pay_problems:
+        raise InputError(pay_unreadable(pay_problems, 'it can\'t tell whether a Payment Link charges a price this --set '
+                                                      'changes'))
+    hand = []
+    for p in touched.values():
+        for st, row in p['prices'].items():
+            for gr, new in row.items():
+                old = before[p['handle']][st][gr]
+                if old != new and pay_key(p, st, gr) in links:
+                    hand.append(pay_link_hand_edit(pay_key(p, st, gr), old, new, cap))
     for p in touched.values():
         src = site.read(p['rel'])
         a, b = p['raw_span']
@@ -768,7 +802,7 @@ def apply_sets(site, sets):
         if new_raw != p['raw']:
             site.overlay[p['rel']] = src[:a] + new_raw + src[b:]
     line_of = {p['rel']: Edits(p['rel'], site.read(p['rel'])).line(p['raw_span'][0]) for p in touched.values()}
-    return done, [(rel, line_of[rel], what, old, new) for rel, what, old, new in records], notes
+    return done, [(rel, line_of[rel], what, old, new) for rel, what, old, new in records], notes, hand
 
 
 def buy_now_cap(site):
@@ -777,6 +811,143 @@ def buy_now_cap(site):
     except OSError:
         return None
     return int(m.group(1)) if m else None
+
+
+# ----------------------------------------------------------------------------------------------- pay.js
+def pay_key(p, st, gr):
+    """The pay.js key for one phone, storage and condition, built as site.js builds it:
+    PAY[data-model + ' ' + storage + ' ' + condition], e.g. "iPhone 13 128GB Good"."""
+    return f"{p['model']} {st} {gr}"
+
+
+def pay_code_lines(src):
+    """[(line number, line)] for every line of pay.js that isn't blank or wholly a comment (// ..., or inside or a whole
+    /* ... */). A line with code and a comment on it counts as code, so it must match the layout read_pay() expects."""
+    out, in_block = [], False
+    for n, line in enumerate(src.split('\n'), 1):
+        rest = line.strip()
+        while rest or in_block:
+            if in_block:
+                j = rest.find('*/')
+                if j < 0:
+                    rest = ''
+                    break
+                rest, in_block = rest[j + 2:].strip(), False
+            elif rest.startswith('//'):
+                rest = ''
+            elif rest.startswith('/*'):
+                rest, in_block = rest[2:], True
+            else:
+                break
+        if rest:
+            out.append((n, line))
+    return out
+
+
+def read_pay(site, products):
+    """({key: link} for every non-empty entry in pay.js, [problems]). This tool never writes pay.js.
+
+    pay.js is JavaScript, and site.js uses any link it can read in it, however it is written. This tool only reads the
+    layout pay.js ships with, so anything else is a problem rather than a link it might miss: outside comments, the
+    file must be the line 'window.FULLBARS_PAY = {', then one entry per line ("<model> <storage> <condition>":
+    "<link>", with nothing else on the line: no comment, no second entry, double quotes only), then '};'. And its keys
+    must be exactly every model, storage and condition on the product pages, once each (check_site_prices.py's
+    section 2). No pay.js at all: no links, no problem (site.js then has no Payment Links either)."""
+    if not site.exists(PAY_FILE):
+        return {}, []
+    try:
+        src = site.read(PAY_FILE)
+    except (OSError, UnicodeDecodeError) as e:
+        return {}, [f'{PAY_FILE} can\'t be read ({e})']
+    links, keys, bad, stage = {}, [], [], 'before'
+    for n, line in pay_code_lines(src):
+        if stage == 'before' and PAY_OPEN_RX.match(line):
+            stage = 'in'
+            continue
+        if stage == 'in':
+            m = PAY_LINE_RX.match(line)
+            if m:
+                keys.append(m.group(1))
+                if m.group(2).strip():
+                    links[m.group(1)] = m.group(2).strip()
+                continue
+            if PAY_CLOSE_RX.match(line):
+                stage = 'after'
+                continue
+        bad.append(f'line {n} can\'t be read: {line.strip()[:100]}')
+    problems = [f'{PAY_FILE} ' + b for b in bad[:5]]
+    if len(bad) > 5:
+        problems.append(f'{PAY_FILE}: and {len(bad) - 5} more line(s) like that')
+    if stage == 'before':
+        problems.append(f'{PAY_FILE} has no line "window.FULLBARS_PAY = {{" on its own')
+    elif stage == 'in':
+        problems.append(f'{PAY_FILE} has no closing line "}};" after its entries')
+    want = {pay_key(p, st, gr) for p in products.values() for st in p['storages'] for gr in p['grades']}
+    dup = sorted({k for k in keys if keys.count(k) > 1})
+    missing, extra = sorted(want - set(keys)), sorted(set(keys) - want)
+
+    def few(xs):
+        return ', '.join(xs[:5]) + (f' and {len(xs) - 5} more' if len(xs) > 5 else '')
+    if dup:
+        problems.append(f'{PAY_FILE} has the same key more than once (JavaScript uses the last): {few(dup)}')
+    if missing and not bad:
+        problems.append(f'{PAY_FILE} has no entry for {few(missing)}')
+    if extra:
+        problems.append(f'{PAY_FILE} has entries no product page offers: {few(extra)}')
+    return links, problems
+
+
+def pay_unreadable(problems, why):
+    """The message for a pay.js read_pay() can't vouch for. Fails closed: a link it can't see is a link whose price
+    it can't guard."""
+    return (f'{PAY_FILE} isn\'t laid out the way this tool reads it, so {why}. Fix {PAY_FILE} first: one entry per line, '
+            f'"iPhone 13 128GB Good": "https://buy.stripe.com/...", in double quotes, with no comment or second entry on '
+            f'the line, and one entry for every phone, storage and condition on the product pages (as it ships).\n  '
+            + '\n  '.join(problems))
+
+
+def pay_link_hand_edit(key, old, new, cap):
+    """NEEDS A HAND EDIT line for a price --set changed that has a Payment Link in pay.js. A Stripe price can't be
+    changed after it's made, so the link still charges what it was made at: the site's old price, if Ash followed
+    pay.js's rules. This tool can't see Stripe, so it says so rather than claiming to know."""
+    head = (f'pay.js has a Payment Link for {key}; Stripe still charges £{money(old)} (the site\'s old price, which the '
+            f'link was made at if made as pay.js says), not £{money(new)}: a Stripe price can\'t be changed. ')
+    if cap and new > cap:
+        return head + (f'At £{money(new)} it is above the £{money(cap)} Buy now cap (BUY_NOW_MAX in site.js), so the site '
+                       f'no longer shows Buy now for it: deactivate the link in Stripe and clear it in pay.js.')
+    return head + (f'Deactivate it in Stripe, make a new link at £{money(new)} with the same settings (payment limit 1, '
+                   f'quantity fixed at 1), paste it into pay.js in place of the old one, then deploy and check its Buy now '
+                   f'button opens Stripe at £{money(new)} (GO-LIVE.md section 6, step 1). This is listed whenever the entry '
+                   f'isn\'t empty, so clear it first and paste the new link after this run (or add --allow-hand-edits).')
+
+
+def pay_links_report(site, products, links, problems):
+    """--check: every Payment Link in pay.js with the site's price for it now. Never a failure in itself: Stripe's price
+    can't be read from here (Stripe's API refuses any request without an API key, which must never be in the repo).
+    A pay.js read_pay() can't read in full is a failure, listed under NEEDS A HAND EDIT by main()."""
+    caveat = ([f'\nPAYMENT LINKS IN {PAY_FILE}: can\'t all be listed, because this tool can\'t read {PAY_FILE} in full '
+               '(see NEEDS A HAND EDIT). Only the entries it could read are below.'] if problems else [])
+    if not links:
+        return caveat or [f'\nPAYMENT LINKS IN {PAY_FILE}: none (every entry is empty).']
+    cap = buy_now_cap(site)
+    price = {pay_key(p, st, gr): v for p in products.values() for st, row in p['prices'].items() for gr, v in row.items()}
+    out = caveat + [f'\nPAYMENT LINKS IN {PAY_FILE} ({len(links)}): this tool can\'t see what Stripe charges. Open each link and '
+                    'check Stripe shows the site\'s price below, and in Stripe that the link has "Limit the number of '
+                    'payments" set to 1 (one link per unit). A link at any other price: deactivate it in Stripe, make a '
+                    'new one at the site\'s price with the same settings, and paste it in (GO-LIVE.md section 6, step 1).']
+    for key, link in links.items():
+        v = price.get(key)
+        if v is None:
+            out.append(f'  - {key}: no phone, storage and condition on the site has this name, so site.js never uses '
+                       f'this link: deactivate it in Stripe and clear it ({link})')
+        elif not link.startswith('https://'):
+            out.append(f'  - {key}: site price £{money(v)}, but "{link}" is not an https:// link, so site.js ignores it')
+        elif cap and v > cap:
+            out.append(f'  - {key}: site price £{money(v)}, above the £{money(cap)} Buy now cap, so the site never shows '
+                       f'this link: deactivate it in Stripe and clear it ({link})')
+        else:
+            out.append(f'  - {key}: site price £{money(v)}: {link}')
+    return out
 
 
 # ----------------------------------------------------------------------------------------------- checker
@@ -845,6 +1016,9 @@ def main(argv=None):
                '  python3 launch/full-bars/set_prices.py --set "iPhone 13" 128GB Good 199 sites/full-bars\n'
                '  python3 launch/full-bars/set_prices.py --write sites/full-bars\n\n'
                'If a change needs a hand edit, --set and --write write nothing unless you add --allow-hand-edits.\n'
+               'That includes a price --set changes that has a Stripe Payment Link in pay.js: the link keeps charging the\n'
+               'price it was made with, so it needs a new link. --check lists every pay.js link with the site\'s price.\n'
+               'pay.js must stay one entry per line, as it ships; otherwise --set and --write refuse (exit 2).\n'
                'Exit codes: 0 all good; 1 something needs you (stale prices, a hand edit, or check_site_prices.py '
                'fails); 2 bad command or input, nothing written.\n'
                'Then rebuild the Shopify CSV: build_shopify_csv.py and validate_shopify_csv.py.')
@@ -875,11 +1049,25 @@ def main(argv=None):
             root = args.set[0][4]
         site = Site(root)
         print(f'Full Bars prices: {site.root}')
-        done, set_changes, notes = apply_sets(site, [s[:4] for s in args.set]) if args.set else ([], [], [])
+        done, set_changes, notes, set_hand = apply_sets(site, [s[:4] for s in args.set]) if args.set else ([], [], [], [])
         for d in done:
             print('Set ' + d)
         plan = make_plan(site)
         plan.review[:0] = notes
+        plan.hand[:0] = set_hand
+        links, pay_problems = read_pay(site, plan.products)
+        if pay_problems and args.write:
+            raise InputError(pay_unreadable(pay_problems, 'it can\'t tell whether a price you changed by hand in '
+                                                          'data-prices has a Payment Link'))
+        if pay_problems:            # --check: a failure to fix by hand (--set stopped in apply_sets)
+            plan.hand.append(pay_unreadable(pay_problems, 'set_prices.py --set can\'t tell whether a Payment Link charges '
+                                                          'a price it changes').replace('\n  ', ' ', 1).replace('\n  ', '; '))
+        nlinks = len(links) if args.write else 0
+        if nlinks:
+            plan.review.append(f'{PAY_FILE} has {nlinks} Payment Link(s), and a Payment Link keeps charging '
+                               'the price it was made with. If you changed a price by hand in data-prices, this tool can\'t '
+                               'tell which: run --check to list every link with the site\'s price for it now, and replace '
+                               'any whose price changed (GO-LIVE.md section 6, step 1). --set names them for you.')
         nprices = sum(len(r) for p in plan.products.values() for r in p['prices'].values())
         print(f'{len(plan.products)} phones, {nprices} prices.')
     except InputError as e:
@@ -896,6 +1084,7 @@ def main(argv=None):
 
     if args.check is not None:
         report(plan, wrote=False, dry=False)
+        print('\n'.join(pay_links_report(site, plan.products, links, pay_problems)))
         ok, lines = run_checker(site.root)
         print('\ncheck_site_prices.py: ' + ('\n  '.join(lines) if lines else 'no output'))
         stale = bool(plan.files)
@@ -920,6 +1109,9 @@ def main(argv=None):
         print('\nNothing written: the change above needs a hand edit, and writing the rest now would leave the site '
               'half-done (a wrong badge or "Under £300" page, say). Either make the hand edit first and run this again, '
               'or add --allow-hand-edits to write everything else now and then make the hand edit before you publish.')
+        if any(m.startswith(f'{PAY_FILE} has a Payment Link') for m in plan.hand):
+            print(f'For a Payment Link, the edit to make first is: deactivate it in Stripe and clear its entry in {PAY_FILE}. '
+                  'Then run this again, make the new link at the new price, paste it in and deploy.')
         print('\nRESULT: NEEDS YOU (nothing written)')
         return 1
 

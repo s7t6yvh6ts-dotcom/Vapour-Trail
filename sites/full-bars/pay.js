@@ -1,14 +1,31 @@
-/* Full Bars - checkout links.
+/* Full Bars - checkout links (static route only: on the Shopify route every entry stays empty).
    Paste a Stripe Payment Link (https://buy.stripe.com/...) between the quotes for any phone you want people to buy instantly.
    The product page's Order button then becomes 'Buy now'. Anything left blank keeps the email order flow.
    ONLY add links for phones you hold that have ALL ORIGINAL MANUFACTURER PARTS (any replaced part = email order only).
    ONLY for phones priced at or below the first-order cap (BUY_NOW_MAX in site.js, currently GBP 450): the site ignores
    links above it, so dearer phones stay email-order, where you can check a new customer first.
-   In each Stripe link: require customers to accept your terms of service (terms.html), limit quantity to 1,
-   collect the UK shipping address and phone number, and add a 'Colour' custom field.
+   PRICE: make each link at exactly the site's price for that storage and condition, VAT included, as its Buy now
+   button shows it (the product page's data-prices). A Stripe price can't be changed once it's made, so the link
+   charges that amount until you replace it. Change prices only with set_prices.py --set: it lists every changed price
+   that has a link here under NEEDS A HAND EDIT. Then deactivate the old link in Stripe, make a new one at the new price
+   with the same settings, and paste it here in place of the old one. set_prices.py --check lists every link here with
+   the site's price for it now, to compare in Stripe (it can't see what Stripe charges). If you turn on Stripe's
+   'Collect tax automatically', the price must include tax, or Stripe adds VAT on top of the site's price. If your
+   accountant puts these phones on the VAT margin scheme (GO-LIVE.md section 1, item 2), leave Stripe's automatic tax off.
+   LAYOUT: keep one entry per line, "key": "link", in double quotes, with no comment or second entry on the line.
+   set_prices.py reads this file only in that layout, and refuses to change prices until it's back in it.
+   In each Stripe link: require customers to accept your terms of service (terms.html), keep the quantity fixed at 1
+   (don't let customers adjust it), collect the UK shipping address and phone number, and add a 'Colour' custom field.
+   ONE LINK PER UNIT: when you create the link, tick 'Limit the number of payments' and enter 1. Stripe then deactivates
+   the link once that payment has completed. Its docs don't say what happens to a second checkout already open at that
+   moment, so check each Stripe payment against stock.js before dispatch, and refund any payment for a phone already sold.
    In Stripe Radar, add rules to block payments when the postcode or address check fails, and to request 3D Secure on all payments.
    Review every first order by hand before dispatch (new customer + high value + billing/delivery mismatch = hold it).
-   Deactivate the link in Stripe and clear it here as soon as the phone sells, and lower its count in stock.js.
+   As soon as a phone sells, still clear its link here and lower its count in stock.js, then deploy: a link Stripe has
+   switched off only shows Stripe's deactivated-link message, so the site must stop offering Buy now for it. If you hold
+   another unit of that storage and condition, make a new link for it (same price and settings) and paste it in. If you
+   sell the unit another way (an email order) and hold no other, deactivate the link in Stripe and clear it here too.
+   After every deploy, click each Buy now button and check Stripe's page shows the same price as the button.
    There's no build step: edit this file and deploy the site to your web host again (GO-LIVE.md section 7).
    Links do nothing while the site is in preview mode (data-preview="1" on each product page's #picker form). */
 window.FULLBARS_PAY = {

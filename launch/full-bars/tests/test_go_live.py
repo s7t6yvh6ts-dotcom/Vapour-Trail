@@ -1454,6 +1454,125 @@ class GoLiveTest(unittest.TestCase):
         self.assertEqual(len(warned), 1, out)
         self.assertIn('stock.js is a Shopify stock snapshot with no time on it', warned[0])
 
+    # ------------------------------------------------------------------ R10: Payment Link prices and payment limits
+    def test_stripe_checklist_checks_every_buy_now_price(self):
+        """A Payment Link charges the price it was made with and nothing here can read it, so the Stripe route's STILL TO
+        DO BY HAND list names every link with the site's price (and says to deactivate and clear one for a storage and
+        condition stock.js holds none of), says each has a payment limit of 1 (one link per unit), and says to open
+        every Buy now button after deploying. The Shopify route has no such item."""
+        self.ready()
+        set_link(self.site, 'iPhone 13 256GB Good', 'https://buy.stripe.com/test_fullbars_256')   # stock.js holds none
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--dry-run')
+        self.assertEqual(code, 0, out[-3000:])
+        todo = out.split('STILL TO DO BY HAND')[1]
+        sale = re.search(r'^  \d+\. (Stripe: pay\.js has 2 Payment Link\(s\)\..*)$', todo, re.M)
+        self.assertTrue(sale, todo)
+        for text in ('One link per unit: each must have "Limit the number of payments" ticked',
+                     'and set to 1, with the quantity fixed at 1, so Stripe deactivates it once that payment has completed',
+                     'still clear its link in pay.js and lower its count in stock.js',
+                     'If you hold another unit of that storage and condition, make a new link for it',
+                     'check each Stripe payment against stock.js before dispatch and refund any payment for a phone already sold'):
+            self.assertIn(text, sale.group(1))
+        for text in ('units you hold', 'switches it off by itself after that sale', 'can\'t take a second payment'):
+            self.assertNotIn(text, sale.group(1))
+        self.assertNotIn('Deactivate the link in Stripe and clear it in pay.js the moment that phone sells', todo)
+        item = re.search(r'^  \d+\. (Stripe prices: .*)$', todo, re.M)
+        self.assertTrue(item, todo)
+        item = item.group(1)
+        for text in ('a Payment Link charges the price it was made with, and nothing here can read it',
+                     'Stripe\'s API refuses any request without your API key, which must never be in this repo',
+                     'After every deploy, open every Buy now button on the live site and check the Stripe page shows the '
+                     'same price as the button, and in Stripe that the link has a payment limit of 1',
+                     'iPhone 13 128GB Good (£209), iPhone 13 256GB Good (£239, none held: deactivate and clear it)',
+                     'set_prices.py --set', 'set_prices.py --check'):
+            self.assertIn(text, item)
+        self.assertNotIn('payment limit 0', item)
+        self.assertNotIn('units stock.js says you hold', item)
+        # the stock item comes before the price check it refers to as "next item"
+        self.assertLess(todo.index('Stripe: pay.js has 2'), todo.index('Stock: change stock.js'))
+        self.assertLess(todo.index('Stock: change stock.js'), todo.index('Stripe prices: '))
+        # set_prices.py --check lists the links too, and go_live.py reads none of that list as a blocker
+        self.assertNotIn('PAYMENT LINKS', out)
+        # a pay.js set_prices.py can't read in full (here, a comment after a link) is a launch blocker, never a missed link
+        good = read(self.site, 'pay.js')
+        edit(self.site, 'pay.js', '"https://buy.stripe.com/test_fullbars_256",', '"https://buy.stripe.com/test_fullbars_256", // 0 held')
+        found = go_live.run_set_prices_check(self.site)
+        self.assertTrue(any(f.startswith('set_prices.py: needs a hand edit: pay.js isn\'t laid out the way this tool reads it')
+                            and 'pay.js line ' in f for f in found), found)
+        write(self.site, 'pay.js', good)
+        edit(self.site, 'products/iphone-13.html', '&quot;Good&quot;:209}', '&quot;Good&quot;:199}')   # a hand edit
+        found = go_live.run_set_prices_check(self.site)
+        self.assertTrue(found and all('PAYMENT LINKS' not in f and 'buy.stripe.com' not in f for f in found), found)
+        # Shopify route: no Payment Links, so no such item (on a fresh copy)
+        self.tearDown()
+        self.setUp()
+        self.ready(checkout='shopify')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--dry-run')
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertNotIn('Stripe prices:', out)
+        self.assertNotIn('Limit the number of payments', out)
+
+    def test_payment_link_docs_say_how_links_are_priced_and_limited(self):
+        """GO-LIVE.md and pay.js's header: each link at the site's price, one link per unit with a payment limit of 1 so
+        Stripe deactivates it once that payment has completed (and no more than the docs say: a checkout already open
+        isn't ruled out, so each payment is checked against stock.js), quantity fixed at 1, still cleared from pay.js and
+        stock.js after a sale; a price change needs a new link; automatic tax off under the margin scheme; pay.js kept
+        one entry per line; section 7 checks every Buy now price after deploying. Section 1 no longer says links are
+        switched off by hand."""
+        with open(GOLIVE, encoding='utf-8') as fh:
+            md = fh.read()
+        self.assertNotIn('switched off by hand', md)
+        decide = md.split('## 1. Decide first')[1].split('\n2. **VAT')[0]
+        for text in ('"Limit the number of payments" set to 1', 'Stripe deactivates it once that payment has completed',
+                     'check each payment against `stock.js` before dispatch',
+                     'you still clear the link from `pay.js` and lower `stock.js` by hand',
+                     'a Payment Link charges the price it was made with', '`set_prices.py` lists them'):
+            self.assertIn(text, decide)
+        prices = md.split('6. **Prices.**')[1].split('7. **Trade-in prices**')[0]
+        self.assertIn('a Payment Link in `pay.js` for a price you changed', prices)
+        self.assertIn('**Static route, once `pay.js` has Payment Links:**', prices)
+        step1 = md.split('## 6. If you stay on the static site')[1].split('\n2. **`stock.js`')[0]
+        for text in ('exactly the site\'s price for that storage and condition, VAT included',
+                     'A Stripe price\'s amount can\'t be changed', 'keep the quantity fixed at 1',
+                     'tick **Limit the number of payments** and enter 1', 'deactivates the link by itself once that '
+                     'payment has completed', 'check each Stripe payment against `stock.js` before dispatch, and refund '
+                     'any payment for a phone already sold', 'leave Stripe\'s automatic tax off', '**Layout.**',
+                     'make a new link for it (same price and settings, payment limit 1)',
+                     'still clear its entry in `pay.js` and lower its count in `stock.js`', '`set_prices.py --set`',
+                     '`set_prices.py --check` lists every link', 'Stripe\'s API refuses any request without your API key',
+                     'Stripe adds VAT on top of the site\'s price'):
+            self.assertIn(text, step1)
+        launch = md.split('## 7. Launch day switches')[1].split('**Sources.**')[0]
+        line = launch.split('- [ ] **Static route: every Buy now charges the site\'s price.**')[1].split('\n')[0]
+        for text in ('open every Buy now button on the live site', 'The Stripe page must show the same price as the button',
+                     '"Limit the number of payments" ticked, set to 1', 'Nothing in this folder can check it for you'):
+            self.assertIn(text, line)
+        for text in ('so it can\'t take a second payment', 'units you hold for that storage and condition',
+                     'lower the link\'s limit', 'Stripe switches it off after that sale', 'payment limit it should have'):
+            self.assertNotIn(text, md)
+        sources = md.split('**Sources.**')[1]
+        for url in ('https://docs.stripe.com/payment-links/customize', 'https://docs.stripe.com/products-prices/manage-prices',
+                    'https://docs.stripe.com/api/authentication'):
+            self.assertIn(url, sources)
+        self.assertIn('checked only through search results', sources.split('docs.stripe.com/payment-links/customize')[1])
+        with open(os.path.join(SITE, 'pay.js'), encoding='utf-8') as fh:
+            pay = fh.read()
+        header = pay[:pay.index('window.FULLBARS_PAY')]
+        self.assertNotIn('limit quantity to 1', header)
+        for text in ('exactly the site\'s price', 'A Stripe price can\'t be changed', 'set_prices.py --set',
+                     'keep the quantity fixed at 1', 'ONE LINK PER UNIT', '\'Limit the number of payments\' and enter 1',
+                     'deactivates the link once that payment has completed',
+                     'check each Stripe payment against stock.js before dispatch, and refund any payment for a phone already sold',
+                     'VAT margin scheme', 'leave Stripe\'s automatic tax off', 'LAYOUT: keep one entry per line',
+                     'still clear its link here and lower its count in stock.js',
+                     'check Stripe\'s page shows the same price as the button'):
+            self.assertIn(text, ' '.join(header.split()), text)
+        for text in ('so it can\'t take a second payment', 'lower the link\'s limit', 'the units you hold'):
+            self.assertNotIn(text, ' '.join(header.split()), text)
+        # the header is a comment: every entry is still read, and still empty in the preview
+        self.assertEqual(len(go_live.pay_links(pay)), 183)
+        self.assertFalse([k for k, v in go_live.pay_links(pay) if v])
+
 
 class UnitTest(unittest.TestCase):
     def test_segments_decode_and_map_back(self):

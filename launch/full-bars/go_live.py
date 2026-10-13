@@ -324,6 +324,24 @@ def pay_links(src):
     return re.findall(r'^\s*"([^"]+)":\s*"([^"]*)",?\s*$', body, re.M)
 
 
+def pay_prices(files):
+    """{pay.js key: the site's price} for every storage and condition on every product page's #picker, keyed as
+    site.js looks a Payment Link up: data-model + ' ' + storage + ' ' + condition ("iPhone 13 128GB Good")."""
+    prices = {}
+    for rel, tag, _ in pickers(files):
+        try:
+            for st, g in json.loads(attr(tag, 'data-prices') or '{}').items():
+                for gr, p in g.items():
+                    prices[f'{attr(tag, "data-model")} {st} {gr}'] = p
+        except (ValueError, AttributeError):
+            pass   # check_site_prices.py reports this
+    return prices
+
+
+def gbp(v):
+    return f'£{v:,}' if isinstance(v, int) and not isinstance(v, bool) else f'£{v}'
+
+
 def page_handle(rel):
     """products/iphone-13.html -> iphone-13: the Shopify URL handle build_shopify_csv.py gives that page's product."""
     return rel.rsplit('/', 1)[-1][:-len('.html')]
@@ -533,6 +551,27 @@ def picker_combos(tag):
         return {f'{st}|{gr}' for st, g in json.loads(attr(tag, 'data-prices') or '{}').items() for gr in g}
     except (ValueError, AttributeError):
         return set()   # check_site_prices.py reports a broken data-prices
+
+
+def pay_units(files):
+    """{pay.js key: units held} from stock.js, or else a page's older data-stock, as site.js reads them, so the checklist
+    can name a Payment Link for a storage and condition you hold none of. (Every link's payment limit is 1: one link per
+    unit.) A phone with no stock data, or with stock data that can't be read, is left out."""
+    sj, _ = read_stock_js(files)
+    out = {}
+    for rel, tag, _ in pickers(files):
+        stock = sj.get(page_handle(rel)) if isinstance(sj, dict) else None
+        if not isinstance(stock, dict):
+            try:
+                stock = json.loads(attr(tag, 'data-stock') or 'null', parse_constant=_no_constant)
+            except ValueError:
+                stock = None
+        if not isinstance(stock, dict):
+            continue
+        for k in picker_combos(tag):
+            v = stock.get(k)
+            out[f'{attr(tag, "data-model") or ""} {k.replace("|", " ")}'] = int(v) if whole_count(v) else 0
+    return out
 
 
 def picker_form(src):
@@ -1094,14 +1133,7 @@ def find_blockers(site, files, opt):
             elif not v.startswith('https://buy.stripe.com/'):
                 warnings.append(f'pay.js "{k}" is not a buy.stripe.com link: fine only if it is your Stripe custom domain')
         cap = re.search(r"BUY_NOW_MAX\s*=\s*Number\('(\d+)'\)", files.get('site.js', ''))
-        prices = {}
-        for rel, tag, _ in pickers(files):
-            try:
-                for st, g in json.loads(attr(tag, 'data-prices') or '{}').items():
-                    for gr, p in g.items():
-                        prices[f'{attr(tag, "data-model")} {st} {gr}'] = p
-            except (ValueError, AttributeError):
-                pass   # check_site_prices.py reports this
+        prices = pay_prices(files)
         if cap:
             over = [k for k, v in filled if isinstance(prices.get(k), (int, float)) and prices[k] > int(cap.group(1))]
             if over:
@@ -2010,10 +2042,28 @@ def manual_items(opt, files):
                      'cancellation rights and form, on a durable medium such as email (GO-LIVE.md section 5, step 11).')
     elif opt.checkout == 'stripe':
         filled = [k for k, v in pay_links(files.get('pay.js', '')) if v.strip()]
-        items.append(f'Stripe: pay.js has {len(filled)} Payment Link(s). Deactivate the link in Stripe and clear it in pay.js the '
-                     'moment that phone sells.')
+        items.append(f'Stripe: pay.js has {len(filled)} Payment Link(s). One link per unit: each must have "Limit the number of '
+                     'payments" ticked (in the link\'s settings in Stripe) and set to 1, with the quantity fixed at 1, so Stripe '
+                     'deactivates it once that payment has completed. Even so, the moment a phone sells, still clear its link '
+                     'in pay.js and lower its count in stock.js (next item), then deploy: otherwise the page keeps a Buy now '
+                     'button that opens Stripe\'s deactivated-link message. If you hold another unit of that storage and '
+                     'condition, make a new link for it (same price and settings) and paste it in. Stripe\'s docs don\'t say '
+                     'what happens to a second checkout already open when the first one completes, so check each Stripe '
+                     'payment against stock.js before dispatch and refund any payment for a phone already sold '
+                     '(GO-LIVE.md section 6, step 1).')
         items.append(f'Stock: change {STOCK_JS} (and only {STOCK_JS}) the moment a phone sells or arrives: units held per storage '
                      'and condition for each phone (GO-LIVE.md section 6, step 2). Then deploy the site to your web host again.')
+        prices, units = pay_prices(files), pay_units(files)
+        listed = ', '.join((f'{k} ({gbp(prices[k])}' + (', none held: deactivate and clear it)' if units.get(k) == 0 else ')'))
+                           if k in prices else f'{k} (no such phone on the site)' for k in filled)
+        items.append('Stripe prices: a Payment Link charges the price it was made with, and nothing here can read it (Stripe\'s '
+                     'API refuses any request without your API key, which must never be in this repo). After every deploy, open every Buy now '
+                     'button on the live site and check the Stripe page shows the same price as the button, and in Stripe '
+                     'that the link has a payment limit of 1. Each link should charge the site\'s price: '
+                     f'{listed or "none yet"}. A link at any other price: deactivate it, make a new one at the site\'s price '
+                     'with the same settings and paste it into pay.js. Change prices only with set_prices.py --set, which '
+                     'lists every changed price that has a link; set_prices.py --check lists them all (GO-LIVE.md section 6, '
+                     'step 1, and section 7).')
         items.append('Order confirmation: send launch/full-bars/order-confirmation-email.md, filled in, as the confirmation '
                      'email for every order (Stripe\'s receipt doesn\'t carry the cancellation rights and form). Decide the '
                      'IMEI question at the top of that file first. Send one to yourself from a test order before launch '
