@@ -386,7 +386,9 @@ code, kbd { font: 500 .9em/1.5 var(--mono); background: var(--surface-3); color:
 .opt.na span small::after { content: " \00B7  not in stock"; }
 .stock-note { font-size: 14px; color: var(--ink-2); margin: 8px 0 16px; padding-left: 12px; border-left: 2px solid var(--accent-line); }
 .buy-note { font-size: 14px; color: var(--ink); background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 14px; margin: 0 0 12px; }
-.buy-note[hidden], .stock-note[hidden], #emailNote[hidden] { display: none; }
+.buy-note[hidden], .stock-note[hidden], #emailNote[hidden], .handoff-note[hidden] { display: none; }
+/* Shopify route: under the Order button when the chosen phone has no Shopify variant ID (site.js shows it) */
+.handoff-note { margin: 10px 0 0; }
 .model-advice .faq { margin-top: 8px; }
 .opt.swatch span { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
 .opt.swatch i { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 0 1px var(--swatch-ring); flex: none; }
@@ -422,6 +424,13 @@ select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 textarea { min-height: 150px; resize: vertical; }
 .result-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 10px; margin-bottom: 14px; font-size: 14px; color: var(--ink-2); }
 .shop-note { margin: -4px 0 18px; }
+/* "Every phone is a one-off" beside each list of "from" prices, and the stock notes site.js adds from stock.js */
+.oneoff-note { max-width: 80ch; margin: 0 0 16px; }
+.section-head + .oneoff-note { margin-top: -12px; }
+.shop-note + .oneoff-note { margin-top: -8px; }
+.pd-config + .oneoff-note { margin: -6px 0 12px; }
+.card-stock { margin: 6px 0 0; font-size: 12.5px; line-height: 1.35; color: var(--ink-2); }
+.tile-stock { font-style: normal; font-size: 12.5px; color: var(--ink-2); }
 .empty { display: none; padding: 30px; text-align: center; background: var(--surface); border: 1px dashed var(--line-2); border-radius: var(--radius); }
 .empty.show { display: block; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }

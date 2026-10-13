@@ -17,6 +17,22 @@
     try { var v = JSON.parse(raw); return v && typeof v === 'object' ? v : null; }
     catch (e) { if (window.console) console.warn('Full Bars: ' + name + ' is not valid JSON, so it is ignored', e); return null; }
   }
+  function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+
+  /* ---------- stock (stock.js) ----------
+     stock.js sets window.FULLBARS_STOCK = { "iphone-13": { "128GB|Good": 2, ... }, ... }: for each product handle (its
+     page name), the units held per storage and condition. A handle that isn't there has no stock data. stock.js is
+     loaded before this script; if it is missing or broken, this is {} and nothing changes. */
+  var STOCK = isObj(window.FULLBARS_STOCK) ? window.FULLBARS_STOCK : {};
+  function stockFor(handle) {
+    var v = handle && Object.prototype.hasOwnProperty.call(STOCK, handle) ? STOCK[handle] : null;
+    return isObj(v) ? v : null;
+  }
+  /* a count that means units held: a whole number above 0 */
+  function held1(n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n && n > 0; }
+  function anyHeld(map) { return Object.keys(map).some(function (k) { return held1(map[k]); }); }
+  /* "iphone-13" from a link or address such as ../products/iphone-13.html */
+  function handleOf(href) { var m = /(?:^|\/)products\/([a-z0-9-]+)\.html(?:[?#]|$)/.exec(href || ''); return m ? m[1] : ''; }
 
   /* ---------- web fonts ----------
      Each page loads the Google Fonts stylesheet with media="print" so a slow or blocked fonts server can't hold
@@ -120,8 +136,9 @@
      Static route: the Order button goes to the contact page with the chosen phone filled in. If pay.js has a
      Stripe Payment Link for "<model> <storage> <grade>", the button becomes "Buy now" instead.
      Shopify route: go_live.py puts data-shop="https://<shop>/products/<handle>" on #picker. The Order button then
-     always goes to that Shopify product (Shopify picks the variant and holds the stock), and no email-order
-     (contact.html?order=) or Payment Link is ever built on that page, so the same phone can't be sold twice. */
+     always goes to that Shopify product (Shopify holds the stock), with ?variant=<id> when data-variants has an ID
+     for the storage, condition and colour chosen, and no email-order (contact.html?order=) or Payment Link is ever
+     built on that page, so the same phone can't be sold twice. */
   /* The picker's fieldsets ship disabled, so without this script (JavaScript off, or site.js failing to load) the
      ticked options can't be changed and always match the price shown. They are enabled below, once the script has
      taken over; if data-prices can't be read they stay disabled. Disabled rather than hidden: no layout shift. */
@@ -142,16 +159,19 @@
     var model = picker.getAttribute('data-model');
     var contactUrl = picker.getAttribute('data-contact');
     var grades = dataJSON(picker, 'data-grades') || {};
-    /* data-stock goes on the product page's #picker form once there is real stock: { "128GB|Good": 2, ... }, the
-       number of units held for each storage and condition (colour isn't tracked). A missing key, 0 or anything
-       that isn't a whole number above 0 means not in stock. Without data-stock, every option counts as available
-       and no 'not in stock' note is shown (go_live.py won't launch the static route like that). If it isn't valid
-       JSON it is ignored (with a console warning), so a typo can't freeze the price. */
-    var stock = dataJSON(picker, 'data-stock');
-    function inStock(key) {
-      var n = stock[key];
-      return typeof n === 'number' && isFinite(n) && Math.floor(n) === n && n > 0;
-    }
+    /* Stock: this phone's entry in stock.js (keyed by the handle in the page's canonical address), or else the
+       page's own data-stock attribute (the older place; stock.js wins when both are there). Either way it is
+       { "128GB|Good": 2, ... }, the number of units held for each storage and condition (colour isn't tracked).
+       A missing key, 0 or anything that isn't a whole number above 0 means not in stock. With neither, every
+       option counts as available and no 'not in stock' note is shown (go_live.py won't launch the static route
+       like that). A data-stock that isn't valid JSON is ignored (with a console warning), so a typo can't freeze
+       the price. */
+    var canon = $('link[rel="canonical"]');
+    var stock = stockFor(handleOf(canon && canon.getAttribute('href')) || handleOf(location.pathname)) || dataJSON(picker, 'data-stock');
+    function inStock(key) { return held1(stock[key]); }
+    /* Shopify route: data-variants (written by go_live.py --shop-variants) maps "storage|condition|colour" to that
+       phone's Shopify variant ID, so the Order button can open Shopify on exactly the phone chosen here. */
+    var variants = dataJSON(picker, 'data-variants') || {};
     /* Shopify route (see above). Only an https:// address is used; any other value is ignored with a warning,
        and the page still never offers an email order or a Payment Link. */
     var shopAttr = picker.getAttribute('data-shop');
@@ -160,6 +180,7 @@
     if (shopMode && !shopUrl && window.console) console.warn('Full Bars: data-shop is not an https:// address, so the Order button only offers a question');
     var priceEl = $('#pdPrice'), orderBtn = $('#orderBtn'), lineEl = $('#selLine'), gradeNote = $('#gradeNote');
     var buyNote = $('#buyNote'), stockNote = $('#stockNote'), emailNote = $('#emailNote'), fromEl = $('#pdFrom');
+    var handoffNote = $('#handoffNote');
     /* the lowest price across every option, and which option it is: the 'from' price the cards show */
     var minP = null, minSt = '', minGr = '';
     Object.keys(prices).forEach(function (s) {
@@ -229,13 +250,24 @@
       /* never a Payment Link on a Shopify-route page */
       var link = shopMode ? '' : PAY[model + ' ' + st + ' ' + gr];
       var buyNow = !preview && held && link && /^https:\/\//.test(link) && price <= BUY_NOW_MAX;
+      var handoff = false;
       if (preview) {
         orderBtn.textContent = 'Opening soon';
       } else if (shopMode && held && shopUrl) {
-        /* Shopify route: the product's Shopify page; the customer picks storage, condition and colour there */
-        orderBtn.setAttribute('href', shopUrl);
+        /* Shopify route. With a variant ID for this storage, condition and colour, open Shopify on exactly that phone
+           (?variant=), at the price shown here. Without one, Shopify would open on its own first variant, perhaps at
+           another price, so the button names no price and the note under it says they'll choose again there. */
+        var vid = variants[st + '|' + gr + '|' + co];
+        vid = vid == null ? '' : String(vid);
         orderBtn.setAttribute('rel', 'noopener');
-        orderBtn.textContent = 'Order — ' + gbp(price);
+        if (/^[0-9]+$/.test(vid)) {
+          orderBtn.setAttribute('href', shopUrl + (shopUrl.indexOf('?') < 0 ? '?' : '&') + 'variant=' + vid);
+          orderBtn.textContent = 'Order — ' + gbp(price);
+        } else {
+          orderBtn.setAttribute('href', shopUrl);
+          orderBtn.textContent = 'Choose and pay on the next page';
+          handoff = true;
+        }
       } else if (shopMode && held) {
         orderBtn.setAttribute('href', contactUrl + '?ask=' + encodeURIComponent(label) + '#form');
         orderBtn.removeAttribute('rel');
@@ -257,6 +289,9 @@
       if (buyNote) buyNote.hidden = !buyNow;
       if (stockNote) stockNote.hidden = buyNow;
       if (emailNote) emailNote.hidden = buyNow;
+      if (handoffNote) handoffNote.hidden = !handoff;
+      /* screen readers hear the note with the button it explains */
+      if (handoff && handoffNote) orderBtn.setAttribute('aria-describedby', 'handoffNote'); else orderBtn.removeAttribute('aria-describedby');
     }
     picker.addEventListener('change', function () { update(); rememberPick(); });
     update();
@@ -273,6 +308,29 @@
       askBtn.textContent = 'Common questions';
     }
   }
+
+  /* ---------- "None in stock right now" on cards and range tiles ----------
+     Only for phones stock.js lists with no units at all. A phone it doesn't list says nothing (no stock data), and
+     the card stays in place either way, with its "from" price (the lowest price of any option, held or not). */
+  var NONE_IN_STOCK = 'None in stock right now';
+  $all('article.card').forEach(function (card) {
+    var a = $('a[href]', card), map = stockFor(handleOf(a && a.getAttribute('href'))), body = $('.card-body', card);
+    if (!map || anyHeld(map) || !body || $('.card-stock', body)) return;
+    var p = document.createElement('p');
+    p.className = 'card-stock';
+    p.textContent = NONE_IN_STOCK;
+    body.appendChild(p);
+  });
+  /* a range tile (home page) lists its phones in data-handles: the note shows only when stock.js lists every one of
+     them, with no units */
+  $all('a.tile[data-handles]').forEach(function (tile) {
+    var hs = tile.getAttribute('data-handles').split(/\s+/).filter(Boolean);
+    if (!hs.length || $('.tile-stock', tile) || !hs.every(function (h) { var m = stockFor(h); return m && !anyHeld(m); })) return;
+    var em = document.createElement('em');
+    em.className = 'tile-stock';
+    em.textContent = NONE_IN_STOCK;
+    tile.appendChild(em);
+  });
 
   /* ---------- shop filters ---------- */
   var filters = $('#filters'), grid = $('#shopGrid');

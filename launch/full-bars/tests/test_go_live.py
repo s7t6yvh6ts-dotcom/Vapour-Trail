@@ -125,9 +125,27 @@ def set_stock(site, rel, raw):
     write(site, rel, src.replace(tag, new, 1))
 
 
+def handles(site):
+    return [r[len('products/'):-len('.html')] for r in product_pages(site)]
+
+
+def set_stock_js(site, entries=None, raw=None):
+    """Write stock.js as Ash would: its header kept, then the entries as JSON (or raw text after the header)."""
+    src = read(site, 'stock.js')
+    head = src[:src.rindex('window.FULLBARS_STOCK =')]
+    body = raw if raw is not None else 'window.FULLBARS_STOCK = ' + json.dumps(entries or {}, indent=2) + ';\n'
+    write(site, 'stock.js', head + body)
+
+
 def add_stock(site):
-    """data-stock on every product page, as Ash adds it on the static route: nothing held, except one iPhone 13
-    128GB Good (the phone with the test Payment Link)."""
+    """stock.js for every phone, as Ash fills it on the static route: nothing held, except one iPhone 13 128GB Good
+    (the phone with the test Payment Link)."""
+    set_stock_js(site, {h: ({'128GB|Good': 1} if h == 'iphone-13' else {}) for h in handles(site)})
+
+
+def add_page_stock(site):
+    """The older way: data-stock on every product page (and stock.js empty)."""
+    set_stock_js(site, {})
     for rel in product_pages(site):
         set_stock(site, rel, '{"128GB|Good": 1}' if rel == 'products/iphone-13.html' else '{}')
 
@@ -249,7 +267,7 @@ class GoLiveTest(unittest.TestCase):
         self.assertIn('- In both cases the contract is made when we email to confirm your order has been accepted. (1 place)', out)
         code, out = self.run_tool(*shop, '--allow-preview-wording', rewrites=False)
         self.assertEqual(code, 3, out)
-        self.assertIn('NOT READY TO PUBLISH', out)
+        self.assertIn('NOT READY TO GO LIVE', out)
         self.fill_rewrites(checkout='shopify')
         code, out = self.run_tool(*shop)
         self.assertEqual(code, 0, out)
@@ -431,7 +449,8 @@ class GoLiveTest(unittest.TestCase):
         # Ash can choose to switch anyway: written, but it says plainly it isn't publishable (exit 3)
         code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--allow-preview-wording', rewrites=False)
         self.assertEqual(code, 3, out[-3000:])
-        self.assertIn('RESULT: NOT READY TO PUBLISH.', out)
+        self.assertIn('RESULT: NOT READY TO GO LIVE.', out)
+        self.assertIn('before you deploy the site to your web host.', out)
         self.assertIn('Preview prices: we&rsquo;re not taking orders yet.', read(self.site, 'products/iphone-13.html'))
         self.assertNotIn('preview-bar', read(self.site, 'products/iphone-13.html'))
 
@@ -707,7 +726,9 @@ class GoLiveTest(unittest.TestCase):
             tag = picker_tag(src)
             self.assertIn(f' data-shop="{url}"', tag, rel)
             self.assertNotIn('data-preview', tag, rel)
-            self.assertIn(f'<a class="btn btn-hot btn-block" id="orderBtn" href="{url}">Order</a>', src, rel)
+            self.assertIn(f'<a class="btn btn-hot btn-block" id="orderBtn" href="{url}" aria-describedby="handoffNote">'
+                          'Choose and pay on the next page</a>', src, rel)
+            self.assertIn('<p class="small handoff-note" id="handoffNote">You&rsquo;ll pick storage', src, rel)
         for rel in html_files(self.site):
             self.assertNotIn('?order=', read(self.site, rel), rel)
         contact = read(self.site, 'contact.html')
@@ -808,7 +829,9 @@ class GoLiveTest(unittest.TestCase):
         self.assertEqual(snapshot(self.site), before)
 
     def test_stock_validation_and_blockers(self):
+        """The older per-page data-stock is still read and checked (stock.js empty here)."""
         self.ready()
+        add_page_stock(self.site)
         stripe = ('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
         set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 1.5, "256GB|Good": "2", "512GB|Good": true, "128GB|Excellent": -1}')
         set_stock(self.site, 'products/iphone-14.html', '{"128GB|Good|Blue": 1}')
@@ -822,7 +845,8 @@ class GoLiveTest(unittest.TestCase):
         self.assertIn('products/iphone-14.html:84: data-stock key(s) with a colour in them: 128GB|Good|Blue', out)
         self.assertIn('products/iphone-15.html:84: data-stock key(s) that aren\'t a storage and condition on this page: 128GB|Mint', out)
         self.assertIn('products/pixel-8.html:84: data-stock is not valid JSON', out)
-        self.assertIn('data-stock is missing on 1 of 19 product pages (products/galaxy-s23.html)', out)
+        self.assertIn('no stock data for 1 of 19 product pages (products/galaxy-s23.html): neither stock.js nor the page\'s '
+                      'data-stock says what you hold', out)
         # the right format passes: units per storage and condition, any whole number, {} = none held
         set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 2, "256GB|Very Good": 0}')
         for rel in ('products/iphone-14.html', 'products/iphone-15.html', 'products/pixel-8.html', 'products/galaxy-s23.html'):
@@ -849,14 +873,15 @@ class GoLiveTest(unittest.TestCase):
         set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 0}')
         code, out = self.run_tool(*stripe)
         self.assertEqual(code, 0, out)
-        self.assertIn('pay.js has Payment Link(s) for phones data-stock says you don\'t hold', out)
+        self.assertIn('pay.js has Payment Link(s) for phones your stock data says you don\'t hold', out)
         # Shopify: Shopify's stock decides, so no data-stock is fine, and data-stock that is there gets a warning
         edit(self.site, 'pay.js', LINK, '')
         self.fill_rewrites(checkout='shopify')
         shopify = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--check-only')
         code, out = self.run_tool(*shopify)
         self.assertEqual(code, 0, out)
-        self.assertIn('19 product page(s) have data-stock. On the Shopify route Shopify\'s own stock decides', out)
+        self.assertIn('19 product page(s) have stock data (stock.js or data-stock). On the Shopify route Shopify\'s own '
+                      'stock decides', out)
         for rel in product_pages(self.site):
             set_stock(self.site, rel, None)
         code, out = self.run_tool(*shopify)
@@ -895,16 +920,18 @@ class GoLiveTest(unittest.TestCase):
                    'Some phones will also have a Buy now button: those have all original manufacturer parts, and we’ll confirm '
                    'the exact battery health and colour by email within one working day of payment, with a full refund if we '
                    'can’t match your choice.']
-        for text in terms3 + faq_pay + [stripe_line, 'Contact Us & Order by Email | Full Bars', 'subject to stock; we confirm before you pay',
+        terms2 = ('On an email order we confirm the colour and grade before you pay; if you pay straight away online, we '
+                  'confirm them by email within one working day, and if we can’t match your choice, we refund you in full.')
+        for text in terms3 + faq_pay + [stripe_line, terms2, 'Contact Us & Order by Email | Full Bars',
                                         'For orders: the phone, storage, grade and colour, your delivery address and a phone number for the courier.',
                                         'Phones with any replaced part are sold by email order only, never through a Buy now button.',
                                         'Card payments will be handled by Stripe; we will never see or store your card details.']:
             self.assertIn(f': {text}\n', checkout_part)
-        # "ask when you order" promises: on Shopify, ordering is paying, so "before you pay" can't be kept as worded.
-        # The photos answer is in the page and in the FAQ structured data; the battery answer on the FAQ and home page.
-        photos = 'If you’d like photos of the exact phone you’re buying, ask when you order and we’ll send them before you pay.'
-        self.assertRegex(checkout_part, re.escape(f'- 1 file: {photos}\n') + r'      at faq\.html:28, faq\.html:\d+\n')
-        self.assertRegex(checkout_part, r'- 2 files: Ask when you order\.\n      at faq\.html:28, faq\.html:\d+, index\.html:\d+\n')
+        # R8: the photos and battery answers and the colour note now hold on every route ("ask us before you order",
+        # "confirmed by email"), so they aren't listed; nor is terms section 3's online-ordering paragraph (regulation 9)
+        for text in ('ask us before you order', 'Ask us before you order', 'confirmed by email', 'If you buy online, these are the steps',
+                     'The contract is in English only', 'Every phone is a one-off'):
+            self.assertNotIn(text, checkout_part)
         # the FAQ answer's other two sentences are preview wording, listed (and rewritten) with the rest of it
         for text in ('Once we open, by card through a secure Stripe payment page; we’ll never see or store your card details.',
                      'We’re not taking payments yet.'):
@@ -915,10 +942,10 @@ class GoLiveTest(unittest.TestCase):
         self.assertNotIn('Buy now phones have all original manufacturer parts.', todo)
         with open(tpl, encoding='utf-8') as fh:
             keys = json.load(fh)
-        for text in terms3 + faq_pay + [stripe_line, photos, 'Ask when you order.']:
+        for text in terms3 + faq_pay + [stripe_line, terms2]:
             self.assertIn(text, keys)
         # keep a sentence that is still true on Shopify by giving it its own text: listed as kept, not changed
-        keep = 'Colour and grade availability is subject to stock and confirmed before you pay.'
+        keep = terms2
         data = {k: (k if k == keep else f'Shopify line {i}.') for i, k in enumerate(keys)}
         # privacy.html's quote-tool line already matches cookies.html, so there is no reminder about it
         self.rw = self.write_rewrites(data, 'shopify-filled.json')
@@ -926,13 +953,21 @@ class GoLiveTest(unittest.TestCase):
         self.assertEqual(code, 0, out[-3000:])
         self.assertIn('for this tab only', html.unescape(read(self.site, 'privacy.html')))
         self.assertNotIn('privacy.html still says', out)
-        self.assertIn(keep, read(self.site, 'terms.html'))
+        self.assertIn(keep, html.unescape(read(self.site, 'terms.html')))
         self.assertIn('Checkout wording you kept as it is', out)
         self.assertIn(f': {keep}\n', out.split('Checkout wording you kept as it is')[1])
         self.assertIn('Shopify line', read(self.site, 'faq.html'))
         faq = read(self.site, 'faq.html')
-        self.assertNotIn('ask when you order', faq.lower())   # gone from the page text and the structured data
-        self.assertEqual(len(re.findall(r'Shopify line \d+\.', ld_blocks(faq)[0]['mainEntity'][2]['acceptedAnswer']['text'])), 1)
+        self.assertNotIn('ask when you order', faq.lower())
+        # the photos answer (page and structured data) was already true on Shopify, so it is untouched
+        self.assertNotIn('Shopify line', ld_blocks(faq)[0]['mainEntity'][2]['acceptedAnswer']['text'])
+        self.assertIn('ask us before you order and we’ll send them.', ld_blocks(faq)[0]['mainEntity'][2]['acceptedAnswer']['text'])
+        pay = [q for q in ld_blocks(faq)[0]['mainEntity'] if q['name'] == 'How do I pay?'][0]['acceptedAnswer']['text']
+        self.assertEqual(len(re.findall(r'Shopify line \d+\.', pay)), 4)   # every sentence: Stripe, email order, Buy now, preview
+        # terms section 3's online-ordering paragraph (E-Commerce Regulations 2002, reg 9) survives the Shopify rewrite
+        terms = html.unescape(read(self.site, 'terms.html'))
+        self.assertIn('If you buy online, these are the steps:', terms)
+        self.assertIn('The contract is in English only.', terms)
         # preview wording can't be "kept": mapping it to itself still blocks
         shutil.rmtree(self.site)
         shutil.copytree(SITE, self.site, ignore=shutil.ignore_patterns('*.png'))
@@ -942,6 +977,291 @@ class GoLiveTest(unittest.TestCase):
         code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--dry-run')
         self.assertEqual(code, 1, out[-3000:])
         self.assertIn('preview wording would still be on the live pages: 1 piece(s) of text in 2 place(s)', out)
+
+    # ------------------------------------------------------------------ R8: stock.js, Shopify variants, Buy now wording, hosting
+    def test_stock_js_is_the_one_place(self):
+        """stock.js holds the static route's stock: checked like data-stock, and a phone missing from it (with no
+        data-stock either) blocks the Stripe route."""
+        self.ready()
+        stripe = ('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out)
+        self.assertNotIn('stock', out.split('BLOCKERS')[-1].lower().replace('blockers: none', ''))
+        good = {h: {} for h in handles(self.site)}
+        good['iphone-13'] = {'128GB|Good': 1, '256GB|Very Good': 2}
+        # every kind of mistake, reported by name
+        bad = dict(good)
+        bad['iphone-99'] = {'128GB|Good': 1}
+        bad['iphone-14'] = {'128GB|Good|Blue': 1, '128GB|Mint': 1, '256GB|Good': 1.5, '512GB|Good': '2', '128GB|Excellent': -1}
+        bad['pixel-8'] = [1]
+        del bad['galaxy-s23']
+        set_stock_js(self.site, bad)
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out)
+        self.assertIn('stock.js: "iphone-99" is not a product page (there is no products/iphone-99.html)', out)
+        self.assertIn('stock.js "iphone-14" key(s) with a colour in them: 128GB|Good|Blue', out)
+        self.assertIn('stock.js "iphone-14" key(s) that aren\'t a storage and condition on that phone\'s page: 128GB|Mint', out)
+        self.assertIn('stock.js "iphone-14" count(s) that aren\'t a whole number of units (0 or more): "256GB|Good": 1.5, '
+                      '"512GB|Good": "2", "128GB|Excellent": -1', out)
+        self.assertIn('stock.js: "pixel-8" must be its storage and condition counts in braces', out)
+        self.assertIn('no stock data for 2 of 19 product pages (products/galaxy-s23.html, products/pixel-8.html)', out)
+        # not JSON (single quotes), NaN, and anything after the list: refused with the reason
+        for raw, why in (("window.FULLBARS_STOCK = {'iphone-13': {}};\n", 'Expecting property name enclosed in double quotes'),
+                         ('window.FULLBARS_STOCK = {"iphone-13": {"128GB|Good": NaN}};\n', 'NaN isn\'t allowed in JSON'),
+                         ('window.FULLBARS_STOCK = {};\nwindow.x = 1;\n', 'has something after the stock list')):
+            set_stock_js(self.site, raw=raw)
+            code, out = self.run_tool(*stripe)
+            self.assertEqual(code, 1, out)
+            self.assertIn(why, out)
+        # comments and trailing commas are fine (they're fine in JavaScript too)
+        body = ',\n'.join(f'  "{h}": {json.dumps(v)}' for h, v in good.items())
+        set_stock_js(self.site, raw='window.FULLBARS_STOCK = {\n  // what we hold\n' + body + ',\n};\n')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out)
+        # data-stock still fills a gap for a page stock.js doesn't list; where both exist stock.js wins, with a warning
+        del good['galaxy-s23']
+        set_stock_js(self.site, good)
+        set_stock(self.site, 'products/galaxy-s23.html', '{"128GB|Good": 1}')
+        set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 5}')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out)
+        self.assertIn('1 product page(s) have data-stock as well as an entry in stock.js: products/iphone-13.html. stock.js wins', out)
+        # the Payment Link's phone: stock.js says 1 held, so no warning; at 0 the link is flagged even though data-stock says 5
+        self.assertNotIn('your stock data says you don\'t hold', out)
+        good['iphone-13'] = {'128GB|Good': 0}
+        set_stock_js(self.site, good)
+        code, out = self.run_tool(*stripe)
+        self.assertIn('pay.js has Payment Link(s) for phones your stock data says you don\'t hold, so the page shows "Not in '
+                      'stock" and never offers them: iPhone 13 128GB Good', out)
+        # a product page that doesn't load stock.js would never see its stock: a blocker
+        edit(self.site, 'products/pixel-8.html', '<script src="../stock.js" defer></script>\n', '\n')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out)
+        self.assertIn('1 product page(s) have stock in stock.js but don\'t load it before site.js, so site.js never sees it: '
+                      'products/pixel-8.html', out)
+        edit(self.site, 'products/pixel-8.html', '<script src="../pay.js" defer></script>\n\n',
+             '<script src="../pay.js" defer></script>\n<script src="../stock.js" defer></script>\n')
+        # a missing stock.js is only a warning on Shopify (and stock data there is a warning too)
+        edit(self.site, 'pay.js', LINK, '')   # Shopify needs pay.js empty
+        for rel in ('products/galaxy-s23.html', 'products/iphone-13.html'):
+            set_stock(self.site, rel, None)
+        self.fill_rewrites(checkout='shopify')
+        shopify = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--check-only')
+        code, out = self.run_tool(*shopify)
+        self.assertEqual(code, 0, out)
+        self.assertIn('18 product page(s) have stock data (stock.js or data-stock). On the Shopify route', out)
+        os.remove(os.path.join(self.site, 'stock.js'))
+        code, out = self.run_tool(*shopify)
+        self.assertEqual(code, 0, out)
+        self.assertIn('the pages load stock.js, but the site folder has none', out)
+
+    def variants_file(self, pick=lambda h, i: True, name='variants.json', extra=None):
+        """A --shop-variants file as fetch_shopify_variants.py writes it, with made-up IDs for every option on the pages
+        (pick(handle, i) chooses which to include)."""
+        data, n = {}, 44000000000000
+        for rel in product_pages(self.site):
+            src = read(self.site, rel)
+            tag = picker_tag(src)
+            h = rel[len('products/'):-len('.html')]
+            keys = sorted(f'{c}|{col}' for c in go_live.picker_combos(tag) for col in go_live.picker_colours(src))
+            for i, k in enumerate(keys):
+                n += 1
+                if pick(h, i):
+                    data.setdefault(h, {})[k] = str(n)
+        data.update(extra or {})
+        path = os.path.join(self.tmp, name)
+        with open(path, 'w', encoding='utf-8') as fh:
+            json.dump(data, fh)
+        return path, data
+
+    def test_shop_variants_open_the_chosen_phone(self):
+        """--shop-variants: each picker gets data-variants, the no-JavaScript Order link opens the variant ticked in the
+        HTML, a page with no IDs gets none, and every bad key or ID is refused."""
+        self.ready(checkout='shopify')
+        # iPhone 13: every variant; Pixel 8: every other one; the rest: none
+        path, data = self.variants_file(lambda h, i: h == 'iphone-13' or (h == 'pixel-8' and i % 2 == 0))
+        base = ('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
+        code, out = self.run_tool(*base, '--shop-variants', path)
+        self.assertEqual(code, 0, out[-3000:])
+        src = read(self.site, 'products/iphone-13.html')
+        tag = picker_tag(src)
+        self.assertEqual(json.loads(html.unescape(re.search(r' data-variants="([^"]*)"', tag).group(1))), data['iphone-13'])
+        self.assertEqual(go_live.picker_default(src), '128GB|Very Good|Blue')
+        vid = data['iphone-13']['128GB|Very Good|Blue']
+        self.assertIn(f'<a class="btn btn-hot btn-block" id="orderBtn" href="{SHOP}/products/iphone-13?variant={vid}">Order</a>', src)
+        self.assertIn('<p class="small handoff-note" id="handoffNote" hidden>', src)
+        self.assertIn(f' data-shop="{SHOP}/products/iphone-13"', tag)
+        self.assertNotIn('data-variants', picker_tag(read(self.site, 'products/iphone-12.html')))
+        # no ID for the phone ticked in the HTML: never "Order" beside our price, and the note under the button shows
+        self.assertIn(f'href="{SHOP}/products/iphone-12" aria-describedby="handoffNote">Choose and pay on the next page</a>',
+                      read(self.site, 'products/iphone-12.html'))
+        self.assertIn('<p class="small handoff-note" id="handoffNote">', read(self.site, 'products/iphone-12.html'))
+        # Pixel 8: every other variant has an ID; its link follows whether the ticked one does
+        px = read(self.site, 'products/pixel-8.html')
+        px_vid = data['pixel-8'].get(go_live.picker_default(px))
+        if px_vid:
+            self.assertIn(f'href="{SHOP}/products/pixel-8?variant={px_vid}">Order</a>', px)
+        else:
+            self.assertIn(f'href="{SHOP}/products/pixel-8" aria-describedby="handoffNote">Choose and pay on the next page</a>', px)
+        self.assertIn('--shop-variants has no variant IDs for 17 product page(s)', out)
+        self.assertIn('phone choices with no Shopify variant ID, whose Order button reads "Choose and pay on the next page"', out)
+        self.assertRegex(out, r'products/pixel-8\.html \(\d+ of \d+\)')
+        self.assertIn('Shopify variants: ', out.split('STILL TO DO BY HAND')[1])
+        # the variant instructions live in GO-LIVE.md section 5, step 13
+        self.assertIn('--shop-variants (GO-LIVE.md section 5, step 13)', out.split('STILL TO DO BY HAND')[1])
+        self.assertNotIn('--shop-variants (GO-LIVE.md section 7)', out)
+        # a rerun, with or without the file, changes nothing
+        before = snapshot(self.site)
+        for extra in ((), ('--shop-variants', path)):
+            code, out = self.run_tool(*base, *extra)
+            self.assertEqual(code, 0, out[-3000:])
+            self.assertIn('RESULT: done. 0 change(s) written to 0 file(s)', out)
+            self.assertEqual(snapshot(self.site), before)
+        # a new file without the iPhone 13: its data-variants goes and its link is the plain product again
+        path2, _ = self.variants_file(lambda h, i: h == 'pixel-8', name='variants2.json')
+        code, out = self.run_tool(*base, '--shop-variants', path2)
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('product picker: data-variants removed', out)
+        src = read(self.site, 'products/iphone-13.html')
+        self.assertNotIn('data-variants', picker_tag(src))
+        self.assertIn(f'href="{SHOP}/products/iphone-13" aria-describedby="handoffNote">Choose and pay on the next page</a>', src)
+        self.assertIn('<p class="small handoff-note" id="handoffNote">', src)
+        self.assertIn(f'Order button: link -> {SHOP}/products/iphone-13\n', out)
+        self.assertIn('aria-describedby="handoffNote">Choose and pay on the next page</a>+}', out)
+        self.assertIn('hand-off note shown', out)
+        # and back again: the iPhone 13's IDs return, so its link reads "Order" to the variant and the note hides
+        code, out = self.run_tool(*base, '--shop-variants', path)
+        self.assertEqual(code, 0, out[-3000:])
+        src = read(self.site, 'products/iphone-13.html')
+        self.assertIn(f'<a class="btn btn-hot btn-block" id="orderBtn" href="{SHOP}/products/iphone-13?variant={vid}">Order</a>', src)
+        self.assertIn('<p class="small handoff-note" id="handoffNote" hidden>', src)
+        self.assertIn('hand-off note hidden', out)
+        # every key must be one of the page's storage, condition and colour options; every ID a whole number
+        before = snapshot(self.site)
+        path3, _ = self.variants_file(lambda h, i: h == 'iphone-13' and i < 2, name='bad.json',
+                                      extra={'iphone-14': {'128GB|Good|Plum': '1', '128GB|Good': '2', '128GB|Good|Blue': 'abc',
+                                                           '256GB|Good|Blue': 1.5}, 'iphone-99': {'128GB|Good|Blue': '3'}})
+        code, out = self.run_tool(*base, '--shop-variants', path3)
+        self.assertEqual(code, 1, out[-3000:])
+        self.assertIn('--shop-variants "iphone-14": variant(s) that aren\'t a storage, condition and colour on '
+                      'products/iphone-14.html: 128GB|Good, 128GB|Good|Plum', out)
+        self.assertIn('--shop-variants "iphone-14": variant ID(s) that aren\'t a Shopify variant ID (a whole number): '
+                      '"128GB|Good|Blue": "abc", "256GB|Good|Blue": 1.5', out)
+        self.assertIn('--shop-variants has product(s) with no page on the site: iphone-99', out)
+        self.assertEqual(snapshot(self.site), before)
+        # only with --checkout shopify, and only a readable file of the right shape
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--shop-variants', path, '--check-only')
+        self.assertEqual(code, 2, out)
+        self.assertIn('--shop-variants is only for --checkout shopify', out)
+        for content in ('not json', '[1, 2]', '{"iphone-13": [1]}'):
+            with open(path3, 'w', encoding='utf-8') as fh:
+                fh.write(content)
+            code, out = self.run_tool(*base, '--shop-variants', path3, '--check-only')
+            self.assertEqual(code, 2, out)
+            self.assertIn('--shop-variants', out)
+
+    def test_buy_now_wording_gate(self):
+        """With a Payment Link in pay.js, a promise to confirm or send something "before you pay" is checkout wording
+        on the static route too, unless the sentence limits it to email orders."""
+        self.ready()
+        stripe = ('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out)   # the site's own wording already holds beside Buy now
+        # the R7 wording, put back: listed and blocking
+        with open(os.path.join(PACK, '..', '..', 'sites', 'full-bars', 'terms.html'), encoding='utf-8') as fh:
+            assert 'On an email order we confirm the colour and grade before you pay' in fh.read()
+        edit(self.site, 'terms.html', 'Colour and grade availability is subject to stock. On an email order we confirm the colour '
+             'and grade before you pay; if you pay straight away online, we confirm them by email within one working day, and '
+             'if we can&rsquo;t match your choice, we refund you in full.',
+             'Colour and grade availability is subject to stock and confirmed before you pay.')
+        edit(self.site, 'products/iphone-13.html', 'subject to stock; confirmed by email', 'subject to stock; we confirm before you pay')
+        edit(self.site, 'faq.html', 'ask us before you order and we&rsquo;ll send them.',
+             'ask when you order and we&rsquo;ll send them before you pay.')
+        edit(self.site, 'faq.html', 'Want the exact figure for any phone? Ask us before you order.',
+             'Want the exact figure for any phone? Ask when you order.')
+        edit(self.site, 'products/pixel-8.html', 'Ask before you order and we&rsquo;ll send photos of the exact phone.',
+             'Ask and we&rsquo;ll send photos of the exact phone before you pay.')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out)
+        listed = out.split("checkout wording that doesn't fit --checkout stripe")[1]
+        for text in ('Colour and grade availability is subject to stock and confirmed before you pay.',
+                     'subject to stock; we confirm before you pay',
+                     'If you’d like photos of the exact phone you’re buying, ask when you order and we’ll send them before you pay.',
+                     'Ask when you order.', 'Ask and we’ll send photos of the exact phone before you pay.'):
+            self.assertIn(f'- {text}', listed)
+        # an email-order promise is still true beside Buy now, so it isn't listed
+        self.assertNotIn('On an email order', listed)
+        self.assertNotIn('If you order by email, we’ll reply with a payment link', listed)
+        # without a Payment Link there is no Buy now, so the same sentences are fine (the empty pay.js blocks instead)
+        edit(self.site, 'pay.js', LINK, '')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out)
+        self.assertIn('every Payment Link in pay.js is empty', out)
+        self.assertNotIn('confirmed before you pay', out)
+
+    def test_shopify_lists_a_claim_that_orders_cant_be_seen_online(self):
+        """Terms section 3 says how the contract is kept (E-Commerce Regulations 2002, reg 9(1)(b)) in words true on both
+        routes. Shopify shows each order on its order status page, so a sentence saying customers can't see their order
+        on the website is checkout wording there (listed for rewriting), but not on the static route."""
+        self.ready(checkout='shopify', rewrites=False)
+        terms = read(self.site, 'terms.html')
+        self.assertIn('We keep a record of your order, as our <a href="privacy.html">privacy policy</a> explains, and you '
+                      'can email us for a copy of it.', terms)
+        old = 'We keep a record of your order, but you can&rsquo;t view it on our website.'
+        edit(self.site, 'terms.html', 'We keep a record of your order, as our <a href="privacy.html">privacy policy</a> '
+             'explains, and you can email us for a copy of it.', old)
+        tpl = os.path.join(self.tmp, 'shopify-old.json')
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP, '--dry-run',
+                                  '--rewrites-template', tpl, rewrites=False)
+        self.assertEqual(code, 1, out[-3000:])
+        checkout_part = out.split("Checkout wording that doesn't fit --checkout shopify")[1].split('\n  2. ')[0]
+        self.assertIn(': We keep a record of your order, but you can’t view it on our website.\n', checkout_part)
+        with open(tpl, encoding='utf-8') as fh:
+            self.assertIn('We keep a record of your order, but you can’t view it on our website.', json.load(fh))
+        # on the static route (email orders and Payment Links) it is true, so it isn't listed there
+        set_link(self.site, LINK_KEY, LINK)
+        add_stock(self.site)
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--dry-run', rewrites=False)
+        self.assertNotIn('view it on our website', out)
+
+    def test_hosting_is_a_launch_step(self):
+        """The switch's checklist and GO-LIVE.md send the switched site to a web host, not the claude.ai preview."""
+        self.ready()
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--dry-run')
+        self.assertEqual(code, 0, out[-3000:])
+        todo = out.split('STILL TO DO BY HAND')[1]
+        self.assertNotIn('Republish', todo)
+        self.assertIn('Deploy the switched folder to your web host at https://www.fullbars.co.uk/, with HTTPS on', todo)
+        self.assertIn('must answer 200 at that exact address', todo)
+        self.assertIn('not a redirect to an address without .html', todo)
+        # "publish" is what you do to the claude.ai artifact; the live site is deployed to the web host
+        result = out.split('RESULT:')[-1]
+        self.assertNotRegex(result, r'(?i)\bpublish\b')
+        self.assertIn('The claude.ai artifact stays a preview copy', todo)
+        self.assertIn('Stock: change stock.js (and only stock.js)', todo)
+        with open(GOLIVE, encoding='utf-8') as fh:
+            md = fh.read()
+        self.assertNotRegex(md, r'(?i)\brepublish')
+        accounts = md.split('## 2. Business and accounts')[1].split('## 3.')[0]
+        self.assertIn('| Web host for the static site, with HTTPS |', accounts)
+        self.assertIn('GitHub Pages doesn\'t', accounts)
+        self.assertIn('domain, web host, inbox', md.split('## 1.')[0])
+        deploy = md.split('**Deploy to your web host.**')[1].split('- [ ]')[0]
+        for text in ('/robots.txt', '/sitemap.xml', '/products/iphone-13.html', 'no-such-page', 'curl -sI', '404',
+                     'redirect to it permanently', '--no-www', 'confirmation emails', 'answers `200` at exactly that address',
+                     "grep -o '<loc>[^<]*'", 'stripping `.html`', '`301` or `308`'):
+            self.assertIn(text, deploy)
+        # every check names the status it must answer: 200 directly, never a redirect
+        checks = deploy.split('Check each of these')[1]
+        for line in [ln for ln in checks.splitlines() if ln.strip().startswith('- ')]:
+            self.assertRegex(line, r'`(200|301|404)`', line)
+        # the host row warns that some hosts strip .html with a redirect, and endorses no provider
+        self.assertIn('not a redirect.**', accounts)
+        self.assertIn('Cloudflare Pages\' docs say it redirects `/contact.html` to `/contact`', accounts)
+        self.assertNotIn('are two such services', accounts)
+        step12 = md.split('12. **Which static pages stay live')[1].split('13. **Variant IDs')[0]
+        self.assertIn('shop.fullbars.co.uk', step12)
+        self.assertIn('hello@info.fullbars.co.uk', step12)
 
 
 class UnitTest(unittest.TestCase):
@@ -1061,9 +1381,13 @@ class UnitTest(unittest.TestCase):
                                     checkout='shopify', shop_url=SHOP)
         head = '<link rel="canonical" href="https://www.fullbars.co.uk/x">'
         good = (head + f'<form class="picker" id="picker" data-model="X" data-shop="{SHOP}/products/x">'
-                f'<a class="btn" id="orderBtn" href="{SHOP}/products/x">Order</a>')
+                f'<a class="btn" id="orderBtn" href="{SHOP}/products/x">Choose and pay on the next page</a>')
         files = {'products/x.html': good, 'robots.txt': 'User-agent: *\nAllow: /\n'}
         self.assertEqual(go_live.verify(files, opt, 'www.fullbars.co.uk', None), [])
+        # a bare Shopify product link (no variant ID) that reads "Order" beside our price is caught
+        files['products/x.html'] = good.replace('Choose and pay on the next page</a>', 'Order</a>')
+        self.assertIn('opens Shopify on its own first variant but reads "Order"',
+                      ' '.join(go_live.verify(files, opt, 'www.fullbars.co.uk', None)))
         files['products/x.html'] = good.replace(f'href="{SHOP}/products/x"', 'href="../contact.html"')
         self.assertIn('Order link goes to ../contact.html', ' '.join(go_live.verify(files, opt, 'www.fullbars.co.uk', None)))
         files['products/x.html'] = good.replace('/products/x"', '/products/y"', 1)
@@ -1073,6 +1397,53 @@ class UnitTest(unittest.TestCase):
         opt.checkout = 'stripe'
         files['products/x.html'] = good
         self.assertIn('data-shop is still on the page', ' '.join(go_live.verify(files, opt, 'www.fullbars.co.uk', None)))
+
+    def test_read_stock_js(self):
+        src = ('/* example: window.FULLBARS_STOCK = {"x": {}}; */\nwindow.FULLBARS_STOCK = {\n  // held\n'
+               '  "iphone-13": {"128GB|Good": 2,},\n  "pixel-8": {},\n};\n')
+        self.assertEqual(go_live.read_stock_js({'stock.js': src}), ({'iphone-13': {'128GB|Good': 2}, 'pixel-8': {}}, []))
+        self.assertEqual(go_live.read_stock_js({}), (None, []))
+        with open(os.path.join(SITE, 'stock.js'), encoding='utf-8') as fh:
+            self.assertEqual(go_live.read_stock_js({'stock.js': fh.read()}), ({}, []))   # the preview's: empty
+        for bad in ('var x = 1;', 'window.FULLBARS_STOCK = [];', 'window.FULLBARS_STOCK = {"a": Infinity};',
+                    '/* note\nwindow.FULLBARS_STOCK = {};'):
+            self.assertTrue(go_live.read_stock_js({'stock.js': bad})[1], bad)
+
+    def test_variant_helpers(self):
+        self.assertEqual([go_live.variant_id(v) for v in (44012345678901, '44012345678901', ' 7 ', 0, -1, 1.5, True, 'abc', '01', None)],
+                         ['44012345678901', '44012345678901', '7', None, None, None, None, None, None, None])
+        with open(os.path.join(SITE, 'products', 'iphone-13.html'), encoding='utf-8') as fh:
+            src = fh.read()
+        self.assertEqual(go_live.picker_default(src), '128GB|Very Good|Blue')
+        self.assertEqual(go_live.picker_colours(src), ['Blue', 'Midnight', 'Starlight', 'Pink', 'Green', 'Red'])
+        self.assertEqual(go_live.shop_href(SHOP + '/products/iphone-13', {'128GB|Very Good|Blue': '9'}, src),
+                         SHOP + '/products/iphone-13?variant=9')
+        self.assertEqual(go_live.shop_href(SHOP + '/products/iphone-13', {}, src), SHOP + '/products/iphone-13')
+        self.assertTrue(go_live.loads_stock_js(src))
+        self.assertFalse(go_live.loads_stock_js('<script src="site.js"></script><script src="stock.js"></script>'))
+
+    def test_order_cant_be_seen_online_pattern(self):
+        rx = go_live.CHECKOUT_WORDS
+        old = 'We keep a record of your order, but you can&rsquo;t view it on our website; our confirmation email'
+        for hit in (old, 'You cannot see your order on this site.', "you can't view it on our website"):
+            self.assertTrue(rx['shopify'].search(hit), hit)
+            self.assertFalse(rx['stripe-buy-now'].search(hit), hit)   # true for email orders and Payment Links
+        with open(os.path.join(SITE, 'terms.html'), encoding='utf-8') as fh:
+            terms = fh.read()
+        sec3 = terms.split('<h2>3. Ordering and when the contract is made</h2>')[1].split('<h2>4.')[0]
+        para = sec3.split('If you buy online')[1]
+        self.assertIsNone(rx['shopify'].search(para))
+
+    def test_buy_now_patterns(self):
+        rx = go_live.CHECKOUT_WORDS['stripe-buy-now']
+        for hit in ('subject to stock; we confirm before you pay', 'and confirmed before you pay',
+                    'ask when you order and we’ll send them before you pay', 'Ask when you order.',
+                    'Ask and we’ll send photos of the exact phone before you pay', 'through Stripe, our intended payment provider'):
+            self.assertTrue(rx.search(hit), hit)
+        for miss in ('If a part has been replaced, we tell you before you pay.', 'subject to stock; confirmed by email',
+                     'ask us before you order and we’ll send them.', 'Ask us before you order.'):
+            self.assertFalse(rx.search(miss), miss)
+        self.assertTrue(go_live.EMAIL_ORDER_ONLY.search('On an email order we confirm the colour and grade before you pay'))
 
     def test_parse_domain(self):
         self.assertEqual(go_live.parse_domain('https://www.FullBars.co.uk/', False), ('fullbars.co.uk', 'www.fullbars.co.uk'))

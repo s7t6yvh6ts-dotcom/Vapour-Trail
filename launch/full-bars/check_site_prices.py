@@ -4,7 +4,8 @@ the data-prices JSON on each product page's #picker form (site.js renders the pi
 
 Run it after changing any price:  python3 launch/full-bars/check_site_prices.py [--site PATH]
 It checks titles, meta and social tags, structured data, the static first-paint prices, every product
-card and comparison-table row on every page, collection "N models . from" lines and tiles, the
+card and comparison-table row on every page, collection "N models . from" lines and tiles (and the phones each tile
+lists in data-handles for site.js's stock note), the
 Under-300 collection, pay.js keys and the trade-in model's Very Good sell prices in quote.js.
 Prints FAIL lines (exit code 1) and lists any other price-like text for you to eyeball.
 """
@@ -252,8 +253,13 @@ under = {h for h in products if lo[h] < 300}
 check(set(coll['under-300.html'][2]) == under, f"under-300: lists {sorted(coll['under-300.html'][2])}, should be {sorted(under)}")
 for f in ['index.html', 'shop.html']:
     src = open(os.path.join(SITE, f), encoding='utf-8').read()
-    for href, body in re.findall(r'<a class="tile[^"]*" href="collections/([^"]+)"[^>]*>(.*?)</a>', src, re.S):
+    for href, attrs, body in re.findall(r'<a class="tile[^"]*" href="collections/([^"]+)"([^>]*)>(.*?)</a>', src, re.S):
         t = _text(body)
+        # data-handles: the phones site.js checks in stock.js for the tile's "None in stock right now" note
+        dh = re.search(r'\bdata-handles="([^"]*)"', attrs)
+        if dh and href in coll:
+            check(sorted(dh.group(1).split()) == sorted(coll[href][2]),
+                  f'{f}: tile {href} data-handles {sorted(dh.group(1).split())} != the phones on that page {sorted(coll[href][2])}')
         sp = re.search(r'<span>(.*?)</span>', body, re.S)
         n = re.search(r'^(\d+) models?', _text(sp.group(1))) if sp else None
         fr = pounds(body)

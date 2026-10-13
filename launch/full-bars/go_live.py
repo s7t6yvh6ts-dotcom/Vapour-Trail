@@ -16,10 +16,14 @@ It switches, on every page that has them:
     quote tools if you pass --trade-ins open)
   - the dead "Opening soon" span on each product page becomes a real Order link: to the contact page with
     --checkout stripe (email order, or Buy now where pay.js has a Payment Link), or to the phone's Shopify product
-    with --checkout shopify
+    with --checkout shopify (reading "Choose and pay on the next page", with the note under it shown, unless there is
+    a variant ID for the phone ticked in the page's HTML: without JavaScript that's the phone a visitor orders)
   - --checkout shopify --shop-url https://SHOP: each product picker gets data-shop="https://SHOP/products/<handle>",
     where <handle> is the page's name and must be a URL handle in products-shopify.csv. site.js then sends the
     Order button there and never builds an email order or a Payment Link, so one phone can't be sold twice
+  - --checkout shopify --shop-variants FILE (from fetch_shopify_variants.py): each product picker gets data-variants,
+    the Shopify variant ID of every storage, condition and colour, so site.js opens Shopify on exactly the phone chosen
+    (?variant=ID). A choice with no ID reads "Choose and pay on the next page" instead of a price
   - the "Not trading yet" boxes on terms, privacy, cookies, warranty, delivery-returns and contact go
   - --checkout stripe: the contact form gets its "Order a phone" topic (site.js looks for it). --checkout shopify:
     it doesn't (and an existing one is removed), so there is no email-order route beside Shopify
@@ -39,9 +43,13 @@ It will NOT run (exit code 1, nothing written) while any of these launch blocker
     Link in pay.js and no data-shop on any product page; --checkout shopify needs pay.js empty, --shop-url, and a
     Shopify product (a URL handle in products-shopify.csv) for every product page, or you'd sell the same phone
     twice or have an Order button with nowhere to go
-  - a data-stock that site.js can't use: not valid JSON, a count that isn't a whole number of 0 or more, or a key
-    that isn't one of the page's "storage|condition" pairs (colour is never part of the key). With --checkout
-    stripe, also a product page with no data-stock at all: site.js would offer every option with no stock behind it
+  - stock that site.js can't use, in stock.js (the one place to keep it: {"<handle>": {"storage|condition": units}})
+    or in a page's older data-stock attribute: not valid JSON, a count that isn't a whole number of 0 or more, a key
+    that isn't one of that page's "storage|condition" pairs (colour is never part of the key), or a handle that isn't
+    a product page. With --checkout stripe, also a product page with no stock data from either: site.js would offer
+    every option with no stock behind it. stock.js wins over data-stock
+  - --shop-variants with a key that isn't one of that page's storage, condition and colour options, or an ID that
+    isn't a whole number
   - --trade-ins open while the sell pages have no quote-sending form
   - preview wording ("Preview prices: we're not taking orders yet", "When we open ...") that would still be
     on the live pages. It is future-tense, so it can't be switched mechanically: you write the new wording
@@ -49,16 +57,20 @@ It will NOT run (exit code 1, nothing written) while any of these launch blocker
     trade-ins are closed is listed separately and doesn't block.
   - checkout wording that doesn't fit the checkout you chose: "our intended payment provider" (terms section 4) on
     either route; with --checkout shopify also every sentence about Stripe, Buy now, payment links or ordering by
-    email (terms section 3 on how the contract is made, the FAQ's "How do I pay?" ...), and the FAQ's "ask when you
-    order" promises (photos and battery figure before you pay: on Shopify, ordering is paying). Rewrite them in the
-    same --rewrites file. A sentence that is still true can be kept: give it its own text as the new wording.
+    email (terms section 3 on how the contract is made, the FAQ's "How do I pay?" ...), any "ask when you order"
+    promise (on Shopify, ordering is paying), and any claim that customers can't see their order on the website
+    (Shopify shows it on its order status page). With --checkout stripe
+    and a Payment Link in pay.js, also any promise to confirm or send something "before you pay", or to answer "when
+    you order", that isn't limited to email orders: Buy now takes payment first. Rewrite them in the same --rewrites
+    file. A sentence that is still true can be kept: give it its own text as the new wording.
   To switch anyway and fix the preview or checkout wording by hand afterwards, pass --allow-preview-wording: the
-  run then ends "NOT READY TO PUBLISH" with exit code 3, and you must not publish until the wording is done.
+  run then ends "NOT READY TO GO LIVE" with exit code 3, and you must not deploy the site to your web host until the
+  wording is done.
 
 How to use it
 -------------
 Always run it on a copy of the site folder or on a git branch (GO-LIVE.md section 7 says how the switched
-copy becomes the site you publish), never on your only copy.
+copy goes on your web host as the live site), never on your only copy.
 
   1. See what it would change and what is still blocking launch. Changes nothing:
        python3 launch/full-bars/go_live.py --site COPY --domain fullbars.co.uk --checkout stripe --dry-run \\
@@ -70,7 +82,8 @@ copy becomes the site you publish), never on your only copy.
      until it says "No blockers", then do it for real (edits COPY in place):
        python3 launch/full-bars/go_live.py --site COPY --domain fullbars.co.uk --checkout stripe \\
            --rewrites ~/rewrites.json --out ~/go-live-report.txt
-  4. Do the items listed under STILL TO DO BY HAND, republish, and put one real order through.
+  4. Do the items listed under STILL TO DO BY HAND, deploy the switched folder to your web host (GO-LIVE.md section 7;
+     the claude.ai artifact stays a preview copy), and put one real order through.
 
 The --rewrites file:
   --rewrites-template FILE writes every preview or checkout sentence still on the pages, one per key, each null.
@@ -87,15 +100,18 @@ Options: --launch-date YYYY-MM-DD (default today) sets the "Last updated" and si
 --shop-url https://SHOP (with --checkout shopify only): your Shopify store's own address, not a /products/ page (the
 script adds /products/<handle> itself); --shopify-csv FILE reads the
 URL handles from FILE instead of products-shopify.csv in this folder.
+--shop-variants FILE (with --checkout shopify only): Shopify variant IDs, as fetch_shopify_variants.py writes them.
 --trade-ins closed (the default) keeps the trade-in quote tool in guide-price mode; --trade-ins open switches it on.
 --no-www uses https://fullbars.co.uk/ instead of https://www.fullbars.co.uk/ for page addresses.
 
-Exit codes: 0 = done and ready to publish (with --dry-run or --check-only: no blockers);
-1 = blockers, nothing written (or, after writing, a re-check failed: the report says so, don't publish);
-2 = bad arguments; 3 = switched (or would switch), but NOT READY TO PUBLISH: preview or checkout wording is still
+Exit codes: 0 = done and ready to deploy to your web host (with --dry-run or --check-only: no blockers);
+1 = blockers, nothing written (or, after writing, a re-check failed: the report says so, don't deploy);
+2 = bad arguments; 3 = switched (or would switch), but NOT READY TO GO LIVE: preview or checkout wording is still
 on the pages because you passed --allow-preview-wording.
+"Deploy" always means putting the switched folder on your own web host (GO-LIVE.md section 7). The claude.ai artifact
+stays a preview copy: never publish the switched folder there.
 The script writes only inside --site, plus the --out report and the --rewrites-template file you name (both
-must be outside --site, so they never get published). Python 3 standard library only.
+must be outside --site, so they never go up with the site). Python 3 standard library only.
 """
 import argparse
 import bisect
@@ -154,6 +170,9 @@ PREVIEW_ONLY_JS = (
 QT_SEND_IDS = ('qtSend', 'qtName', 'qtNotes', 'qtOwner', 'qtStatus')
 PICKER_TAG = re.compile(r'<form class="picker" id="picker"[^>]*>')   # as in check_site_prices.py
 NO_INDEX_KEEP = ('404.html',)   # an error page should never be indexed
+# The static route's stock: one file, {handle: {"storage|condition": units}}, read by site.js as window.FULLBARS_STOCK
+STOCK_JS = 'stock.js'
+SCRIPT_SRC = re.compile(r'<script\b[^>]*\bsrc="(?:\.\./)*(stock|site)\.js"')
 
 # --checkout shopify: where each product page's Order button goes. The URL handles come from the Shopify CSV
 # (build_shopify_csv.py names each product after its page, so products/iphone-13.html is handle iphone-13).
@@ -171,14 +190,24 @@ SHOPIFY_SENTENCES = (
     'For orders: the phone, storage, grade and colour, your delivery address and a phone number for the courier.',
 )
 _CHECKOUT_BOTH = r'\bintended payment provider\b'
+# A claim that customers can't see their order online: true for an email order or a Payment Link, but Shopify shows every
+# order on its order status page (and in the customer's account), so on that route it is checkout wording
+_NOT_ONLINE = r'\bcan(?:not|' + _APOS + r't) (?:view|see)\b[^.;<]{0,60}?\bon (?:our|this) (?:web)?site\b'
+# A promise to confirm or send something before payment, or to answer "when you order": true for an email order (you
+# order, we reply, then you pay) but not for a Buy now link or Shopify checkout, where ordering is paying. On the static
+# route it is checkout wording as soon as pay.js has a Payment Link, unless the sentence limits it to email orders.
+_PAY_FIRST = (r'\bconfirm(?:ed|s)?\b[^.;<]{0,60}?\bbefore you pay\b|\bsend\b[^.;<]{0,60}?\bbefore you pay\b'
+              r'|\bask when you order\b')
+EMAIL_ORDER_ONLY = re.compile(r'\bemail orders?\b|\border(?:s|ing)? (?:it )?by email\b|\bby email order\b', re.I)
 # privacy.html's quote-tool sentence, which must end up saying what cookies.html says (answers kept for this tab only)
 PRIVACY_QUOTE_TOOL = 'The quote tool works in your browser.'
 CHECKOUT_WORDS = {
     'stripe': re.compile(_CHECKOUT_BOTH, re.I),
+    # --checkout stripe with at least one Payment Link in pay.js (Buy now takes payment first)
+    'stripe-buy-now': re.compile(_CHECKOUT_BOTH + '|' + _PAY_FIRST, re.I),
     'shopify': re.compile(_CHECKOUT_BOTH + r'|\bstripe\b|\bbuy now\b(?!,?\s*pay later)|\bpayment links?\b'
-                          r'|\border(?:s|ing)? (?:it )?by email\b|\bemail orders?\b|\bsend us an order\b'
-                          r'|\bconfirm(?:ed)? before you pay\b|\bask when you order\b|'
-                          + '|'.join(re.escape(s) for s in SHOPIFY_SENTENCES), re.I),
+                          r'|\border(?:s|ing)? (?:it )?by email\b|\bemail orders?\b|\bsend us an order\b|'
+                          + _PAY_FIRST + '|' + _NOT_ONLINE + '|' + '|'.join(re.escape(s) for s in SHOPIFY_SENTENCES), re.I),
 }
 # Script text that only runs when pay.js has a Payment Link, so never on a Shopify-route page
 STRIPE_ONLY_JS = (('site.js', 'Buy now — '),)
@@ -355,6 +384,205 @@ def _no_constant(name):
     raise ValueError(f'{name} isn\'t allowed in JSON')
 
 
+def read_stock_js(files):
+    """(entries, problems) from stock.js, as site.js reads window.FULLBARS_STOCK: entries is {handle: {key: count}}, or
+    None when the site has no stock.js. It must be JSON after "window.FULLBARS_STOCK =", as the file's header shows;
+    comments and a trailing comma (both fine in JavaScript) are allowed."""
+    src = files.get(STOCK_JS)
+    if src is None:
+        return None, []
+    code = re.sub(r'(?m)^\s*//.*$', '', re.sub(r'/\*.*?\*/', ' ', src, flags=re.S))   # the header's example is a comment
+    if '/*' in code:
+        return {}, [f'{STOCK_JS} has a comment that is never closed ("/*" with no "*/"), so browsers can\'t read the file and '
+                    'every phone would look in stock. Close it with */, as the header does']
+    m = re.search(r'window\.FULLBARS_STOCK\s*=\s*', code)
+    if not m:
+        return {}, [f'{STOCK_JS} doesn\'t set window.FULLBARS_STOCK, so site.js finds no stock in it. Put the counts after '
+                    '"window.FULLBARS_STOCK = ", as the header of the file shows']
+    body = code[m.end():]
+    body = re.sub(r',(\s*[}\]])', r'\1', body).strip()
+    why = ('Write it as JSON, as the header of the file shows: each phone\'s handle and each "storage|condition" in double '
+           'quotes, each count a whole number, a comma between entries')
+    try:
+        data, end = json.JSONDecoder(parse_constant=_no_constant).raw_decode(body)
+    except ValueError as e:
+        at = getattr(e, 'pos', 0) or 0
+        near = show(body[max(0, at - 30):at + 30])
+        return {}, [f'{STOCK_JS} is not valid JSON ({getattr(e, "msg", e)}, near "{near}"), so its stock can\'t be checked. {why}. '
+                    '(A typo that breaks the JavaScript makes browsers ignore the whole file, and then every phone looks in stock.)']
+    if body[end:].strip() not in ('', ';'):
+        return {}, [f'{STOCK_JS} has something after the stock list ("{show(body[end:].strip(), 40)}"). {why}']
+    if not isinstance(data, dict):
+        return {}, [f'{STOCK_JS} must set window.FULLBARS_STOCK to a list of phones in braces {{ }}. {why}']
+    return data, []
+
+
+def stock_problems(label, stock, combos, place='on this page'):
+    """Blockers for one stock list ({"128GB|Good": 2}) against the storage|condition pairs of its product page."""
+    out = []
+    bad = [f'"{k}": {json.dumps(v)}' for k, v in stock.items() if not whole_count(v)]
+    if bad:
+        out.append(f'{label} count(s) that aren\'t a whole number of units (0 or more): {", ".join(bad)}. '
+                   'site.js treats them as not in stock. Write each as a plain number of units, such as 2')
+    coloured = [k for k in stock if k.count('|') >= 2]
+    if coloured:
+        out.append(f'{label} key(s) with a colour in them: {", ".join(coloured)}. Colour isn\'t tracked: '
+                   'the key is "storage|condition" (for example "128GB|Good"), counting every colour together')
+    odd = [k for k in stock if combos and k not in combos and k not in coloured]
+    if odd:
+        out.append(f'{label} key(s) that aren\'t a storage and condition {place}: {", ".join(odd)}. '
+                   f'Use one of: {", ".join(sorted(combos))}. A phone under a mistyped key shows as not in stock')
+    return out
+
+
+def loads_stock_js(src):
+    """True if a page loads stock.js before site.js (site.js reads window.FULLBARS_STOCK as it starts)."""
+    order = [m.group(1) for m in SCRIPT_SRC.finditer(src)]
+    return 'stock' in order and ('site' not in order or order.index('stock') < order.index('site'))
+
+
+def picker_combos(tag):
+    """{"storage|condition"} offered on a product page, from its picker's data-prices (empty if it can't be read)."""
+    try:
+        return {f'{st}|{gr}' for st, g in json.loads(attr(tag, 'data-prices') or '{}').items() for gr in g}
+    except (ValueError, AttributeError):
+        return set()   # check_site_prices.py reports a broken data-prices
+
+
+def picker_form(src):
+    m = re.search(r'<form class="picker" id="picker".*?</form>', src, re.S)
+    return m.group(0) if m else ''
+
+
+def picker_colours(src):
+    """The colour options of a product page's picker, in page order."""
+    return [html.unescape(v) for v in re.findall(r'<input\b[^>]*\bname="colour"[^>]*\bvalue="([^"]*)"', picker_form(src))]
+
+
+def picker_default(src):
+    """"storage|condition|colour" ticked in the page's HTML (what a visitor without JavaScript orders), or None."""
+    form, got = picker_form(src), []
+    for name in ('storage', 'grade', 'colour'):
+        m = re.search(r'<input\b[^>]*\bname="' + name + r'"[^>]*\bvalue="([^"]*)"[^>]*\bchecked\b', form)
+        if not m:
+            return None
+        got.append(html.unescape(m.group(1)))
+    return '|'.join(got)
+
+
+def variant_id(v):
+    """A Shopify variant ID as digits (from a number or a string of digits), or None."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int) and v > 0:
+        return str(v)
+    if isinstance(v, str) and re.fullmatch(r'[1-9][0-9]{0,19}', v.strip()):
+        return v.strip()
+    return None
+
+
+def load_variants_file(path):
+    """--shop-variants FILE: {handle: {"storage|condition|colour": variant ID}}, as fetch_shopify_variants.py writes it."""
+    try:
+        with open(path, encoding='utf-8') as fh:
+            data = json.load(fh, parse_constant=_no_constant)
+    except (OSError, ValueError) as e:
+        raise Fail(f'--shop-variants {path}: {e}')
+    if not isinstance(data, dict) or not all(isinstance(k, str) and isinstance(v, dict) for k, v in data.items()):
+        raise Fail(f'--shop-variants {path} must be a JSON object of {{"<handle>": {{"<storage>|<condition>|<colour>": '
+                   '<variant ID>}}}}, as fetch_shopify_variants.py writes it')
+    return data
+
+
+def variant_maps(files, opt):
+    """--checkout shopify: ({product page: {"storage|condition|colour": variant ID digits}}, blockers, warnings).
+    With --shop-variants the file decides; without it, each page's existing data-variants (from an earlier run)."""
+    if getattr(opt, 'checkout', None) != 'shopify':
+        return {}, [], []
+    given = getattr(opt, 'variants_data', None)
+    maps, blockers, warnings, gaps = {}, [], [], []
+    pages = {}
+    for rel, tag, pos in pickers(files):
+        pages[page_handle(rel)] = rel
+        where = f'{rel}:{line_of(files[rel], pos)}'
+        if given is not None:
+            raw, label = given.get(page_handle(rel)), f'--shop-variants "{page_handle(rel)}"'
+        else:
+            text = attr(tag, 'data-variants')
+            if text is None:
+                continue
+            label = f'{where}: data-variants'
+            try:
+                raw = json.loads(text, parse_constant=_no_constant)
+            except ValueError as e:
+                blockers.append(f'{label} is not valid JSON ({e}). Run go_live.py again with --shop-variants')
+                continue
+            if not isinstance(raw, dict):
+                blockers.append(f'{label} is not a list of variant IDs in braces. Run go_live.py again with --shop-variants')
+                continue
+        if not raw:
+            continue
+        want = {f'{c}|{col}' for c in picker_combos(tag) for col in picker_colours(files[rel])}
+        odd = sorted(k for k in raw if k not in want)
+        if odd:
+            blockers.append(f'{label}: variant(s) that aren\'t a storage, condition and colour on {rel}: {", ".join(odd[:8])}'
+                            f'{" ..." if len(odd) > 8 else ""}. Each key must be one of the page\'s options, such as '
+                            f'"{sorted(want)[0] if want else "128GB|Good|Blue"}", written as in products-shopify.csv')
+        bad = [f'"{k}": {json.dumps(v)}' for k, v in raw.items() if variant_id(v) is None]
+        if bad:
+            blockers.append(f'{label}: variant ID(s) that aren\'t a Shopify variant ID (a whole number): {", ".join(bad[:8])}'
+                            f'{" ..." if len(bad) > 8 else ""}')
+        good = {k: variant_id(v) for k, v in raw.items() if k in want and variant_id(v) is not None}
+        if good:
+            maps[rel] = good
+        missing = len(want - set(good))
+        if missing:
+            gaps.append(f'{rel} ({missing} of {len(want)})')
+    if given is not None:
+        no_ids = [rel for h, rel in sorted(pages.items()) if not given.get(h)]
+        extra = sorted(h for h in given if h not in pages)
+        if no_ids:
+            warnings.append(f'--shop-variants has no variant IDs for {len(no_ids)} product page(s): {", ".join(no_ids)}. '
+                            'Their Order buttons read "Choose and pay on the next page" and open Shopify on its first variant')
+        if extra:
+            warnings.append(f'--shop-variants has product(s) with no page on the site: {", ".join(extra)}')
+    if gaps:
+        warnings.append('phone choices with no Shopify variant ID, whose Order button reads "Choose and pay on the next page" '
+                        '(the customer picks storage, condition and colour again on Shopify): ' + ', '.join(gaps))
+    return maps, blockers, warnings
+
+
+def page_variants(tag):
+    """{"storage|condition|colour": variant ID digits} from a picker's data-variants ({} if none or unreadable)."""
+    try:
+        raw = json.loads(attr(tag, 'data-variants') or '{}')
+    except ValueError:
+        return {}
+    return {k: variant_id(v) for k, v in raw.items() if variant_id(v)} if isinstance(raw, dict) else {}
+
+
+def shop_href(shop, vmap, src):
+    """The Order link's address without JavaScript: the Shopify product, opened on the variant ticked in the page's
+    HTML when there is an ID for it."""
+    vid = (vmap or {}).get(picker_default(src) or '')
+    return f'{shop}?variant={vid}' if vid else shop
+
+
+# The Order link's text on the Shopify route when there is no variant ID for the phone chosen: Shopify then opens on its
+# own first variant, perhaps at another price, so the button never reads "Order" beside our price (site.js says the same)
+HANDOFF_LABEL = 'Choose and pay on the next page'
+HANDOFF_NOTE = re.compile(r'<p\b[^>]*\bid="handoffNote"[^>]*>')
+
+
+def order_link_state(shop, vmap, src):
+    """(href, text, handoff) of the Order link a visitor without JavaScript gets on the Shopify route: with a variant ID
+    for the phone ticked in the HTML, "Order" to that variant; without one, the hand-off wording to the bare product
+    (handoff True: the note under the button, "You'll pick storage, condition and colour again there ...", shows too)."""
+    href = shop_href(shop, vmap, src)
+    handoff = href == shop
+    return href, (HANDOFF_LABEL if handoff else 'Order'), handoff
+
+
 # ----------------------------------------------------------------------------------------------- edits
 class Edit:
     """Replace src[start:end] of one file with new. prio 0 = switch, 1 = domain (dropped inside a switch)."""
@@ -506,22 +734,61 @@ def plan_switches(files, opt):
             elif html.unescape(dm.group(1)) != shop:
                 edits.append(Edit(rel, pk.start() + dm.start(1), pk.start() + dm.end(1), html.escape(shop),
                                   f'product picker: data-shop -> {shop}'))
-        # the Order link's address when site.js doesn't run: the Shopify product, or the contact page
-        href = shop or (attr(pk.group(0), 'data-contact') if pk else None) or '../contact.html'
+        # Shopify route with --shop-variants: the picker's data-variants (site.js adds ?variant=<id> to the Order link)
+        vmap = getattr(opt, 'variant_maps', {}).get(rel) if shop else None
+        if pk and shop and getattr(opt, 'variants_data', None) is not None:
+            want = html.escape(json.dumps(vmap, separators=(',', ':'), sort_keys=True), quote=True) if vmap else None
+            vm = re.search(r'\sdata-variants="([^"]*)"', pk.group(0))
+            if vm and want is None:
+                edits.append(Edit(rel, pk.start() + vm.start(), pk.start() + vm.end(), '',
+                                  'product picker: data-variants removed (no Shopify variant IDs for this phone)'))
+            elif vm and vm.group(1) != want:
+                edits.append(Edit(rel, pk.start() + vm.start(1), pk.start() + vm.end(1), want,
+                                  f'product picker: data-variants -> {len(vmap)} Shopify variant ID(s)'))
+            elif not vm and want:
+                at = pk.start() + len('<form class="picker" id="picker"')
+                edits.append(Edit(rel, at, at, f' data-variants="{want}"',
+                                  f'product picker: data-variants added ({len(vmap)} Shopify variant ID(s))'))
+        # the Order link when site.js doesn't run: the Shopify product (on the variant ticked in the HTML, when there is an
+        # ID for it; without one it reads "Choose and pay on the next page", with the hand-off note shown under it), or the
+        # contact page
+        if shop:
+            href, label, handoff = order_link_state(shop, vmap, src)
+        else:
+            href = (attr(pk.group(0), 'data-contact') if pk else None) or '../contact.html'
+            label, handoff = 'Order', False
+        described = ' aria-describedby="handoffNote"' if handoff else ''
         # dead Order span -> link
         for m in re.finditer(r'<span\b[^>]*\bid="orderBtn"[^>]*>.*?</span>', src, re.S):
             tag = m.group(0)[:m.group(0).index('>') + 1]
             cls = ' '.join(c for c in (attr(tag, 'class') or 'btn btn-hot btn-block').split() if c != 'btn-off')
-            new = f'<a class="{html.escape(cls)}" id="orderBtn" href="{html.escape(href)}">Order</a>'
+            new = f'<a class="{html.escape(cls)}" id="orderBtn" href="{html.escape(href)}"{described}>{label}</a>'
             edits.append(Edit(rel, m.start(), m.end(), new, 'Order button: dead "Opening soon" span -> link'
                               + (' to the Shopify product' if shop else '')))
-        # an Order link from an earlier run that points the other way (contact page vs Shopify): follow --checkout
+        # an Order link from an earlier run that points the other way (contact page vs Shopify, or another variant): follow
+        # --checkout, and keep its no-JavaScript text and the hand-off note in step with where it goes
+        if pk and opt.checkout in ('shopify', 'stripe') and (shop or opt.checkout == 'stripe'):
+            for m in re.finditer(r'(<a\b[^>]*\bid="orderBtn"[^>]*>)(.*?)</a>', src, re.S):
+                tag = m.group(1)
+                cls = attr(tag, 'class') or 'btn btn-hot btn-block'
+                new = f'<a class="{html.escape(cls)}" id="orderBtn" href="{html.escape(href)}"{described}>{label}</a>'
+                hm = re.search(r'\shref="([^"]*)"', tag)
+                old_href = html.unescape(hm.group(1)) if hm else None
+                if (old_href != href or html.unescape(m.group(2)).strip() != label
+                        or (attr(tag, 'aria-describedby') == 'handoffNote') != handoff):
+                    what = f'Order button: link -> {href}' if old_href != href else f'Order button: text -> "{label}"'
+                    edits.append(Edit(rel, m.start(), m.end(), new, what))
+        # the hand-off note under the button: shown without JavaScript exactly when the link reads the hand-off wording
+        # (site.js keeps it in step as the visitor changes storage, condition and colour)
         if pk and opt.checkout in ('shopify', 'stripe'):
-            for m in re.finditer(r'<a\b[^>]*\bid="orderBtn"[^>]*>', src):
-                hm = re.search(r'\shref="([^"]*)"', m.group(0))
-                if hm and html.unescape(hm.group(1)) != href and (shop or opt.checkout == 'stripe'):
-                    edits.append(Edit(rel, m.start() + hm.start(1), m.start() + hm.end(1), html.escape(href),
-                                      f'Order button: link -> {href}'))
+            for m in HANDOFF_NOTE.finditer(src):
+                hid = re.search(r'\shidden(?:="[^"]*")?(?=[\s>/])', m.group(0))
+                if handoff and hid:
+                    edits.append(Edit(rel, m.start() + hid.start(), m.start() + hid.end(), '',
+                                      'hand-off note shown (no Shopify variant ID for the phone ticked in the HTML)'))
+                elif not handoff and not hid:
+                    at = m.end() - 1
+                    edits.append(Edit(rel, at, at, ' hidden', 'hand-off note hidden'))
         # preview-only notes
         if opt.trade_ins == 'open':
             for m in re.finditer(r'<div\b[^>]*\bid="qtPreview"[^>]*>', src):
@@ -754,57 +1021,90 @@ def find_blockers(site, files, opt):
             if over:
                 warnings.append(f'pay.js has links for phones priced above the GBP {cap.group(1)} cap (BUY_NOW_MAX), which site.js '
                                 f'never shows: {", ".join(over)}')
-    # 4. data-stock: {"128GB|Good": 2, ...}, units held per storage and condition (colour isn't tracked)
-    missing, with_stock, held_by_key = [], [], {}
+    # 4. stock: stock.js ({handle: {"128GB|Good": 2}}, the one place to keep it) or a page's older data-stock
+    #    attribute ({"128GB|Good": 2}); units held per storage and condition (colour isn't tracked). stock.js wins.
+    sj, sj_problems = read_stock_js(files)
+    blockers.extend(sj_problems)
+    entries = sj or {}
+    handles = {page_handle(rel) for rel, _, _ in pickers(files)}
+    for h in sorted(entries):
+        if h not in handles:
+            blockers.append(f'{STOCK_JS}: "{h}" is not a product page (there is no products/{h}.html), so its stock is never '
+                            f'used. Use the page\'s name, one of: {", ".join(sorted(handles))}')
+        elif not isinstance(entries[h], dict):
+            blockers.append(f'{STOCK_JS}: "{h}" must be its storage and condition counts in braces, such as '
+                            f'"{h}": {{"128GB|Good": 2}} ({{}} if you hold none of it), not {json.dumps(entries[h])}')
+    missing, with_stock, both, no_include, held_by_key = [], [], [], [], {}
     for rel, tag, pos in pickers(files):
+        h = page_handle(rel)
         where = f'{rel}:{line_of(files[rel], pos)}'
+        combos = picker_combos(tag)
+        page_stock = None
         raw = attr(tag, 'data-stock')
-        if raw is None:
+        if raw is not None:
+            try:
+                page_stock = json.loads(raw, parse_constant=_no_constant)   # NaN/Infinity: browsers refuse the attribute
+                if not isinstance(page_stock, dict):
+                    raise ValueError('not an object')
+            except ValueError as e:
+                blockers.append(f'{where}: data-stock is not valid JSON ({e}), so site.js ignores it and every option looks in stock')
+                page_stock = None
+            else:
+                blockers.extend(stock_problems(f'{where}: data-stock', page_stock, combos))
+        js_stock = entries.get(h) if isinstance(entries.get(h), dict) else None
+        if js_stock is not None:
+            blockers.extend(stock_problems(f'{STOCK_JS} "{h}"', js_stock, combos, place='on that phone\'s page'))
+            if not loads_stock_js(files[rel]):
+                no_include.append(rel)
+            if raw is not None:
+                both.append(rel)
+        stock = js_stock if js_stock is not None else page_stock
+        if js_stock is None and raw is None:
             missing.append(rel)
             continue
         with_stock.append(rel)
-        try:
-            stock = json.loads(raw, parse_constant=_no_constant)   # NaN/Infinity: browsers refuse the whole attribute
-            if not isinstance(stock, dict):
-                raise ValueError('not an object')
-        except ValueError as e:
-            blockers.append(f'{where}: data-stock is not valid JSON ({e}), so site.js ignores it and every option looks in stock')
-            continue
-        try:
-            combos = {f'{st}|{gr}' for st, g in json.loads(attr(tag, 'data-prices') or '{}').items() for gr in g}
-        except (ValueError, AttributeError):
-            combos = set()   # check_site_prices.py reports a broken data-prices
-        bad = [f'"{k}": {json.dumps(v)}' for k, v in stock.items() if not whole_count(v)]
-        if bad:
-            blockers.append(f'{where}: data-stock count(s) that aren\'t a whole number of units (0 or more): {", ".join(bad)}. '
-                            'site.js treats them as not in stock. Write each as a plain number of units, such as 2')
-        coloured = [k for k in stock if k.count('|') >= 2]
-        if coloured:
-            blockers.append(f'{where}: data-stock key(s) with a colour in them: {", ".join(coloured)}. Colour isn\'t tracked: '
-                            'the key is "storage|condition" (for example "128GB|Good"), counting every colour together')
-        odd = [k for k in stock if combos and k not in combos and k not in coloured]
-        if odd:
-            blockers.append(f'{where}: data-stock key(s) that aren\'t a storage and condition on this page: {", ".join(odd)}. '
-                            f'Use one of: {", ".join(sorted(combos))}. A phone under a mistyped key shows as not in stock')
+        if stock is None:
+            continue   # a data-stock that isn't valid JSON: reported above
         model = attr(tag, 'data-model') or ''
         for k in combos | set(stock):
             v = stock.get(k)
             held_by_key[f'{model} {k.replace("|", " ")}'] = whole_count(v) and v > 0
+    if no_include:
+        blockers.append(f'{len(no_include)} product page(s) have stock in {STOCK_JS} but don\'t load it before site.js, so '
+                        f'site.js never sees it: {", ".join(no_include)}. Add <script src="../{STOCK_JS}" defer></script> '
+                        'just before the site.js script tag, as on the other pages')
+    if both:
+        warnings.append(f'{len(both)} product page(s) have data-stock as well as an entry in {STOCK_JS}: {", ".join(both)}. '
+                        f'{STOCK_JS} wins and the page\'s data-stock is ignored. Remove data-stock from those pages, so '
+                        f'{STOCK_JS} is the only place to change')
+    if sj is None and any(loads_stock_js(src) for rel, src in files.items() if rel.endswith('.html')):
+        warnings.append(f'the pages load {STOCK_JS}, but the site folder has none: browsers log a "not found" error for it. '
+                        f'Put back {STOCK_JS} (empty is fine on the Shopify route)')
     if opt.checkout == 'stripe' and missing:
-        blockers.append(f'data-stock is missing on {len(missing)} of {len(missing) + len(with_stock)} product pages '
-                        f'({", ".join(missing)}). On the static route site.js would show every storage and condition as '
-                        'in stock and orderable, with no phone behind it. Add data-stock to each page\'s #picker: '
-                        'data-stock="{&quot;128GB|Good&quot;: 2}" means 2 units of 128GB in Good, any colour; a missing key '
-                        'or 0 means not in stock; "{}" means none at all (GO-LIVE.md section 6, step 2)')
-    elif opt.checkout == 'shopify' and with_stock:
-        warnings.append(f'{len(with_stock)} product page(s) have data-stock. On the Shopify route Shopify\'s own stock decides '
-                        'what can be bought; data-stock only turns a page\'s button into "Not in stock — ask us". Keep it in '
-                        'step with Shopify, or remove it')
+        blockers.append(f'no stock data for {len(missing)} of {len(missing) + len(with_stock)} product pages '
+                        f'({", ".join(missing)}): neither {STOCK_JS} nor the page\'s data-stock says what you hold. On the '
+                        'static route site.js would show every storage and condition as in stock and orderable, with no '
+                        f'phone behind it. Add each phone to {STOCK_JS}: "iphone-13": {{"128GB|Good": 2}} means 2 units of '
+                        '128GB in Good, any colour; a missing key or 0 means not in stock; {} means none at all '
+                        '(GO-LIVE.md section 6, step 2)')
+    elif opt.checkout == 'shopify' and (with_stock or entries):
+        warnings.append(f'{len(with_stock)} product page(s) have stock data ({STOCK_JS} or data-stock). On the Shopify route '
+                        'Shopify\'s own stock decides what can be bought; this only turns a page\'s button into "Not in stock '
+                        f'— ask us" and puts "None in stock right now" on cards. Keep it in step with Shopify, or empty {STOCK_JS} '
+                        'and remove data-stock')
     if opt.checkout == 'stripe':
         unheld = [k for k, v in filled if k in held_by_key and not held_by_key[k]]
         if unheld:
-            warnings.append(f'pay.js has Payment Link(s) for phones data-stock says you don\'t hold, so the page shows "Not in '
-                            f'stock" and never offers them: {", ".join(unheld)}. Deactivate them in Stripe and clear them')
+            warnings.append(f'pay.js has Payment Link(s) for phones your stock data says you don\'t hold, so the page shows '
+                            f'"Not in stock" and never offers them: {", ".join(unheld)}. Deactivate them in Stripe and clear them')
+    # 4b. Shopify variant IDs (data-variants / --shop-variants)
+    blockers.extend(getattr(opt, 'variant_blockers', []))
+    warnings.extend(getattr(opt, 'variant_warnings', []))
+    if opt.checkout == 'stripe':
+        dv = [rel for rel, tag, _ in pickers(files) if attr(tag, 'data-variants') is not None]
+        if dv:
+            warnings.append(f'{len(dv)} product page(s) have data-variants (Shopify variant IDs), which only the Shopify route '
+                            'uses: harmless here, but remove them if you no longer use Shopify')
     # 5. trade-ins
     if opt.trade_ins == 'open':
         for rel in sorted(files):
@@ -1133,7 +1433,10 @@ def leftovers(files, opt, keep=()):
     items, seen_locs = {}, set()
     rank = {'rewrite': 0, 'hand': 0, 'checkout': 1, 'checkout-hand': 1, 'later': 2, 'checkout-kept': 3, 'hidden': 3,
             'kept': 3, 'code': 4}
-    crx = CHECKOUT_WORDS.get(getattr(opt, 'checkout', None))
+    checkout = getattr(opt, 'checkout', None)
+    # static route with a Payment Link: Buy now takes payment first, so "before you pay" promises are checkout wording too
+    buy_now = checkout == 'stripe' and any(v.strip() for _, v in pay_links(files.get('pay.js', '')))
+    crx = CHECKOUT_WORDS['stripe-buy-now'] if buy_now else CHECKOUT_WORDS.get(checkout)
     keep_fold = {norm_text(k).translate(FOLD) for k in keep}
     for rel in sorted(files):
         if not rel.endswith(SCAN_EXT):
@@ -1199,6 +1502,8 @@ def leftovers(files, opt, keep=()):
                 snippet = seg.text[a:b]
                 cat = ('hidden' if any(x <= pos < y for x, y in hidden)
                        else 'checkout-kept' if snippet.translate(FOLD) in keep_fold else 'checkout')
+            if buy_now and not re.search(_CHECKOUT_BOTH, m.group(0), re.I) and EMAIL_ORDER_ONLY.search(snippet):
+                continue   # limited to email orders (you order, we reply, then you pay), so still true beside Buy now
             key = (snippet, loc)
             if key not in items or rank[cat] < rank[items[key]]:
                 items[key] = cat
@@ -1211,13 +1516,13 @@ def leftovers(files, opt, keep=()):
 
 
 def wording_left(left):
-    """(pieces, places) of preview wording that must change before the site can be published."""
+    """(pieces, places) of preview wording that must change before the site can go live."""
     groups = list(left.get('rewrite', {}).values()) + list(left.get('hand', {}).values())
     return len(groups), sum(len(v) for v in groups)
 
 
 def checkout_left(left):
-    """(pieces, places) of checkout wording that doesn't fit --checkout and must change before publishing."""
+    """(pieces, places) of checkout wording that doesn't fit --checkout and must change before going live."""
     groups = list(left.get('checkout', {}).values()) + list(left.get('checkout-hand', {}).values())
     return len(groups), sum(len(v) for v in groups)
 
@@ -1431,10 +1736,23 @@ def verify(files, opt, new_host, old_host_changed):
             shop = attr(pk.group(0), 'data-shop') if pk else None
             if checkout == 'shopify' and pk:
                 want = f'{shop_url}/products/{page_handle(rel)}' if shop_url else None
+                link = shop_href(shop, page_variants(pk.group(0)), src) if shop else None
                 if not shop or not SHOP_URL.fullmatch(shop) or (want and shop != want):
                     bad.append(f'{rel}: data-shop is {shop!r}, not the page\'s Shopify product ({want or "an https:// address"})')
-                elif ob and ob.group(1).lower() == 'a' and attr(ob.group(0), 'href') != shop:
-                    bad.append(f'{rel}: Order link goes to {attr(ob.group(0), "href")}, not the Shopify product {shop}')
+                elif ob and ob.group(1).lower() == 'a' and attr(ob.group(0), 'href') != link:
+                    bad.append(f'{rel}: Order link goes to {attr(ob.group(0), "href")}, not the Shopify product {link}')
+                elif ob and ob.group(1).lower() == 'a' and link == shop:
+                    # no variant ID for the phone ticked in the HTML: Shopify opens on its own first variant, so the
+                    # no-JavaScript link must say so rather than "Order" beside our price
+                    tm = re.search(r'<a\b[^>]*\bid="orderBtn"[^>]*>(.*?)</a>', src, re.S)
+                    text = html.unescape(re.sub(r'<[^>]+>', '', tm.group(1))).strip() if tm else ''
+                    if text != HANDOFF_LABEL:
+                        bad.append(f'{rel}: Order link opens Shopify on its own first variant but reads "{text}", '
+                                   f'not "{HANDOFF_LABEL}"')
+                if getattr(opt, 'variants_data', None) is not None:
+                    expect = getattr(opt, 'variant_maps', {}).get(rel) or {}
+                    if page_variants(pk.group(0)) != expect:
+                        bad.append(f'{rel}: data-variants doesn\'t hold the {len(expect)} variant ID(s) from --shop-variants')
                 if '?order=' in src:
                     bad.append(f'{rel}: has an email-order link (?order=) on the Shopify route')
             elif checkout == 'stripe' and shop is not None:
@@ -1506,6 +1824,21 @@ def manual_items(opt, files):
                      f'button now goes to {shop}/products/<handle> (data-shop), and there is no email-order route beside it '
                      '(no "Order a phone" topic, no ?order= links). Keep each Shopify URL handle exactly as products-shopify.csv '
                      'has it, or that Order button lands on a "page not found".')
+        vm = getattr(opt, 'variant_maps', {})
+        mapped = sum(len(v) for v in vm.values())
+        if mapped:
+            items.append(f'Shopify variants: {mapped} phone choice(s) on {len(vm)} page(s) open Shopify on exactly that variant '
+                         '(?variant=<id>, "Order — £…"); any choice without an ID reads "Choose and pay on the next page". '
+                         'Whenever you add, delete or re-import variants in Shopify, fetch the IDs again with '
+                         'fetch_shopify_variants.py and rerun this with --shop-variants (GO-LIVE.md section 5, step 13). '
+                         'Then deploy the site to your web host again.')
+        else:
+            items.append('Shopify variants: every Order button reads "Choose and pay on the next page" and opens Shopify on its '
+                         'own first variant, so the customer picks storage, condition and colour again there. Once the products '
+                         f'are active and published, run: python3 launch/full-bars/fetch_shopify_variants.py --shop-url {shop} '
+                         '--out ~/shopify-variants.json, then rerun this with --shop-variants ~/shopify-variants.json, so each '
+                         'button opens the phone chosen at the price shown, and deploy the site again (GO-LIVE.md section 5, '
+                         'step 13).')
         items.append('Shopify stock: add stock only for units with all original manufacturer parts. A unit with any replaced '
                      'part stays at 0 on Shopify and is sold by email order: the customer asks through the contact page, you '
                      'tell them which part was replaced, then send a Shopify draft order (a custom item whose title names the '
@@ -1523,22 +1856,30 @@ def manual_items(opt, files):
         filled = [k for k, v in pay_links(files.get('pay.js', '')) if v.strip()]
         items.append(f'Stripe: pay.js has {len(filled)} Payment Link(s). Deactivate the link in Stripe and clear it in pay.js the '
                      'moment that phone sells.')
-        items.append('Stock: change data-stock on the product page the moment a phone sells or arrives (units held per storage '
-                     'and condition, GO-LIVE.md section 6, step 2), then republish.')
+        items.append(f'Stock: change {STOCK_JS} (and only {STOCK_JS}) the moment a phone sells or arrives: units held per storage '
+                     'and condition for each phone (GO-LIVE.md section 6, step 2). Then deploy the site to your web host again.')
         items.append('Order confirmation: send launch/full-bars/order-confirmation-email.md, filled in, as the confirmation '
                      'email for every order (Stripe\'s receipt doesn\'t carry the cancellation rights and form). Decide the '
                      'IMEI question at the top of that file first. Send one to yourself from a test order before launch '
                      '(GO-LIVE.md section 6, step 7).')
-    items.append('Republish the site (sites/README.md) and put one real order through end to end, then refund it.')
+    items.append(f'Deploy the switched folder to your web host at https://{opt.host}/, with HTTPS on, and do the hosting '
+                 'checks in GO-LIVE.md section 7: robots.txt, sitemap.xml and every page the sitemap lists must answer 200 '
+                 'at that exact address (a product page at products/<handle>.html, not a redirect to an address without '
+                 '.html, which some hosts do by default), a made-up address must show the 404 page with a 404 status, and '
+                 'the links in the confirmation emails must open. The claude.ai artifact stays a preview copy: don\'t '
+                 'publish the switched folder there. Then put one real order through end to end, and refund it.')
     if opt.checkout == 'shopify':
-        items.append(f'Open all {pages} product pages on the published site. Each needs a clickable "Order — £…" button '
-                     f'that goes to its own product at {shop} ("Not in stock — ask us" only if you kept data-stock), and the '
-                     'price must change when you change storage, condition or colour. "Opening soon" or greyed-out options '
-                     'mean site.js didn\'t load or data-prices is wrong (GO-LIVE.md section 6, step 3).')
+        items.append(f'Open all {pages} product pages on the live site. Each needs a clickable button that goes to its own '
+                     f'product at {shop}: "Order — £…" for a choice with a Shopify variant ID (Shopify must open on that '
+                     'storage, condition and colour, at that price), "Choose and pay on the next page" for one without ("Not in '
+                     'stock — ask us" only if you kept stock data), and the price must change when you change storage, condition '
+                     'or colour. "Opening soon" or greyed-out options mean site.js didn\'t load or data-prices is wrong '
+                     '(GO-LIVE.md section 6, step 3).')
     else:
-        items.append(f'Open all {pages} product pages on the published site. Each needs a clickable "Order — £…" button '
+        items.append(f'Open all {pages} product pages on the live site. Each needs a clickable "Order — £…" button '
                      '("Buy now — £…" with a Payment Link, "Not in stock — ask us" for an option you don\'t hold) that '
-                     'changes when you change storage, condition or colour. "Opening soon" or greyed-out options mean site.js didn\'t '
+                     'changes when you change storage, condition or colour, and a phone stock.js lists with no units must show '
+                     '"None in stock right now" on its cards. "Opening soon" or greyed-out options mean site.js didn\'t '
                      'load or data-prices is wrong (GO-LIVE.md section 6, step 3).')
     items.append('Open sell.html: the quote questions must appear, not "The instant quote hasn\'t loaded".')
     if opt.trade_ins == 'closed':
@@ -1597,7 +1938,7 @@ def build_report(mode, site, opt, edits, edited_from, notes, blockers, warnings,
         if pieces:
             L.append(f'  1. Rewrite the preview wording: {pieces} piece(s) of text in {places} place(s). It says the shop isn\'t '
                      'open, or talks about opening in the future, so it can\'t be switched mechanically, and a real run refuses '
-                     'while any of it is left (unless you pass --allow-preview-wording: then don\'t publish until it\'s done). '
+                     'while any of it is left (unless you pass --allow-preview-wording: then don\'t deploy until it\'s done). '
                      'Each sentence is shown as a customer reads it, which is exactly the key to put in a --rewrites file '
                      '(--rewrites-template writes them all for you).')
             L.extend(group_lines(rw))
@@ -1613,7 +1954,9 @@ def build_report(mode, site, opt, edits, edited_from, notes, blockers, warnings,
                    'email or confirming before you pay must say how Shopify checkout works. That includes terms section 3 '
                    '(when the contract is made) and the FAQ\'s "How do I pay?" answer (GO-LIVE.md section 5, step 7)'
                    if opt.checkout == 'shopify' else
-                   'it describes a payment provider you only intend to use')
+                   'it describes a payment provider you only intend to use, or (because pay.js has Payment Links) it '
+                   'promises to confirm or send something before you pay, or to answer "when you order", which a Buy now '
+                   'payment doesn\'t wait for. Limit such a promise to email orders ("On an email order we ...") or reword it')
             L.append(f'    Checkout wording that doesn\'t fit --checkout {opt.checkout}: {cpieces} piece(s) of text in {cplaces} '
                      f'place(s). Rewrite it in the same --rewrites file: {why}. A sentence that is still true can stay: give '
                      'it its own text as the new wording.')
@@ -1704,8 +2047,8 @@ def parse_args(argv):
                     'launch blockers remain. Do the real run on a copy or a git branch. Plain-English guide: the top of this file.',
         epilog='Example: python3 launch/full-bars/go_live.py --site ~/full-bars-copy --domain fullbars.co.uk --checkout stripe '
                '--dry-run --out ~/go-live-report.txt --rewrites-template ~/rewrites.json   (Shopify: --checkout shopify '
-               '--shop-url https://your-shop.example)   (exit 0 = done and ready to publish, '
-               '1 = blockers or a failed check, 2 = bad arguments, 3 = switched but NOT READY TO PUBLISH: preview or checkout '
+               '--shop-url https://your-shop.example)   (exit 0 = done and ready to deploy to your web host, '
+               '1 = blockers or a failed check, 2 = bad arguments, 3 = switched but NOT READY TO GO LIVE: preview or checkout '
                'wording left)')
     ap.add_argument('--site', required=True, metavar='DIR', help='the site folder to switch (edited in place unless --dry-run)')
     ap.add_argument('--domain', required=True, help='the shop\'s domain, e.g. fullbars.co.uk (pages go on www.DOMAIN, email hello@DOMAIN)')
@@ -1716,6 +2059,10 @@ def parse_args(argv):
     ap.add_argument('--shopify-csv', dest='shopify_csv', metavar='CSV', default=SHOPIFY_CSV,
                     help='the Shopify product CSV whose URL handles the Order links must match (default: products-shopify.csv '
                          'next to this script)')
+    ap.add_argument('--shop-variants', dest='shop_variants', metavar='JSON',
+                    help='with --checkout shopify: the file fetch_shopify_variants.py writes ({"<handle>": {"<storage>|<condition>|'
+                         '<colour>": <variant ID>}}). Each product picker gets data-variants, so its Order button opens Shopify '
+                         'on exactly the phone chosen (?variant=ID); a choice with no ID reads "Choose and pay on the next page"')
     ap.add_argument('--trade-ins', dest='trade_ins', choices=('closed', 'open'), default='closed',
                     help='closed (default): the quote tool keeps giving guide prices only. open: switch it on (needs a send form)')
     ap.add_argument('--dry-run', action='store_true', help='print exactly what would change (file, line, before, after); write nothing')
@@ -1724,8 +2071,8 @@ def parse_args(argv):
     ap.add_argument('--force-preview-check-only', dest='check_only', action='store_true', help=argparse.SUPPRESS)  # old name
     ap.add_argument('--allow-preview-wording', action='store_true',
                     help='switch even though preview wording ("When we open ...") or checkout wording that doesn\'t fit '
-                         '--checkout is still on the pages; the run then ends NOT READY TO PUBLISH (exit 3) and you rewrite '
-                         'it by hand before publishing')
+                         '--checkout is still on the pages; the run then ends NOT READY TO GO LIVE (exit 3) and you rewrite '
+                         'it by hand before you deploy the site')
     ap.add_argument('--out', metavar='REPORT', help='also save the full report to this file (must be outside --site)')
     ap.add_argument('--launch-date', metavar='YYYY-MM-DD',
                     help='date for "Last updated" and the sitemap (default: today, and only in the run that switches the site '
@@ -1758,7 +2105,8 @@ def run(opt):
         return 2
     for flag, path in (('--out', opt.out), ('--rewrites-template', opt.rewrites_template)):
         if path and not outside(path, site):
-            print(f'go_live.py: {flag} {path} is inside --site, so it would be published with the site. Put it somewhere else.',
+            print(f'go_live.py: {flag} {path} is inside --site, so it would go up to your web host with the site. Put it '
+                  'somewhere else.',
                   file=sys.stderr)
             return 2
         if path and os.path.isdir(path):
@@ -1783,12 +2131,18 @@ def run(opt):
             if shop_host in (opt.host, opt.bare):
                 raise Fail(f'--shop-url {opt.shop_url} is the static site\'s own address (--domain). The Shopify store needs '
                            'its own address, such as shop.' + opt.bare + ' or your-shop.myshopify.com')
+        opt.variants_data = None
+        if opt.shop_variants is not None:
+            if opt.checkout != 'shopify':
+                raise Fail('--shop-variants is only for --checkout shopify (Shopify variant IDs are used on that route only)')
+            opt.variants_data = load_variants_file(opt.shop_variants)
     except Fail as e:
         print(f'go_live.py: {e}', file=sys.stderr)
         return 2
 
     files = load_site(site)
     opt.shop_targets, opt.shop_blockers, opt.shop_warnings = shop_targets(files, opt)
+    opt.variant_maps, opt.variant_blockers, opt.variant_warnings = variant_maps(files, opt)
     blockers, warnings = find_blockers(site, files, opt)
 
     old_host = current_host(files)
@@ -1840,14 +2194,14 @@ def run(opt):
         blockers.append(wording_blocker(left, listing=opt.check_only))
     elif pieces:
         warnings.append(f'--allow-preview-wording: {pieces} piece(s) of preview wording in {places} place(s) would stay on the '
-                        'pages, so the switched site is NOT READY TO PUBLISH until they are rewritten.')
+                        'pages, so the switched site is NOT READY TO GO LIVE until they are rewritten.')
     cpieces, cplaces = checkout_left(left)
     if cpieces and not opt.allow_preview_wording:
         blockers.append(checkout_blocker(left, opt, listing=opt.check_only))
     elif cpieces:
         warnings.append(f'--allow-preview-wording: {cpieces} piece(s) of checkout wording that doesn\'t fit --checkout '
                         f'{opt.checkout} in {cplaces} place(s) would stay on the pages, so the switched site is NOT READY TO '
-                        'PUBLISH until they are rewritten.')
+                        'GO LIVE until they are rewritten.')
     pieces += cpieces
 
     if opt.check_only:
@@ -1857,7 +2211,7 @@ def run(opt):
             report.append(f'RESULT: {len(blockers)} blocker(s): not ready to launch.')
             return finish(report, opt, 1)
         if pieces:
-            report.append(f'RESULT: no blockers, but NOT READY TO PUBLISH: the switch would leave {pieces} piece(s) of preview '
+            report.append(f'RESULT: no blockers, but NOT READY TO GO LIVE: the switch would leave {pieces} piece(s) of preview '
                           'or checkout wording on the pages (--allow-preview-wording).')
             return finish(report, opt, 3)
         report.append('RESULT: no blockers: ready to switch.')
@@ -1870,7 +2224,7 @@ def run(opt):
             report.append(head + f'{len(blockers)} blocker(s): a real run would refuse.')
             return finish(report, opt, 1)
         if pieces:
-            report.append(head + 'No blockers: a real run would go ahead, but end NOT READY TO PUBLISH, because preview '
+            report.append(head + 'No blockers: a real run would go ahead, but end NOT READY TO GO LIVE, because preview '
                           'or checkout wording would still be on the pages (--allow-preview-wording).')
             return finish(report, opt, 3)
         report.append(head + 'No blockers: a real run would go ahead.')
@@ -1886,21 +2240,23 @@ def run(opt):
     problems = verify(after, opt, opt.host, changed_host) + run_checks(site)
     left_after = leftovers(after, opt, keep)
     pieces, places = (a + b for a, b in zip(wording_left(left_after), checkout_left(left_after)))
-    mode = 'WRITTEN, BUT CHECKS FAILED' if problems else 'WRITTEN, NOT READY TO PUBLISH' if pieces else 'DONE'
+    mode = 'WRITTEN, BUT CHECKS FAILED' if problems else 'WRITTEN, NOT READY TO GO LIVE' if pieces else 'DONE'
     report = build_report(mode, site, opt, edits, edited_from, notes, [f'after writing: {p}' for p in problems], warnings,
                           left_after, skipped, after)
     if problems:
-        report.append(f'RESULT: {len(edits)} change(s) written to {n} file(s), but the checks above failed. Don\'t publish yet.')
+        report.append(f'RESULT: {len(edits)} change(s) written to {n} file(s), but the checks above failed. Don\'t deploy it to '
+                      'your web host yet.')
         return finish(report, opt, 1)
     if pieces:
-        report.append(f'RESULT: NOT READY TO PUBLISH. {len(edits)} change(s) written to {n} file(s) and the checks pass, but '
+        report.append(f'RESULT: NOT READY TO GO LIVE. {len(edits)} change(s) written to {n} file(s) and the checks pass, but '
                       f'{pieces} piece(s) of preview or checkout wording in {places} place(s) are still on the pages (you passed '
                       '--allow-preview-wording). Rewrite them (STILL TO DO BY HAND, item 1), for example by running this again '
-                      'with --rewrites, before you publish.')
+                      'with --rewrites, before you deploy the site to your web host.')
         return finish(report, opt, 3)
     report.append(f'RESULT: done. {len(edits)} change(s) written to {n} file(s); checks pass and no preview wording is left '
                   f'(nor checkout wording that doesn\'t fit --checkout {opt.checkout}). Now do the items under STILL TO DO BY '
-                  'HAND, then publish.')
+                  'HAND, then deploy the switched folder to your web host (GO-LIVE.md section 7). The claude.ai artifact '
+                  'stays a preview copy: don\'t publish this folder there.')
     return finish(report, opt, 0)
 
 
@@ -1909,7 +2265,7 @@ def wording_blocker(left, listing=False):
     msg = (f'preview wording would still be on the live pages: {pieces} piece(s) of text in {places} place(s) '
            f'({"listed below" if listing else "STILL TO DO BY HAND, item 1"}). Put the new wording in a --rewrites file '
            '(--rewrites-template writes one for you), or pass --allow-preview-wording to switch anyway and rewrite it by '
-           'hand before you publish')
+           'hand before you deploy the site')
     if listing:
         groups = list(left.get('rewrite', {}).items()) + [(k + '  [edit by hand]', v) for k, v in left.get('hand', {}).items()]
         for k, locs in sorted(groups, key=lambda kv: (-len(kv[1]), kv[0])):
@@ -1922,7 +2278,7 @@ def checkout_blocker(left, opt, listing=False):
     msg = (f'checkout wording that doesn\'t fit --checkout {opt.checkout}: {pieces} piece(s) of text in {places} place(s) '
            f'({"listed below" if listing else "STILL TO DO BY HAND, item 1"}). Put the new wording in the same --rewrites file '
            '(--rewrites-template lists it; a sentence that is still true can be kept by giving it its own text), or pass '
-           '--allow-preview-wording to switch anyway and rewrite it by hand before you publish')
+           '--allow-preview-wording to switch anyway and rewrite it by hand before you deploy the site')
     if listing:
         groups = list(left.get('checkout', {}).items()) + [(k + '  [edit by hand]', v) for k, v in left.get('checkout-hand', {}).items()]
         for k, locs in sorted(groups, key=lambda kv: (-len(kv[1]), kv[0])):

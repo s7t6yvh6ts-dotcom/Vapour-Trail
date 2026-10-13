@@ -8,7 +8,8 @@
    collect the UK shipping address and phone number, and add a 'Colour' custom field.
    In Stripe Radar, add rules to block payments when the postcode or address check fails, and to request 3D Secure on all payments.
    Review every first order by hand before dispatch (new customer + high value + billing/delivery mismatch = hold it).
-   Deactivate the link in Stripe and clear it here as soon as the phone sells. There's no build step: edit this file and republish.
+   Deactivate the link in Stripe and clear it here as soon as the phone sells, and lower its count in stock.js.
+   There's no build step: edit this file and deploy the site to your web host again (GO-LIVE.md section 7).
    Links do nothing while the site is in preview mode (data-preview="1" on each product page's #picker form). */
 window.FULLBARS_PAY = {
   "iPhone 12 64GB Excellent": "",

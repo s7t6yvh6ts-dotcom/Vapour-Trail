@@ -76,13 +76,19 @@ class ConfirmationEmailTest(unittest.TestCase):
         self.assertIn('the draft order\'s custom item title must name the replaced part', self.comment)
         self.assertIn('Shopify draft order', self.golive)
 
-    def test_golive_lists_the_ask_when_you_order_promises(self):
+    def test_ask_before_you_order_promises_hold_on_every_route(self):
+        """R8: the photos and battery promises say "ask us before you order", true when ordering is paying (Shopify, or
+        Buy now), so GO-LIVE.md records them as done instead of listing them for rewriting."""
         golive = self.golive.replace('’', "'")
         faq = html.unescape(read(os.path.join(SITE, 'faq.html'))).replace('’', "'")
-        for sentence in ("If you'd like photos of the exact phone you're buying, ask when you order and we'll send them "
-                         'before you pay.', 'Want the exact figure for any phone? Ask when you order.'):
-            self.assertIn(sentence, faq)
-            self.assertIn(sentence, golive)
+        home = html.unescape(read(os.path.join(SITE, 'index.html'))).replace('’', "'")
+        self.assertEqual(faq.count("If you'd like photos of the exact phone you're buying, ask us before you order and we'll "
+                                   'send them.'), 2)   # the page and the structured data
+        self.assertEqual(faq.count('Want the exact figure for any phone? Ask us before you order.'), 2)
+        self.assertIn('Want the exact figure for any phone? Ask us before you order.', home)
+        for src in (faq, home):
+            self.assertNotIn('ask when you order', src.lower())
+        self.assertIn('now say "ask us before you order"', golive)
 
 
 if __name__ == '__main__':

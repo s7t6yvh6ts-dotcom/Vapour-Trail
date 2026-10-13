@@ -1,6 +1,6 @@
 # Sites
 
-Each folder is the source for one claude.ai artifact. To change a site, edit the files and republish to the same URL.
+Each folder is the source for one claude.ai artifact. To change a site, edit the files and republish to the same URL, until that site launches on its own web host: then the rule for it changes (Full Bars: see below).
 
 | Site | Business | Artifact |
 |---|---|---|
@@ -13,7 +13,9 @@ Both are dark only, on purpose. Stock, prices and contact details are placeholde
 
 Full Bars is a multi-page site. `index.html` is the artifact's page; every other file in the folder goes up with it as a supporting file, keeping its path. Leave `404.html` out: it uses root-relative links meant for a real web host.
 
-The site is set to `noindex` and `robots.txt` blocks crawlers while it's a preview. At launch, swap both back (the comment in `robots.txt` says how).
+The site is set to `noindex` and `robots.txt` blocks crawlers while it's a preview. At launch, `launch/full-bars/go_live.py` switches both (and everything else) on a copy, and that switched copy goes on Full Bars' own web host at www.fullbars.co.uk (`launch/full-bars/GO-LIVE.md`, section 7). The artifact stays a preview copy: never publish the switched site to it.
+
+**After launch**, `sites/full-bars` holds the switched, live site (GO-LIVE section 7 copies it back), so changes to it go to the web host, not to the artifact. Republish the artifact only from a preview copy (for example the folder as it was before `go_live.py` ran), or stop updating it. Never republish it from `sites/full-bars` once that folder is the live site.
 
 ## Other shops
 
