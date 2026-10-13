@@ -107,9 +107,16 @@ The files in this folder are listed at the end.
 
 1. **`pay.js`.** Add a Payment Link only for a phone you hold that meets the rules in the file's header: original parts only, at or under the cap, terms accepted, quantity 1, UK address, colour field, Radar rules. Clear the link the moment that phone sells.
 2. **`data-stock`.** Add it to each product page's `#picker` form. The format is in `site.js`.
-3. **Order button.** On all 19 product pages it's a dead `<span id="orderBtn" aria-disabled="true">Opening soon</span>`. `site.js` only sets its link, so it must become `<a class="btn btn-hot btn-block" id="orderBtn" href="../contact.html">Order</a>`. If you skip this, nothing on the product pages can be clicked to order.
+3. **Order button and options.** On all 19 product pages the button is a dead `<span id="orderBtn" aria-disabled="true">Opening soon</span>`, and the three option `<fieldset>`s (storage, condition, colour) ship `disabled`.
+   - Once `data-preview` is gone from `#picker`, `site.js` swaps the span for a link by itself. Change the markup anyway, to `<a class="btn btn-hot btn-block" id="orderBtn" href="../contact.html">Order</a>`, so the button still goes somewhere if `site.js` fails to load. `site.js` then fills in the chosen phone and price.
+   - Leave the fieldsets `disabled` in the HTML. `site.js` switches them on only after it has read `data-prices` and found a price for every storage and condition on that page. That way, without the script, the ticked options always match the price shown.
+   - **The catch:** if `data-prices` is mistyped, or a storage and condition has no price, that page keeps greyed-out options and its "Opening soon" span, so the phone can't be ordered. Nothing on the page says why: the browser console shows a warning starting "Full Bars: data-prices", and `check_site_prices.py` stops with a Python error (a traceback, not FAIL lines). Use `data-stock`, never a missing price, to show something isn't available. The launch-day check in section 7 catches the rest.
 4. **`contact.html`.** Add an "Order a phone" topic (`site.js` looks for it), and remove the "Not trading yet" panel and the preview note.
 5. **Hosting.** Use a real web host, where `404.html`'s root-relative links work.
+6. **Leave the script fallbacks in place.** They only show when a script doesn't run:
+   - `#qtFallback` on `sell.html` and the 6 `sell/*.html` pages ("The instant quote hasn't loaded…"). `quote-ui.js` hides it once the quote tool is drawn. `styles.css` keeps it invisible for the first 3 seconds, so a slow script doesn't flash it, and the `<noscript>` style in each page's head shows it at once when JavaScript is off.
+   - `[data-needs-quote]` on the sell pages: each "up to £…" phrase ships `hidden`, and `quote-ui.js` shows it once `quote.js` has filled in the figure. `styles.css` keeps its space meanwhile, so the page doesn't jump, and drops it after 3 seconds if the figure never arrives. Don't remove `hidden` by hand, or a failed script leaves "up to" with no figure.
+   - The `onerror` on every page's `site.js` tag. If `site.js` fails to load, it adds `no-site-js` to the page, so the header shows "Shop phones" instead of a menu button that does nothing, the shop filters and contact form are hidden, and the contact page says the form didn't load. Keep it if you edit the script tags.
 
 ## 7. Launch day switches
 
@@ -126,6 +133,7 @@ The files in this folder are listed at the end.
 - [ ] Change "Last updated October 2026" on `terms`, `privacy`, `cookies`, `warranty` and `delivery-returns` to the launch date. Update the `lastmod` dates in `sitemap.xml`.
 - [ ] Checkout: Shopify products set to Active and published, **or** the Payment Links filled in `pay.js`.
 - [ ] Republish the site and test one order end to end.
+- [ ] Static site: once it's republished, open all 19 product pages. Each must have a clickable button reading "Order — £…" ("Buy now — £…" with a Payment Link, "Not in stock — ask us" for an option you don't hold), and changing storage, condition or colour must change it. "Opening soon" or greyed-out options mean `data-preview` is still on that page's `#picker`, `site.js` didn't load, or `data-prices` is wrong (see section 6, step 3). `check_site_prices.py` doesn't check the button. Then open `sell.html`: the quote questions must appear, not "The instant quote hasn't loaded".
 
 **Sources.**
 - Shopify CSV columns and rules come from [Using CSV files to import and export products](https://help.shopify.com/en/manual/products/import-export/using-csv): current column names, one row per variant, Status of active/draft/archived, Product category as a breadcrumb or an ID but not both, up to 3 options and 2,048 variants, `deny`/`continue`, 15 MB file limit.

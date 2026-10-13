@@ -10,10 +10,27 @@
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
   function gbp(n) { return '£' + Number(n).toLocaleString('en-GB'); }
+  /* JSON from a data- attribute, or null if it's missing or isn't valid JSON (e.g. a typo in a hand edit) */
+  function dataJSON(el, name) {
+    var raw = el && el.getAttribute(name);
+    if (!raw) return null;
+    try { var v = JSON.parse(raw); return v && typeof v === 'object' ? v : null; }
+    catch (e) { if (window.console) console.warn('Full Bars: ' + name + ' is not valid JSON, so it is ignored', e); return null; }
+  }
+
+  /* ---------- web fonts ----------
+     Each page loads the Google Fonts stylesheet with media="print" so a slow or blocked fonts server can't hold
+     up the first paint; its inline onload switches it on. This is the backup if inline handlers are blocked. */
+  $all('link[data-fonts]').forEach(function (l) {
+    if (l.media === 'all') return;
+    function on() { l.media = 'all'; }
+    if (l.sheet) on(); else l.addEventListener('load', on);
+  });
 
   /* ---------- mobile menu ---------- */
   var menuBtn = $('#menuBtn'), drawer = $('#drawer');
   if (menuBtn && drawer) {
+    var closeDrawer = function () { drawer.classList.remove('open'); menuBtn.setAttribute('aria-expanded', 'false'); };
     menuBtn.addEventListener('click', function () {
       var open = drawer.classList.toggle('open');
       menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -21,11 +38,19 @@
     /* Escape closes the drawer and puts focus back on the button that opened it */
     document.addEventListener('keydown', function (e) {
       if ((e.key === 'Escape' || e.key === 'Esc') && drawer.classList.contains('open')) {
-        drawer.classList.remove('open');
-        menuBtn.setAttribute('aria-expanded', 'false');
+        closeDrawer();
         menuBtn.focus();
       }
     });
+    /* Tabbing on past the last menu link closes the menu, so focus never lands on the page hidden behind it.
+       A tap on empty space, or the window losing focus, has no relatedTarget and leaves it open. */
+    var siteHeader = menuBtn.closest ? menuBtn.closest('header') : null;
+    if (siteHeader) siteHeader.addEventListener('focusout', function (e) {
+      var to = e.relatedTarget;
+      if (to && !siteHeader.contains(to) && drawer.classList.contains('open')) closeDrawer();
+    });
+    /* close it as the page is left, so coming Back from the Back/Forward cache doesn't show it still open */
+    window.addEventListener('pagehide', function () { if (drawer.classList.contains('open')) closeDrawer(); });
   }
 
   /* ---------- wide tables ----------
@@ -62,6 +87,13 @@
   $all('.chips-scroll').forEach(function (ul) {
     var cur = $('[aria-current="page"]', ul);
     if (cur && ul.scrollWidth > ul.clientWidth) ul.scrollLeft += cur.getBoundingClientRect().left - ul.getBoundingClientRect().left - 16;
+    /* keyboard: browsers leave a partly visible chip half off the row when it takes focus, so bring it in */
+    ul.addEventListener('focusin', function (e) {
+      if (ul.scrollWidth <= ul.clientWidth) return;
+      var ur = ul.getBoundingClientRect(), ar = e.target.getBoundingClientRect(), pad = 16;
+      if (ar.right > ur.right - pad) ul.scrollLeft += ar.right - (ur.right - pad);
+      else if (ar.left < ur.left + pad) ul.scrollLeft -= (ur.left + pad) - ar.left;
+    });
   });
 
   /* ---------- toast + copy ---------- */
@@ -72,10 +104,12 @@
     clearTimeout(toastT); toastT = setTimeout(function () { toastEl.hidden = true; }, 2800);
   }
   function copyText(text, ok) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { toast(ok); },
-        function () { toast('Couldn’t copy automatically — select the text and copy it.'); });
-    } else toast('Couldn’t copy automatically — select the text and copy it.');
+    var fail = function () { toast('Couldn’t copy automatically — select the text and copy it.'); };
+    /* some sandboxes and in-app browsers throw straight away instead of rejecting the promise */
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast(ok); }, fail);
+      else fail();
+    } catch (e) { fail(); }
   }
   $all('[data-copy]').forEach(function (b) {
     b.addEventListener('click', function () { copyText(b.getAttribute('data-copy'), 'Copied'); });
@@ -85,41 +119,68 @@
      The form carries every price as JSON in data-prices: { "128GB": { "Excellent": 249, ... }, ... }.
      The Order button goes to the contact page with the chosen phone filled in. If pay.js has a
      Stripe Payment Link for "<model> <storage> <grade>", the button becomes "Buy now" instead. */
-  var picker = $('#picker');
-  if (picker) {
-    var prices = JSON.parse(picker.getAttribute('data-prices'));
+  /* The picker's fieldsets ship disabled, so without this script (JavaScript off, or site.js failing to load) the
+     ticked options can't be changed and always match the price shown. They are enabled below, once the script has
+     taken over; if data-prices can't be read they stay disabled. Disabled rather than hidden: no layout shift. */
+  var picker = $('#picker'), pickerPrices = dataJSON(picker, 'data-prices');
+  /* Every storage and condition on the page needs a price. Without one, a click could tick an option the price and
+     the Order link can't follow, so the options stay disabled instead (availability belongs in data-stock). */
+  if (picker && pickerPrices && !$all('input[name="storage"]', picker).every(function (s) {
+    return $all('input[name="grade"]', picker).every(function (g) {
+      var row = pickerPrices[s.value], p = row && row[g.value];
+      return typeof p === 'number' && isFinite(p) && p > 0;
+    });
+  })) {
+    if (window.console) console.warn('Full Bars: data-prices has no price for every storage and condition on this page, so the options stay disabled');
+    pickerPrices = null;
+  }
+  if (picker && pickerPrices) {
+    var prices = pickerPrices;
     var model = picker.getAttribute('data-model');
     var contactUrl = picker.getAttribute('data-contact');
-    var grades = JSON.parse(picker.getAttribute('data-grades'));
+    var grades = dataJSON(picker, 'data-grades') || {};
     /* data-stock goes on the product page's #picker form once there is real stock: { "128GB|Very Good": 1, ... }.
-       Without it, every option counts as available and no 'not in stock' note is shown. */
-    var stock = picker.getAttribute('data-stock') ? JSON.parse(picker.getAttribute('data-stock')) : null;
+       Without it, every option counts as available and no 'not in stock' note is shown. If it isn't valid JSON
+       it is ignored (with a console warning), so a typo can't freeze the price. */
+    var stock = dataJSON(picker, 'data-stock');
     var priceEl = $('#pdPrice'), orderBtn = $('#orderBtn'), lineEl = $('#selLine'), gradeNote = $('#gradeNote');
     var buyNote = $('#buyNote'), stockNote = $('#stockNote'), emailNote = $('#emailNote'), fromEl = $('#pdFrom');
     /* the lowest price across every option, and which option it is: the 'from' price the cards show */
     var minP = null, minSt = '', minGr = '';
     Object.keys(prices).forEach(function (s) {
-      Object.keys(prices[s]).forEach(function (g) { if (minP === null || prices[s][g] < minP) { minP = prices[s][g]; minSt = s; minGr = g; } });
+      Object.keys(prices[s] || {}).forEach(function (g) { var v = prices[s][g]; if (typeof v === 'number' && (minP === null || v < minP)) { minP = v; minSt = s; minGr = g; } });
     });
     /* data-preview="1" on #picker in the page's HTML: not trading yet, so no Order or Buy now route at all.
        Remove the attribute at launch. */
     var preview = picker.getAttribute('data-preview') === '1';
+    /* At launch the Order button must be a link. If the page still has the preview's inert <span>, swap it for
+       an <a> so every phone stays orderable (GO-LIVE.md also says to change the markup). */
+    if (!preview && orderBtn && orderBtn.tagName !== 'A') {
+      var realBtn = document.createElement('a');
+      realBtn.id = 'orderBtn';
+      realBtn.className = orderBtn.className.replace(/(^|\s)btn-off(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+      realBtn.textContent = orderBtn.textContent;
+      orderBtn.parentNode.replaceChild(realBtn, orderBtn);
+      orderBtn = realBtn;
+    }
     function val(name) { var el = picker.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : ''; }
     /* The choice is kept in the address (?storage=256GB&grade=Good&colour=Green), so Back, refresh and a shared
-       link all show the same phone at the same price. Unknown values are ignored. */
-    var KEYS = ['storage', 'grade', 'colour'];
+       link all show the same phone at the same price. Unknown values are ignored, and replaced in the address
+       below (pickDropped) so it matches what's ticked, as the shop does with its filters. */
+    var KEYS = ['storage', 'grade', 'colour'], pickDropped = false;
     try {
       var want = new URLSearchParams(location.search);
       KEYS.forEach(function (k) {
+        if (!want.has(k)) return;
         var v = want.get(k);
         var r = v ? $all('input[name="' + k + '"]', picker).filter(function (i) { return i.value === v; })[0] : null;
-        if (r) r.checked = true;
+        if (r) r.checked = true; else pickDropped = true;
       });
     } catch (e) { /* no URLSearchParams: keep the page's own default */ }
     function rememberPick() {
       try {
         var q = new URLSearchParams(location.search);
-        KEYS.forEach(function (k) { var v = val(k); if (v) q.set(k, v); });
+        KEYS.forEach(function (k) { var v = val(k); if (v) q.set(k, v); else q.delete(k); });
         history.replaceState(history.state, '', location.pathname + '?' + q.toString() + location.hash);
       } catch (e) { /* sandboxed frame or old browser: the picker still works, the address just doesn't follow it */ }
     }
@@ -135,16 +196,16 @@
       }
       /* show each grade's price for the chosen storage */
       $all('input[name="grade"]', picker).forEach(function (r) {
-        var s = r.parentNode.querySelector('small'); if (s) s.textContent = gbp(prices[st][r.value]);
+        var s = r.parentNode.querySelector('small'), v = prices[st][r.value]; if (s) s.textContent = v == null ? '' : gbp(v);
       });
       $all('input[name="storage"]', picker).forEach(function (r) {
-        var s = r.parentNode.querySelector('small'); if (s) s.textContent = gbp(prices[r.value][gr]);
+        var s = r.parentNode.querySelector('small'), v = prices[r.value] && prices[r.value][gr]; if (s) s.textContent = v == null ? '' : gbp(v);
       });
       if (gradeNote && grades[gr]) gradeNote.textContent = grades[gr];
       $all('#pdArt [data-colour]').forEach(function (v) { v.hidden = v.getAttribute('data-colour') !== co; });
       var label = model + ' ' + st + ', ' + gr + (co ? ', ' + co : '');
       var held = !stock || stock[st + '|' + gr] === 1;
-      lineEl.textContent = 'Selected: ' + label + ' — ' + gbp(price) + (held ? '' : ' (not in stock right now)');
+      if (lineEl) lineEl.textContent = 'Selected: ' + label + ' — ' + gbp(price) + (held ? '' : ' (not in stock right now)');
       /* show which options are in stock when the owner tracks stock */
       if (stock) {
         $all('input[name="storage"]', picker).forEach(function (r) { r.parentNode.classList.toggle('na', stock[r.value + '|' + gr] !== 1); });
@@ -174,6 +235,9 @@
     }
     picker.addEventListener('change', function () { update(); rememberPick(); });
     update();
+    $all('fieldset[disabled]', picker).forEach(function (f) { f.disabled = false; });
+    /* a stale or hand-edited link (?storage=9TB): put what is actually ticked in the address instead */
+    if (pickDropped) rememberPick();
     /* Coming Back to the page, the browser can re-tick the options after this script has run, without a change
        event: refresh everything (price, notes, Order link) from what is actually ticked. */
     window.addEventListener('pageshow', update);
@@ -189,11 +253,15 @@
   var filters = $('#filters'), grid = $('#shopGrid');
   if (filters && grid) {
     var cards = $all('.card', grid), countEl = $('#resultCount'), empty = $('#emptyMsg');
-    var params = new URLSearchParams(location.search);
+    var params = new URLSearchParams(location.search), dropped = false;
+    /* only take a value the dropdown actually offers: an unknown one (a stale or hand-edited link) would blank it */
     ['series', 'type', 'max', 'sort'].forEach(function (k) {
-      var el = filters.elements[k]; if (el && params.get(k)) el.value = params.get(k);
+      var el = filters.elements[k], v = params.get(k);
+      if (!el || !v) return;
+      if ($all('option', el).some(function (o) { return o.value === v; })) el.value = v; else dropped = true;
     });
     if (params.get('usbc') === '1') filters.elements.usbc.checked = true;
+    else if (params.has('usbc')) dropped = true;
     function apply() {
       var f = filters.elements, series = f.series.value, type = f.type.value, max = Number(f.max.value || 0),
           usbc = f.usbc.checked, sort = f.sort.value, shown = 0;
@@ -229,9 +297,18 @@
     }
     filters.addEventListener('change', function () { apply(); rememberFilters(); });
     filters.addEventListener('submit', function (e) { e.preventDefault(); apply(); });
+    /* 'Clear filters' by the count, and the one in the 'No phones match' box further down */
     var reset = $('#resetFilters');
-    if (reset) reset.addEventListener('click', function () { filters.reset(); apply(); rememberFilters(); });
+    $all('#resetFilters, [data-reset-filters]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        filters.reset(); apply(); rememberFilters();
+        /* the box's own button disappears with the box: keep focus on the one that stays */
+        if (b !== reset && reset) reset.focus();
+      });
+    });
     apply();
+    /* drop values we couldn't use from the address, so it matches what the filters show */
+    if (dropped) rememberFilters();
     /* the browser can restore the dropdowns on Back after this script ran: re-filter from what they actually show */
     window.addEventListener('pageshow', apply);
   }
@@ -256,9 +333,13 @@
   if (form) {
     var topic = $('#cTopic'), nameEl = $('#cName'), msgEl = $('#cMsg'), status = $('#status');
     var q = new URLSearchParams(location.search);
+    /* data-preview: not trading yet. The form checks what was typed but never opens an email or sends anything,
+       and says so plainly. Copy is hidden too: the address isn't live until we open. */
+    var formPreview = form.getAttribute('data-preview') === '1';
     /* only pick a topic the list actually has (preview mode has no "Order a phone"); otherwise keep the first one */
     function setTopic(v) { for (var j = 0; j < topic.options.length; j++) if (topic.options[j].value === v) { topic.value = v; return; } }
-    if (q.get('order')) {
+    /* no Order route in preview, so an ?order= link (only a crafted one could exist) is ignored */
+    if (q.get('order') && !formPreview) {
       setTopic('Order a phone');
       var pr = q.get('price') && /^\d+$/.test(q.get('price')) ? ' (' + gbp(q.get('price')) + ')' : '';
       msgEl.value = 'I’d like to order:\n- ' + q.get('order') + pr + '\n\nDelivery address:\n\n\nPhone number (for the courier):\n';
@@ -275,11 +356,11 @@
       var name = scrub(nameEl.value.trim()), msg = scrub(msgEl.value.trim());
       return { topic: topic.value, name: name, msg: msg, body: msg + (name ? '\n\n' + name : '') };
     }
-    /* data-preview: not trading yet. The form checks what was typed but never opens an email or sends anything,
-       and says so plainly. Copy is hidden too: the address isn't live until we open. */
-    var formPreview = form.getAttribute('data-preview') === '1';
     if (formPreview && $('#copyMsg')) $('#copyMsg').hidden = true;
-    form.addEventListener('submit', function (e) {
+    /* Handled on the button's click as well as the form's submit: in a sandboxed frame without allow-forms the
+       browser blocks the submission before 'submit' fires, but the click (and Enter in a field, which clicks the
+       button) still arrives. preventDefault on the click stops the submission, so this never runs twice. */
+    function onSend(e) {
       e.preventDefault();
       var c = composed();
       if (!c.name || !c.msg) { status.textContent = 'Add your name and a message first.'; return; }
@@ -289,7 +370,9 @@
       }
       mailto(c.topic + (c.name ? ' — ' + c.name : ''), c.body);
       status.textContent = 'Your email app should open with this message ready — press send there. If nothing opened, use “Copy message” and email it to ' + EMAIL + '.';
-    });
+    }
+    form.addEventListener('submit', onSend);
+    $all('button[type="submit"]', form).forEach(function (b) { b.addEventListener('click', onSend); });
     if ($('#copyMsg')) $('#copyMsg').addEventListener('click', function () {
       var c = composed();
       if (!c.msg) { status.textContent = 'Write your message first.'; return; }

@@ -23,9 +23,15 @@
         function (m, w, n, is, sep) { return w + (n || '') + (is || '') + (sep || ' ') + '[number removed]'; });
   }
 
-  /* ---------- "up to" figures and price tables (any sell page) ---------- */
+  /* ---------- "up to" figures and price tables (any sell page) ----------
+     Each "up to £…" phrase ships hidden inside a [data-needs-quote] wrapper and is shown only once its figure is
+     filled in, so a failed script never leaves "up to …" on the page. */
   $all('[data-upto]').forEach(function (el) {
-    try { el.textContent = Q.formatPounds(Q.priceTable(el.getAttribute('data-upto')).upTo); } catch (e) { el.textContent = 'ask us'; }
+    try {
+      el.textContent = Q.formatPounds(Q.priceTable(el.getAttribute('data-upto')).upTo);
+      var wrap = el.closest ? el.closest('[data-needs-quote]') : null;
+      if (wrap) wrap.hidden = false;
+    } catch (e) { el.textContent = 'ask us'; }
   });
   $all('[data-price-table]').forEach(function (tbl) {
     var t;
@@ -138,12 +144,14 @@
 
   var current = null;
   function update() {
-    /* progressive steps: each question appears once the one before it is answered */
+    /* progressive steps: each question appears once every question before it is answered (a restored answer
+       further down, e.g. after a storage size was dropped, stays hidden until the gap is filled) */
+    var okSt = !!(state.modelId && state.storage), okSc = okSt && !!state.screen, okBo = okSc && !!state.body;
     if (steps.storage) steps.storage.hidden = !state.modelId;
-    if (steps.screen) steps.screen.hidden = !state.storage;
-    if (steps.body) steps.body.hidden = !state.screen;
-    if (steps.flags) steps.flags.hidden = !state.body;
-    if (steps.own) steps.own.hidden = !state.body;
+    if (steps.screen) steps.screen.hidden = !okSt;
+    if (steps.body) steps.body.hidden = !okSc;
+    if (steps.flags) steps.flags.hidden = !okBo;
+    if (steps.own) steps.own.hidden = !okBo;
     var cracked = $('#qtCracked'); if (cracked) cracked.hidden = state.screen !== 'cracked';
     var dead = $('#qtDead'); if (dead) dead.hidden = !flag('deadDevice');
 
@@ -310,7 +318,9 @@
     return { name: name, subject: 'Trade-in quote: ' + m.name + ' ' + a.storage + ', ' + Q.formatPounds(r.customerQuote), body: body };
   }
   if (send) {
-    send.addEventListener('submit', function (e) {
+    /* on the button's click as well as submit: a sandboxed frame without allow-forms blocks the submission
+       before 'submit' fires, but the click still arrives (preventDefault there stops a second run) */
+    var onSend = function (e) {
       e.preventDefault();
       var c = composed();
       if (!c) return;
@@ -318,19 +328,30 @@
       if (!$('#qtOwner').checked) { sendStatus.textContent = 'Please confirm the phone is yours to sell.'; return; }
       location.href = 'mailto:' + EMAIL + '?subject=' + encodeURIComponent(c.subject) + '&body=' + encodeURIComponent(c.body);
       sendStatus.textContent = 'Your email app should open with your quote ready: press send there. We reply within one working day with your free label. If nothing opened, use “Copy quote” and email it to ' + EMAIL + '.';
-    });
-    $('#qtCopy').addEventListener('click', function () {
+    };
+    send.addEventListener('submit', onSend);
+    $all('button[type="submit"]', send).forEach(function (b) { b.addEventListener('click', onSend); });
+    var copyBtn = $('#qtCopy');
+    if (copyBtn) copyBtn.addEventListener('click', function () {
       var c = composed(); if (!c) return;
       var text = 'To: ' + EMAIL + '\nSubject: ' + c.subject + '\n\n' + c.body;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function () { sendStatus.textContent = 'Copied. Paste it into a new email to ' + EMAIL + '.'; },
-          function () { sendStatus.textContent = 'Couldn’t copy automatically. Email ' + EMAIL + ' with your answers.'; });
-      } else sendStatus.textContent = 'Couldn’t copy automatically. Email ' + EMAIL + ' with your answers.';
+      var fail = function () { sendStatus.textContent = 'Couldn’t copy automatically. Email ' + EMAIL + ' with your answers.'; };
+      /* some sandboxes and in-app browsers throw straight away instead of rejecting the promise */
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { sendStatus.textContent = 'Copied. Paste it into a new email to ' + EMAIL + '.'; }, fail);
+        } else fail();
+      } catch (e) { fail(); }
     });
   }
 
   numberSteps();
   syncFromPage();
+  /* The tool ships hidden, with a 'hasn't loaded' note in its place (#qtFallback), so a page whose scripts didn't
+     run (JavaScript off, or quote.js / this file failing to load) never shows half-drawn questions. Swap them now. */
+  tool.hidden = false;
+  var fallback = $('#qtFallback');
+  if (fallback) fallback.hidden = true;
   /* again once the page has fully loaded and whenever it's shown from the Back/Forward cache,
      in case the browser restored ticks after this script first ran */
   window.addEventListener('load', syncFromPage);

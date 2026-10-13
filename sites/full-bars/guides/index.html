@@ -22,8 +22,9 @@
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'" data-fonts>
 <link rel="stylesheet" href="../styles.css">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"><style>.menu-btn{display:none!important}.nav-right .btn{display:inline-flex!important}.js-only{display:none!important}#qtFallback{visibility:visible!important;animation:none!important}[data-needs-quote][hidden]{display:none!important}</style></noscript>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.fullbars.co.uk/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.fullbars.co.uk/guides/"}]}</script>
 </head>
 <body>
@@ -99,6 +100,6 @@
 <div class="toast" id="toast" hidden></div>
 <script src="../pay.js" defer></script>
 
-<script src="../site.js" defer></script>
+<script src="../site.js" defer onerror="document.documentElement.classList.add('no-site-js')"></script>
 </body>
 </html>

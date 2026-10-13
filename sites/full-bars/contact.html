@@ -22,8 +22,9 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'" data-fonts>
 <link rel="stylesheet" href="styles.css">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"><style>.menu-btn{display:none!important}.nav-right .btn{display:inline-flex!important}.js-only{display:none!important}#qtFallback{visibility:visible!important;animation:none!important}[data-needs-quote][hidden]{display:none!important}</style></noscript>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","@id":"https://www.fullbars.co.uk/#org","name":"Full Bars","url":"https://www.fullbars.co.uk/","email":"hello@fullbars.co.uk","logo":"https://www.fullbars.co.uk/og/logo.png","description":"Refurbished iPhone, Samsung Galaxy and Google Pixel phones: IMEI-checked, data-wiped, unlocked and graded to a published standard, with a 12-month warranty. Based in the United Kingdom.","hasMerchantReturnPolicy":{"@type":"MerchantReturnPolicy","applicableCountry":"GB","returnPolicyCategory":"https://schema.org/MerchantReturnFiniteReturnWindow","merchantReturnDays":30,"returnMethod":"https://schema.org/ReturnByMail","returnFees":"https://schema.org/FreeReturn"}}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.fullbars.co.uk/"},{"@type":"ListItem","position":2,"name":"Contact","item":"https://www.fullbars.co.uk/contact.html"}]}</script>
 </head>
@@ -73,7 +74,7 @@
 <div class="two-col" style="margin-top:22px">
   <div class="panel" id="form">
     <h2 style="font-size:24px">Send us a message</h2>
-    <form id="contactForm" class="form" novalidate data-preview="1">
+    <form id="contactForm" class="form js-only" novalidate data-preview="1">
       <label for="cTopic">What&rsquo;s it about?<select id="cTopic"><option>Question about a phone</option><option>Selling my phone</option><option>Warranty or return</option><option>Something else</option></select></label>
       <label for="cName">Your name<input type="text" id="cName" autocomplete="name"></label>
       <label for="cMsg">Message<textarea id="cMsg" placeholder="For orders: the phone, storage, grade and colour, your delivery address and a phone number for the courier."></textarea></label>
@@ -81,11 +82,13 @@
       <p class="form-note">In this preview the form doesn&rsquo;t send anything. When we open, &ldquo;Write email&rdquo; will open your own email app with the message addressed to hello@fullbars.co.uk, ready for you to send. Please don&rsquo;t include a phone&rsquo;s IMEI or serial number: we never need it by email.</p>
       <p class="status" id="status" role="status"></p>
     </form>
+    <noscript><p class="form-note">This form needs JavaScript. In this preview it doesn&rsquo;t send anything; when we open you&rsquo;ll be able to email hello@fullbars.co.uk.</p></noscript>
+    <p class="form-note site-js-note">This form didn&rsquo;t load. Refresh the page to try again. In this preview it doesn&rsquo;t send anything; when we open you&rsquo;ll be able to email hello@fullbars.co.uk.</p>
   </div>
   <div>
     <div class="panel panel-mint"><h2 style="font-size:24px">Not trading yet</h2><p style="margin:0">This is a preview of the Full Bars website. We&rsquo;re not taking orders, buying phones or answering messages through the site yet. The email address below goes live when we open.</p></div>
     <div class="contact-lines">
-      <div><span>Email</span><span><a href="mailto:hello@fullbars.co.uk">hello@fullbars.co.uk</a><button type="button" class="copy" data-copy="hello@fullbars.co.uk">Copy</button></span></div>
+      <div><span>Email</span><span><a href="mailto:hello@fullbars.co.uk">hello@fullbars.co.uk</a><button type="button" class="copy js-only" data-copy="hello@fullbars.co.uk">Copy</button></span></div>
       <div><span>Phone</span><span>[Phone number]</span></div>
       <div><span>Hours</span><span>[Opening hours]</span></div>
       <div><span>Business address</span><span>[Company name], [Registered business address]</span></div>
@@ -112,6 +115,6 @@
 <div class="toast" id="toast" hidden></div>
 <script src="pay.js" defer></script>
 
-<script src="site.js" defer></script>
+<script src="site.js" defer onerror="document.documentElement.classList.add('no-site-js')"></script>
 </body>
 </html>
