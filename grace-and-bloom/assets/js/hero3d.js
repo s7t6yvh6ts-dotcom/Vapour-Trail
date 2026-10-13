@@ -22,6 +22,10 @@
   canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); stage.classList.add('no-webgl'); });
 
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* "still": reduced motion, or the visitor pressed the pause button. Nothing drifts or bobs; the card still opens on request. */
+  function still() { return reduce || document.documentElement.classList.contains('still'); }
+  var dirty = true; // something changed that needs one more frame drawn
+  document.addEventListener('gb-motionchange', function () { dirty = true; });
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -40,7 +44,23 @@
     return t;
   }
   function mat(color, opts) { return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.82, metalness: 0 }, opts || {})); }
-  function texMat(cv) { return new THREE.MeshStandardMaterial({ map: tex(cv), roughness: 0.78, metalness: 0 }); }
+  /* Painting a picture and uploading it to the GPU take a few hundred ms each on a slow phone, so the scene is
+     built in small steps, each in its own task, and a tap or scroll while it loads is handled straight away.
+     The painted card stays on show until the first frame is drawn. */
+  var steps = [];
+  function runSteps() {
+    var fn = steps.shift();
+    if (!fn) return;
+    try { fn(); } catch (e) { stage.classList.add('no-webgl'); return; }
+    if (steps.length) { if (window.requestIdleCallback) requestIdleCallback(runSteps, { timeout: 250 }); else setTimeout(runSteps, 16); }
+  }
+  /* a material whose picture is painted, then uploaded, in two later steps */
+  function texMat(paint) {
+    var m = new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0 }), cv;
+    steps.push(function () { cv = paint(); });
+    steps.push(function () { m.map = tex(cv); m.needsUpdate = true; renderer.initTexture(m.map); });
+    return m;
+  }
 
   var world = new THREE.Group(); scene.add(world);
 
@@ -48,21 +68,21 @@
   var CW = 1.7, CH = 2.3, CT = 0.03;
   var card = new THREE.Group(); world.add(card);
   var paper = mat(0xf7f4f0);
-  var backMats = [paper, paper, paper, paper, texMat(GB.art.inside(['Happy', 'Birthday'], false)), mat(0xe9e5e0)];
+  var backMats = [paper, paper, paper, paper, texMat(function () { return GB.art.inside(['Happy', 'Birthday'], false); }), mat(0xe9e5e0)];
   var back = new THREE.Mesh(new THREE.BoxGeometry(CW, CH, CT), backMats);
   card.add(back);
 
   var hinge = new THREE.Group(); hinge.position.set(-CW / 2, 0, CT);
   card.add(hinge);
   var coverGeo = new THREE.BoxGeometry(CW, CH, CT); coverGeo.translate(CW / 2, 0, 0);
-  var cover = new THREE.Mesh(coverGeo, [paper, paper, paper, paper, texMat(GB.art.make(GB.byId('peony-birthday'), 1.3)), texMat(GB.art.inside(null, true))]);
+  var cover = new THREE.Mesh(coverGeo, [paper, paper, paper, paper, texMat(function () { return GB.art.make(GB.byId('peony-birthday'), 1.3); }), texMat(function () { return GB.art.inside(null, true); })]);
   hinge.add(cover);
 
   /* ---------- journal ---------- */
   var JW = 1.25, JH = 1.7, JT = 0.26;
   var focus = GB.byId('focus-planner');
   var pages = mat(0xf2ede7);
-  var journal = new THREE.Mesh(new THREE.BoxGeometry(JW, JH, JT), [pages, mat(0x3a3836), pages, pages, texMat(GB.art.make(focus, 1.3)), mat(0x3a3836)]);
+  var journal = new THREE.Mesh(new THREE.BoxGeometry(JW, JH, JT), [pages, mat(0x3a3836), pages, pages, texMat(function () { return GB.art.make(focus, 1.3); }), mat(0x3a3836)]);
   var jg = new THREE.Group(); jg.add(journal);
   var band = new THREE.Mesh(new THREE.BoxGeometry(0.035, JH + 0.004, JT + 0.01), mat(0xdfaeaa)); band.position.set(JW * 0.34, 0, 0); jg.add(band);
   jg.position.set(-2.9, -0.15, -1.6); jg.rotation.set(-0.06, 0.55, 0.02);
@@ -72,7 +92,7 @@
   var PW = 1.15, PH = 1.5;
   var print = GB.byId('dusk-dahlia');
   var frameMat = mat(0xefece8);
-  var pr = new THREE.Mesh(new THREE.BoxGeometry(PW, PH, 0.08), [frameMat, frameMat, frameMat, frameMat, texMat(GB.art.make(print, 1.3)), frameMat]);
+  var pr = new THREE.Mesh(new THREE.BoxGeometry(PW, PH, 0.08), [frameMat, frameMat, frameMat, frameMat, texMat(function () { return GB.art.make(print, 1.3); }), frameMat]);
   var pg = new THREE.Group(); pg.add(pr);
   pg.position.set(2.9, 0.2, -1.6); pg.rotation.set(0.03, -0.5, -0.02);
   world.add(pg);
@@ -88,7 +108,7 @@
     shTex.needsUpdate = true;
   }
   paintShadow();
-  document.addEventListener('gb-themechange', paintShadow);
+  document.addEventListener('gb-themechange', function () { paintShadow(); dirty = true; });
   var shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false }));
   shadow.rotation.x = -Math.PI / 2; shadow.position.y = -1.75; shadow.scale.set(5.2, 2.2, 1);
   world.add(shadow);
@@ -115,8 +135,9 @@
   }
 
   /* ---------- state ---------- */
-  // reduced motion: the card starts open, and opening or closing it snaps instead of animating
-  var open = reduce ? 1 : 0, openTarget = open, mx = 0, my = 0, tx = 0, ty = 0, visible = true, clock = new THREE.Clock(), started = performance.now();
+  // reduced motion (or paused): the card starts open; with reduced motion, opening or closing it snaps instead of animating
+  var open = still() ? 1 : 0, openTarget = open, mx = 0, my = 0, tx = 0, ty = 0, visible = true, clock = new THREE.Clock(), started = performance.now();
+  var amb = 0; // ambient clock: only runs while things are allowed to drift
   function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 
   function layout() {
@@ -132,6 +153,7 @@
     var side = Math.max(2, Math.min(2.9, halfW - 1));
     jg.visible = pg.visible = true;
     jg.position.x = -side; pg.position.x = side;
+    dirty = true;
   }
   window.addEventListener('resize', layout); layout();
 
@@ -147,46 +169,58 @@
     btn.dataset.open = String(!!openTarget);
     btn.querySelector('span').textContent = openTarget ? 'Close the card' : 'Open the card';
   }
-  function toggle() { openTarget = openTarget ? 0 : 1; if (reduce) open = openTarget; setLabel(); }
+  function toggle() { openTarget = openTarget ? 0 : 1; if (reduce) open = openTarget; dirty = true; setLabel(); }
   setLabel();
   canvas.addEventListener('click', toggle);
   if (btn) btn.addEventListener('click', toggle);
 
   if ('IntersectionObserver' in window) new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }, { threshold: 0.01 }).observe(stage);
 
+  var drawn = false;
   function frame() {
     requestAnimationFrame(frame);
     if (!visible || document.hidden) return;
-    var dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+    var dt = Math.min(clock.getDelta(), 0.05), quiet = still();
+    if (!quiet) amb += dt;
+    var t = amb;
 
-    if (!reduce && !started.done && performance.now() - started > 1100) { started = { done: true }; toggle(); }
-    open += (openTarget - open) * Math.min(1, dt * 3.2);
+    if (!started.done && performance.now() - started > 1100) { started = { done: true }; if (!quiet && !openTarget) toggle(); }
+    var settling = Math.abs(openTarget - open) > 0.0005;
+    open = settling ? open + (openTarget - open) * Math.min(1, dt * 3.2) : openTarget;
+    // reduced motion: no pointer parallax either
+    var px = reduce ? 0 : mx, py = reduce ? 0 : my;
+    var following = Math.abs(px - tx) > 0.0005 || Math.abs(py - ty) > 0.0005;
+    tx += (px - tx) * 0.06; ty += (py - ty) * 0.06;
+    // when nothing moves, skip the frame entirely (saves battery while paused or with reduced motion)
+    if (quiet && !settling && !following && !dirty && drawn) return;
+    dirty = false;
     var e = ease(Math.max(0, Math.min(1, open)));
 
     hinge.rotation.y = -e * 2.3;
     card.position.x = e * (CW / 2) * 0.8;
     card.rotation.x = -0.1 * e;
 
-    tx += (mx - tx) * 0.06; ty += (my - ty) * 0.06;
     world.rotation.y = tx * 0.28 + Math.sin(t * 0.4) * 0.05;
     world.rotation.x = ty * 0.1;
-    var bob = reduce ? 0 : Math.sin(t * 0.9);
+    var bob = Math.sin(t * 0.9);
     card.position.y = bob * 0.06;
     jg.position.y = -0.15 + Math.sin(t * 0.8 + 1) * 0.08; jg.rotation.y = 0.55 + Math.sin(t * 0.5) * 0.06;
     pg.position.y = 0.2 + Math.sin(t * 0.7 + 2) * 0.08; pg.rotation.y = -0.5 + Math.sin(t * 0.55 + 1) * 0.06;
     shadow.scale.set(5.2 - bob * 0.2, 2.2 - bob * 0.1, 1);
     shadow.material.opacity = 0.9 - bob * 0.08;
 
-    if (!reduce) petals.forEach(function (p) {
-      p.y -= p.vy * dt;
-      if (p.y < -3.2) { p.y = 3.4; p.x = (Math.random() - 0.5) * 8; }
+    petals.forEach(function (p) {
+      if (!quiet) { p.y -= p.vy * dt; if (p.y < -3.2) { p.y = 3.4; p.x = (Math.random() - 0.5) * 8; } }
       p.m.position.set(p.x + Math.sin(t * p.sw + p.ph) * 0.5, p.y, p.z);
       p.m.rotation.set(p.r[0] + t * p.sp, p.r[1] + t * p.sp * 0.7, p.r[2] + t * p.sp * 0.4);
     });
-    else petals.forEach(function (p) { p.m.position.set(p.x, p.y, p.z); p.m.rotation.set(p.r[0], p.r[1], p.r[2]); });
 
     renderer.render(scene, camera);
+    // fade the scene in over the painted card only once it has something to show
+    if (!drawn) { drawn = true; stage.classList.add('webgl-ready'); }
   }
-  stage.classList.add('webgl-ready');
-  frame();
+  // compile the shaders in a step of their own, then start drawing (the card's 1.1 s pause before it opens counts from here)
+  steps.push(function () { renderer.compile(scene, camera); });
+  steps.push(function () { started = performance.now(); frame(); });
+  runSteps();
 })();

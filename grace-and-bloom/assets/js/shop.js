@@ -11,22 +11,96 @@
   };
   var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
 
-  /* ---------- 3D-ish product mockups (pure CSS transforms) ---------- */
-  var artUrl = {};
-  function url(p, scale) {
-    var k = p.id + scale;
-    return artUrl[k] || (artUrl[k] = GB.art.make(p, scale).toDataURL('image/jpeg', 0.9));
+  /* ---------- artwork ----------
+     Pictures are painted only when they near the screen (then the rest in idle time), one at a time,
+     after the display fonts load, and encoded with toBlob, which runs off the main thread. Until a
+     picture is ready its <img> shows blank paper of the right size, so nothing shifts or blocks taps. */
+  var PAINT = {}, sameKey = {}, queued = {}, queue = [], pending = [], busy = false, fontsReady = false, bgOk = false;
+  function dims(p) { return p.kind === 'bookmark' ? [320, 860] : [640, 800]; }
+  function blank(p) {
+    var d = dims(p), pal = (GB.palettes && GB.palettes[p.art.palette]) || { bg: ['#f4f1ee'] };
+    return 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + d[0] + ' ' + d[1] + '"><rect width="100%" height="100%" fill="' + pal.bg[0] + '"/></svg>');
   }
-  function mock(p, scale) {
+  /* blob: pictures are encoded off the main thread; if the host's security policy blocks blob: images, use data: URLs instead */
+  var useBlob = null;
+  (function () {
+    var c = document.createElement('canvas'); c.width = c.height = 1;
+    if (!(c.toBlob && window.URL && URL.createObjectURL)) { useBlob = false; return; }
+    try {
+      c.toBlob(function (b) {
+        if (!b) { useBlob = false; return pump(); }
+        var u = URL.createObjectURL(b), im = new Image();
+        im.onload = function () { useBlob = true; pump(); };
+        im.onerror = function () { useBlob = false; pump(); };
+        im.src = u;
+      }, 'image/png');
+    } catch (e) { useBlob = false; }
+  })();
+  function idle(fn, ms) { if (window.requestIdleCallback) requestIdleCallback(fn, { timeout: ms || 2000 }); else setTimeout(fn, 120); }
+  var lazy = 'IntersectionObserver' in window ? new IntersectionObserver(function (en) {
+    en.forEach(function (e) { if (e.isIntersecting) fire(e.target); });
+  }, { rootMargin: '400px 0px' }) : null;
+  function later(el, run) { el._run = run; pending.push(el); if (lazy) lazy.observe(el); else fire(el); }
+  function fire(el) { var run = el._run; if (!run) return; el._run = null; if (lazy) lazy.unobserve(el); run(); }
+  function pump() {
+    if (busy || !fontsReady || useBlob === null) return;
+    var job = queue.shift();
+    if (!job) { if (bgOk) fill(); return; }
+    busy = true;
+    var over = false, done = function () { if (over) return; over = true; busy = false; setTimeout(pump, 0); };
+    try { job(done); } catch (e) { done(); }
+  }
+  var filling = false;
+  function fill() {
+    if (filling) return; filling = true;
+    idle(function () {
+      filling = false;
+      while (pending.length && !(pending[0]._run && pending[0].isConnected)) pending.shift();
+      if (pending.length) fire(pending.shift());
+    }, 300); // background pictures wait for a quiet moment, but never long, so scrolling rarely meets blank paper
+  }
+  function paintArt(j, next) {
+    var cv = GB.art.make(j.p, j.s);
+    function finish(u) {
+      // every <img> of this picture gets it now, wherever it is on the page
+      if (u) { PAINT[j.key] = u; (sameKey[j.key] || []).forEach(function (im) { im.src = u; if (im._run) { im._run = null; if (lazy) lazy.unobserve(im); } }); delete sameKey[j.key]; }
+      delete queued[j.key];
+      GB.art.release(j.p, j.s);
+      if (j.s === 1) cv.width = cv.height = 0; // only this script uses scale 1 (the 3D hero paints its own), so free the pixels now
+      next();
+    }
+    function jpeg() { try { return cv.toDataURL('image/jpeg', 0.9); } catch (e) { return ''; } }
+    if (useBlob) {
+      try { cv.toBlob(function (b) { finish(b ? URL.createObjectURL(b) : jpeg()); }, 'image/jpeg', 0.9); return; } catch (e) {}
+    }
+    finish(jpeg());
+  }
+  function want(img, j) {
+    if (PAINT[j.key]) img.src = PAINT[j.key];
+    else if (!queued[j.key]) { queued[j.key] = true; queue.push(function (next) { paintArt(j, next); }); }
+    pump();
+  }
+  /* point an <img> at a product's picture: at once if it's painted, otherwise when it nears the screen */
+  function bindArt(img, p, scale) {
+    var key = p.id + '@' + scale, d = dims(p);
+    img.width = d[0]; img.height = d[1]; img.decoding = 'async'; img.draggable = false;
+    img.src = PAINT[key] || PAINT[p.id + '@1'] || blank(p);
+    if (!PAINT[key]) { (sameKey[key] = sameKey[key] || []).push(img); later(img, function () { want(img, { p: p, s: scale, key: key }); }); }
+    return img;
+  }
+
+  /* ---------- 3D-ish product mockups (pure CSS transforms) ---------- */
+  function mock(p, scale, alt) {
     var el = document.createElement('div');
     el.className = 'mock mock--' + p.kind;
     var inner = '<div class="obj">';
     if (p.kind === 'card') inner += '<i class="env"></i>';
     if (p.kind === 'calendar') inner += '<i class="rings"></i><i class="hook"></i>';
     if (p.kind === 'bookmark') inner += '<i class="tassel"></i>';
-    inner += '<img alt="' + esc(p.name) + '" src="' + url(p, scale || 1) + '" draggable="false">';
+    inner += '<img alt="' + esc(alt || '') + '">';
     inner += '<i class="gloss"></i></div><i class="drop"></i>';
     el.innerHTML = inner;
+    bindArt($('img', el), p, scale || 1);
     return el;
   }
   function tilt(host, target) {
@@ -43,18 +117,23 @@
       target.style.setProperty('--ry', '0deg'); target.style.setProperty('--rx', '0deg');
     });
   }
+  /* hero picture first, so it is the first thing painted */
+  var fb = $('.hero-stage .fallback');
+  if (fb) fb.appendChild(mock(GB.byId('peony-birthday'), 1, ''));
+
   /* ---------- grid ---------- */
   var grid = $('#grid'), current = 'all';
   function card(p, i) {
     var a = document.createElement('article');
     a.className = 'product reveal'; a.style.setProperty('--d', (i % 4) * 70 + 'ms'); a.dataset.id = p.id;
     a.innerHTML =
-      '<button class="stage" aria-label="Quick view: ' + esc(p.name) + '"></button>' +
+      '<button class="stage" type="button" aria-haspopup="dialog" aria-label="Quick view: ' + esc(p.name) + '"></button>' +
       (p.badge ? '<span class="badge">' + esc(p.badge) + '</span>' : '') +
-      '<button class="fav" aria-label="Save ' + esc(p.name) + '" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>' +
+      '<button class="fav" type="button" aria-label="Save ' + esc(p.name) + '" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>' +
       '<div class="meta"><div><h3>' + esc(p.name) + '</h3><p class="cat">' + esc(catLabel(p.cat)) + '</p></div>' +
       '<div class="row"><span class="price">' + (fromPrice(p) ? 'From ' : '') + money(p.price) + '</span></div></div>' +
-      '<button class="btn btn--ghost add" data-add="' + p.id + '">Add to basket</button>';
+      // products with options open the quick view to choose them, so the button says so; the hidden name gives screen readers context
+      '<button class="btn btn--ghost add" type="button" data-add="' + p.id + '"' + (p.variants ? ' aria-haspopup="dialog">Choose options' : '>Add to basket') + '<span class="sr">: ' + esc(p.name) + '</span></button>';
     var st = $('.stage', a); st.appendChild(mock(p, 1)); tilt(st, $('.mock', st));
     st.addEventListener('click', function () { openModal(p); });
     var fav = $('.fav', a), favs = store.get('gb-favs', []);
@@ -77,7 +156,9 @@
     else if (sortBy === 'high') b.sort(function (x, y) { return y.price - x.price; });
     return b;
   }
-  function render(filter) {
+  var gridStatus = $('#grid-status');
+  function status(el, msg, wait) { clearTimeout(el._t); el._t = setTimeout(function () { el.textContent = msg; }, wait || 0); }
+  function render(filter, announce) {
     current = filter; grid.innerHTML = '';
     var q = query.trim().toLowerCase();
     var items = sorted(GB.products.filter(function (p) { return (filter === 'all' || p.cat === filter) && (!q || haystack(p).indexOf(q) > -1); }));
@@ -85,15 +166,17 @@
     items.forEach(function (p, i) { grid.appendChild(card(p, i)); });
     $$('.chip[data-filter]').forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.filter === filter)); });
     observe();
+    if (announce) status(gridStatus, (items.length ? 'Showing ' + items.length + (items.length === 1 ? ' product' : ' products') : 'No products') +
+      (filter === 'all' ? '' : ' in ' + catLabel(filter)) + (q ? ' matching “' + query.trim() + '”' : '') + '.', announce === 'typing' ? 600 : 0);
   }
   var chips = $('#chips');
   [{ id: 'all', label: 'All' }].concat(GB.categories).forEach(function (c) {
     var b = document.createElement('button'); b.className = 'chip'; b.dataset.filter = c.id; b.textContent = c.label;
-    b.addEventListener('click', function () { render(c.id); }); chips.appendChild(b);
+    b.type = 'button'; b.addEventListener('click', function () { render(c.id, true); }); chips.appendChild(b);
   });
 
-  $('#q').addEventListener('input', function (e) { query = e.target.value; render(current); });
-  $('#sort').addEventListener('change', function (e) { sortBy = e.target.value; render(current); });
+  $('#q').addEventListener('input', function (e) { query = e.target.value; render(current, 'typing'); });
+  $('#sort').addEventListener('change', function (e) { sortBy = e.target.value; render(current, true); });
 
   /* ---------- gift finder ---------- */
   var FINDER = [
@@ -107,14 +190,16 @@
     ['Something for the wall', function (p) { return has(p, 'wall art') || has(p, 'calendar'); }]
   ];
   function has(p, t) { return (GB.tags[p.id] || []).indexOf(t) > -1; }
-  var fchips = $('#finder-chips'), fres = $('#finder-results');
-  function pick(i) {
+  var fchips = $('#finder-chips'), fres = $('#finder-results'), fstatus = $('#finder-status');
+  function pick(i, announce) {
     $$('.chip', fchips).forEach(function (c, j) { c.setAttribute('aria-pressed', String(i === j)); });
     fres.innerHTML = '';
-    GB.products.filter(FINDER[i][1]).slice(0, 4).forEach(function (p, k) { var c = card(p, k); c.classList.add('in'); fres.appendChild(c); });
+    var found = GB.products.filter(FINDER[i][1]).slice(0, 4);
+    found.forEach(function (p, k) { var c = card(p, k); c.classList.add('in'); fres.appendChild(c); });
+    if (announce) status(fstatus, found.length ? 'Showing ' + found.length + (found.length === 1 ? ' idea' : ' ideas') + ': ' + FINDER[i][0] + '.' : 'Nothing matches that yet.');
   }
   FINDER.forEach(function (f, i) {
-    var b = document.createElement('button'); b.className = 'chip'; b.textContent = f[0]; b.addEventListener('click', function () { pick(i); }); fchips.appendChild(b);
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = f[0]; b.addEventListener('click', function () { pick(i, true); }); fchips.appendChild(b);
   });
   pick(0);
 
@@ -124,8 +209,8 @@
     var p = GB.byId(c.rep), a = document.createElement('a');
     a.href = '#shop'; a.className = 'collection reveal'; a.style.setProperty('--d', i * 80 + 'ms');
     a.innerHTML = '<div class="cstage"></div><h3>' + esc(c.label) + '</h3><p>' + esc(c.blurb) + '</p><span class="more">Shop ' + esc(c.label.toLowerCase()) + '&nbsp;→</span>';
-    $('.cstage', a).appendChild(mock(p, 1)); tilt(a, $('.mock', a));
-    a.addEventListener('click', function () { render(c.id); });
+    $('.cstage', a).appendChild(mock(p, 1, '')); tilt(a, $('.mock', a));
+    a.addEventListener('click', function () { render(c.id, true); });
     cols.appendChild(a);
   });
 
@@ -139,31 +224,35 @@
   }
 
   /* ---------- quick view ---------- */
-  var modal = $('#modal'), mbody = $('#modal-body'), lastFocus, qv;
+  var modal = $('#modal'), mbody = $('#modal-body'), lastFocus, qv, modalT, drawerT;
+  /* while a dialog is open, everything behind it is inert (no focus, hidden from screen readers) */
+  var drawerEl = $('#cart');
+  var behind = $$('body > *').filter(function (el) { return el !== modal && el !== drawerEl && el.id !== 'toast' && el.tagName !== 'SCRIPT'; });
+  function setInert(on) { behind.forEach(function (el) { if (on) el.setAttribute('inert', ''); else el.removeAttribute('inert'); }); }
   function openModal(p) {
-    lastFocus = document.activeElement; qv = { p: p, v: 0, q: 1 };
+    lastFocus = document.activeElement; qv = { p: p, v: 0, q: 1 }; clearTimeout(modalT);
     var vr = p.variants;
     mbody.innerHTML =
       '<div class="qv-stage"></div><div class="qv-info">' +
       '<p class="cat">' + esc(catLabel(p.cat)) + '</p><h2 id="modal-title">' + esc(p.name) + '</h2>' +
       '<p class="qv-price" id="qv-price"></p><p class="blurb">' + esc(p.blurb) + '</p>' +
       (vr ? '<fieldset class="opts"><legend>' + esc(vr.label) + '</legend>' + vr.options.map(function (o, i) { return '<label><input type="radio" name="v" value="' + i + '"' + (i === 0 ? ' checked' : '') + '><span>' + esc(o[0]) + '</span></label>'; }).join('') + '</fieldset>' : '') +
-      '<div class="qty-row"><div class="qty" role="group" aria-label="Quantity"><button data-q="-1" aria-label="One fewer">−</button><output id="qv-q" aria-live="polite">1</output><button data-q="1" aria-label="One more">+</button></div>' +
-      '<button class="btn btn--primary" id="qv-add">Add to basket</button></div>' +
+      '<div class="qty-row"><div class="qty" role="group" aria-label="Quantity"><button type="button" data-q="-1" aria-label="One fewer">−</button><output id="qv-q" aria-live="polite">1</output><button type="button" data-q="1" aria-label="One more">+</button></div>' +
+      '<button class="btn btn--primary" id="qv-add" type="button">Add to basket</button></div>' +
       (p.etsyUrl ? '<a class="etsy" href="' + esc(p.etsyUrl) + '" target="_blank" rel="noopener">Also available on Etsy →</a>' : '') + '<ul class="details">' + p.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul></div>';
-    var st = $('.qv-stage', mbody); st.appendChild(mock(p, 1.3)); tilt(st, $('.mock', st));
+    var st = $('.qv-stage', mbody); st.appendChild(mock(p, 1.3, p.name)); tilt(st, $('.mock', st));
     function price() { return p.price + (vr ? vr.options[qv.v][1] : 0); }
     function upd() { $('#qv-price').textContent = money(price()); $('#qv-q').textContent = qv.q; }
     upd();
     $$('input[name=v]', mbody).forEach(function (r) { r.addEventListener('change', function () { qv.v = +r.value; upd(); }); });
     $$('[data-q]', mbody).forEach(function (b) { b.addEventListener('click', function () { qv.q = Math.max(1, Math.min(20, qv.q + +b.dataset.q)); upd(); }); });
     $('#qv-add').addEventListener('click', function () { add(p.id, qv.v, qv.q, true); closeModal(); openCart(); });
-    modal.hidden = false; document.body.classList.add('locked');
+    modal.hidden = false; document.body.classList.add('locked'); setInert(true);
     requestAnimationFrame(function () { modal.classList.add('on'); $('.modal-close', modal).focus(); });
   }
   function closeModal() {
-    modal.classList.remove('on'); document.body.classList.remove('locked');
-    setTimeout(function () { modal.hidden = true; }, 250); if (lastFocus) lastFocus.focus();
+    modal.classList.remove('on'); document.body.classList.remove('locked'); setInert(false);
+    modalT = setTimeout(function () { modal.hidden = true; }, 250); if (lastFocus) lastFocus.focus();
   }
   $('.modal-close', modal).addEventListener('click', closeModal);
   modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
@@ -183,13 +272,16 @@
   function paint() {
     var n = cart.reduce(function (s, l) { return s + l.q; }, 0), sub = cart.reduce(function (s, l) { return s + unit(l) * l.q; }, 0);
     $$('.cart-count').forEach(function (c) { c.textContent = n; c.hidden = !n; });
-    if (!cart.length) list.innerHTML = '<div class="empty"><p>Your basket is empty.</p><a class="btn btn--ghost" href="#shop" data-close>Find something lovely</a></div>';
+    // the visible count is part of the button's name, so screen readers hear it too
+    $$('[data-open-cart]').forEach(function (b) { b.setAttribute('aria-label', n ? 'Open basket, ' + n + (n === 1 ? ' item' : ' items') : 'Open basket'); });
+    if (!cart.length) list.innerHTML = '<li class="empty"><p>Your basket is empty.</p><a class="btn btn--ghost" href="#shop" data-close>Find something lovely</a></li>';
     else list.innerHTML = cart.map(function (l, i) {
       var p = GB.byId(l.id);
-      return '<li><img src="' + url(p, 1) + '" alt=""><div><h4>' + esc(p.name) + '</h4>' + (p.variants ? '<small>' + esc(p.variants.options[l.v][0]) + '</small>' : '') +
-        '<div class="qty qty--sm" role="group" aria-label="Quantity of ' + esc(p.name) + '"><button data-ci="' + i + '" data-d="-1" aria-label="One fewer">−</button><output>' + l.q + '</output><button data-ci="' + i + '" data-d="1" aria-label="One more">+</button></div></div>' +
-        '<div class="end"><strong>' + money(unit(l) * l.q) + '</strong><button class="rm" data-rm="' + i + '" aria-label="Remove ' + esc(p.name) + '">Remove</button></div></li>';
+      return '<li><img alt="" data-art="' + esc(p.id) + '"><div><h3>' + esc(p.name) + '</h3>' + (p.variants ? '<small>' + esc(p.variants.options[l.v][0]) + '</small>' : '') +
+        '<div class="qty qty--sm" role="group" aria-label="Quantity of ' + esc(p.name) + '"><button type="button" data-ci="' + i + '" data-d="-1" aria-label="One fewer">−</button><output>' + l.q + '</output><button type="button" data-ci="' + i + '" data-d="1" aria-label="One more">+</button></div></div>' +
+        '<div class="end"><strong>' + money(unit(l) * l.q) + '</strong><button class="rm" type="button" data-rm="' + i + '" aria-label="Remove ' + esc(p.name) + '">Remove</button></div></li>';
     }).join('');
+    $$('img[data-art]', list).forEach(function (im) { bindArt(im, GB.byId(im.dataset.art), 1); });
     var left = Math.max(0, cfg.freeShippingOver - sub), pct = Math.min(100, (sub / cfg.freeShippingOver) * 100);
     var ship = !cart.length ? 0 : left > 0 ? cfg.shippingFlat : 0;
     $('#ship-msg').innerHTML = !cart.length ? 'Free UK delivery on orders of ' + money(cfg.freeShippingOver) + ' or more' : left > 0 ? 'Add <strong>' + money(left) + '</strong> more for free UK delivery' : 'Your order qualifies for <strong>free UK delivery</strong>';
@@ -207,8 +299,8 @@
     if (t.hasAttribute('data-close')) closeCart();
   });
   var cartFocus;
-  function openCart() { hideToast(); cartFocus = document.activeElement; drawer.hidden = false; document.body.classList.add('locked'); requestAnimationFrame(function () { drawer.classList.add('on'); $('.drawer-close', drawer).focus(); }); }
-  function closeCart() { drawer.classList.remove('on'); document.body.classList.remove('locked'); setTimeout(function () { drawer.hidden = true; }, 300); if (cartFocus && cartFocus.focus) cartFocus.focus(); }
+  function openCart() { hideToast(); clearTimeout(drawerT); cartFocus = document.activeElement; drawer.hidden = false; document.body.classList.add('locked'); setInert(true); requestAnimationFrame(function () { drawer.classList.add('on'); $('.drawer-close', drawer).focus(); }); }
+  function closeCart() { drawer.classList.remove('on'); document.body.classList.remove('locked'); setInert(false); drawerT = setTimeout(function () { drawer.hidden = true; }, 300); if (cartFocus && cartFocus.focus) cartFocus.focus(); }
   /* keep Tab inside an open dialog */
   function trap(box, e) {
     var f = $$('a[href], button:not([disabled]), input, select, [tabindex]:not([tabindex="-1"])', box).filter(function (el) { return el.offsetParent !== null; });
@@ -275,13 +367,19 @@
   function observe() { $$('.reveal:not(.in)').forEach(function (el) { io ? io.observe(el) : el.classList.add('in'); }); }
 
   /* journal call-to-action filters the shop */
-  $$('[data-filter-link]').forEach(function (a) { a.addEventListener('click', function () { render(a.dataset.filterLink); }); });
+  $$('[data-filter-link]').forEach(function (a) { a.addEventListener('click', function () { render(a.dataset.filterLink, true); }); });
 
-  /* story artwork + hero fallback */
+  /* story artwork (painted when it nears the screen) */
   var sc = $('#story-canvas');
-  if (sc) { sc.getContext('2d').drawImage(GB.art.make(GB.byId('peony-birthday'), 1), 0, 0, 640, 800); }
-  var fb = $('.hero-stage .fallback');
-  if (fb) { fb.appendChild(mock(GB.byId('peony-birthday'), 1)); }
+  if (sc) later(sc, function () {
+    queue.push(function (next) {
+      var p = GB.byId('peony-birthday');
+      sc.getContext('2d').drawImage(GB.art.make(p, 1), 0, 0, 640, 800);
+      var cv = GB.art.release(p, 1); if (cv) cv.width = cv.height = 0;
+      next();
+    });
+    pump();
+  });
 
   $('#year').textContent = new Date().getFullYear();
 
@@ -302,16 +400,48 @@
   if (darkMq && darkMq.addEventListener) darkMq.addEventListener('change', syncTheme);
   syncTheme();
 
-  var go = function () { render('all'); paint(); observe(); };
+  /* ---------- pause motion (hero scene, marquee, scroll cue) ---------- */
+  var motionBtn = $('#motion-btn');
+  function syncMotion() { if (motionBtn) motionBtn.setAttribute('aria-pressed', String(root.classList.contains('still'))); }
+  if (motionBtn) motionBtn.addEventListener('click', function () {
+    var still = root.classList.toggle('still');
+    try { if (still) localStorage.setItem('gb-motion', 'still'); else localStorage.removeItem('gb-motion'); } catch (e) {}
+    syncMotion(); document.dispatchEvent(new CustomEvent('gb-motionchange'));
+  });
+  syncMotion();
+
+  /* products, basket and reveals are ready straight away; only the pictures wait for the fonts */
+  render('all'); paint(); observe();
+
+  /* ---------- 3D hero: three.min.js (~600 KB) loads only after the page is usable and the hero is near view ---------- */
+  function load3d() {
+    var st = $('#hero-stage');
+    if (!st) return;
+    var keepStill = function () { st.classList.add('no-webgl'); };
+    if (navigator.connection && navigator.connection.saveData) return keepStill(); // data saver: keep the painted card
+    if (navigator.deviceMemory && navigator.deviceMemory <= 2) return keepStill(); // phones with 2 GB of memory or less (Chrome tells us): the scene would cost them most
+    var add = function (src, then) { var s = document.createElement('script'); s.src = src; s.onload = then || null; s.onerror = keepStill; document.body.appendChild(s); };
+    add('assets/vendor/three.min.js', function () { add('assets/js/hero3d.js'); });
+  }
+  function nearView(el, fn) {
+    if (!el || !('IntersectionObserver' in window)) return fn();
+    var o = new IntersectionObserver(function (en) { if (en.some(function (e) { return e.isIntersecting; })) { o.disconnect(); fn(); } }, { rootMargin: '300px 0px' });
+    o.observe(el);
+  }
+  function afterLoad(fn) { if (document.readyState === 'complete') fn(); else window.addEventListener('load', fn); }
+
   // wait briefly for the display fonts so the painted artwork uses them
   var ready = (document.fonts && document.fonts.load) ? Promise.race([
     Promise.all([document.fonts.load('italic 500 40px "Cormorant Garamond"'), document.fonts.load('500 20px "Jost"')]),
     new Promise(function (r) { setTimeout(r, 1800); })
   ]) : Promise.resolve();
   ready.catch(function () {}).then(function () {
-    var s = document.createElement('script'); s.src = 'assets/js/hero3d.js';
-    s.onerror = function () { var st = $('#hero-stage'); if (st) st.classList.add('no-webgl'); };
-    document.body.appendChild(s);
-    go();
+    fontsReady = true; pump();
+    afterLoad(function () {
+      bgOk = true; pump();
+      idle(function () { nearView($('#hero-stage'), load3d); }, 1500);
+    });
   });
+
+  GB.live = true; // tells the page's load check that the shop is running
 })();

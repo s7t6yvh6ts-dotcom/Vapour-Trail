@@ -107,7 +107,7 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg: #1b1817; --bg-2: #232020; --surface: #272320;
-    --raised: rgba(30, 26, 24, .92); --glass: rgba(32, 28, 26, .6); --glass-line: rgba(255, 255, 255, .14); --glass-hover: rgba(44, 39, 36, .94);
+    --raised: rgba(30, 26, 24, .92); --glass: rgba(32, 28, 26, .76); --glass-line: rgba(255, 255, 255, .14); --glass-hover: rgba(44, 39, 36, .94);
     --header-bg: rgba(27, 24, 23, .84); --sheet: #1b1817; --hover: rgba(255, 255, 255, .08); --scrim: rgba(0, 0, 0, .6);
     --ink: #f0e9e3; --body: #c9bfb6; --muted: #b2a89f; --on-ink: #221e1c; --ink-hover: #ffffff;
     --line: #39332e; --line-2: #4f4842; --field-line: #7a7068; --track: #3a342f;
@@ -126,7 +126,7 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #1b1817; --bg-2: #232020; --surface: #272320;
-  --raised: rgba(30, 26, 24, .92); --glass: rgba(32, 28, 26, .6); --glass-line: rgba(255, 255, 255, .14); --glass-hover: rgba(44, 39, 36, .94);
+  --raised: rgba(30, 26, 24, .92); --glass: rgba(32, 28, 26, .76); --glass-line: rgba(255, 255, 255, .14); --glass-hover: rgba(44, 39, 36, .94);
   --header-bg: rgba(27, 24, 23, .84); --sheet: #1b1817; --hover: rgba(255, 255, 255, .08); --scrim: rgba(0, 0, 0, .6);
   --ink: #f0e9e3; --body: #c9bfb6; --muted: #b2a89f; --on-ink: #221e1c; --ink-hover: #ffffff;
   --line: #39332e; --line-2: #4f4842; --field-line: #7a7068; --track: #3a342f;
@@ -147,6 +147,7 @@ html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scroll-padding-t
 body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.65 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 body.locked { overflow: hidden; }
 img, canvas { max-width: 100%; display: block; }
+img { height: auto; } /* pictures carry width/height attributes to reserve space; keep their shape when CSS sets the width */
 h1, h2, h3, h4 { font-family: var(--serif); font-weight: 500; line-height: 1.08; margin: 0; letter-spacing: -.01em; }
 h1 em, h2 em, .logo em { font-style: italic; color: var(--rose-d); }
 p { margin: 0 0 1em; }
@@ -208,15 +209,25 @@ body.scrolled .header { background: var(--header-bg); backdrop-filter: blur(16px
 .trust li { display: inline-flex; align-items: center; gap: 9px; }
 .trust b { color: var(--ink); font-weight: 500; }
 .hero-stage { position: relative; height: min(700px, 74svh); min-height: 460px; }
-.hero-stage canvas { width: 100%; height: 100%; cursor: pointer; touch-action: pan-y;
+.hero-stage canvas { width: 100%; height: 100%; cursor: pointer; touch-action: pan-y; opacity: 0; visibility: hidden; transition: opacity .8s var(--ease);
   /* soft side edges, so drifting petals fade out rather than being cut off */
   -webkit-mask-image: linear-gradient(90deg, transparent, rgb(var(--lo)) 5%, rgb(var(--lo)) 95%, transparent);
   mask-image: linear-gradient(90deg, transparent, rgb(var(--lo)) 5%, rgb(var(--lo)) 95%, transparent); }
 .hero-stage .btn--glass { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); }
 .hero-stage .btn--glass:hover { transform: translateX(-50%) translateY(-2px); }
-.hero-stage .fallback { display: none; position: absolute; inset: 0; place-items: center; }
+/* the painted card shows first (and stays if 3D can't run); the 3D scene loads after the page is usable and fades in over it */
+.hero-stage .fallback { display: grid; position: absolute; inset: 0; place-items: center; transition: opacity .6s var(--ease), visibility 0s .6s; }
+.hero-stage.webgl-ready canvas { opacity: 1; visibility: visible; }
+.hero-stage.webgl-ready .fallback { opacity: 0; visibility: hidden; }
+.hero-stage:not(.webgl-ready) .btn--glass { visibility: hidden; }
 .hero-stage.no-webgl canvas, .hero-stage.no-webgl .btn--glass { display: none; }
-.hero-stage.no-webgl .fallback { display: grid; }
+.hero-stage.no-webgl .fallback { opacity: 1; visibility: visible; } /* e.g. the WebGL context is lost after the scene was shown */
+/* pause control for the moving hero, marquee and scroll cue (WCAG 2.2.2) */
+.motion-btn { position: absolute; top: 8px; right: 8px; z-index: 2; width: 40px; height: 40px; background: var(--glass); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-line); box-shadow: var(--shadow-s); }
+.motion-btn:hover { background: var(--glass-hover); }
+.motion-btn .i-play, .motion-btn[aria-pressed="true"] .i-pause { display: none; }
+.motion-btn[aria-pressed="true"] .i-play { display: block; }
+.still .marquee-track, .still .scroll-cue { animation-play-state: paused; }
 .hero-stage .fallback .mock { width: min(300px, 60%); }
 .scroll-cue { position: absolute; left: 50%; bottom: 20px; width: 1px; height: 38px; background: linear-gradient(var(--ink), transparent); opacity: .4; animation: cue 2.2s ease-in-out infinite; }
 @keyframes cue { 0%, 100% { transform: scaleY(.4); transform-origin: top; } 50% { transform: scaleY(1); } }
@@ -409,7 +420,7 @@ body.scrolled .header { background: var(--header-bg); backdrop-filter: blur(16px
 .foot-grid { display: grid; grid-template-columns: 1.3fr .8fr .8fr 1.5fr; gap: 40px; padding-bottom: 46px; }
 .foot-grid > * { min-width: 0; }
 .foot-grid > div > p { color: var(--muted); max-width: 34ch; margin-top: 14px; }
-.foot-grid h4 { font: 500 .74rem/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-bottom: 18px; }
+.foot-grid h2 { font: 500 .74rem/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin-bottom: 18px; }
 .foot-nav a { display: block; text-decoration: none; padding: 5px 0; }
 .foot-nav a:hover { color: var(--accent); }
 .trader { font-style: normal; font-size: .9rem; color: var(--body); line-height: 1.6; }
@@ -453,7 +464,7 @@ body.scrolled .header { background: var(--header-bg); backdrop-filter: blur(16px
 .drawer-box { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100%); background: var(--surface); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .45s var(--ease); box-shadow: -30px 0 60px -30px rgb(var(--lo) / .4); }
 .drawer.on .drawer-box { transform: none; }
 .drawer-box > header { display: flex; align-items: center; padding: 22px 26px; padding-top: calc(22px + var(--safe-t)); border-bottom: 1px solid var(--line); }
-.drawer-box > header h3 { font-size: 1.7rem; }
+.drawer-box > header h2 { font-size: 1.7rem; }
 .drawer-close { position: static; margin-left: auto; box-shadow: none; background: var(--bg); }
 .ship { padding: 16px 26px; background: var(--bg); font-size: .86rem; }
 .ship p { margin: 0 0 10px; }
@@ -462,12 +473,12 @@ body.scrolled .header { background: var(--header-bg); backdrop-filter: blur(16px
 #cart-list { list-style: none; margin: 0; padding: 8px 26px; flex: 1; overflow: auto; overscroll-behavior: contain; }
 #cart-list li { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); align-items: start; }
 #cart-list img { width: 76px; border-radius: 3px; box-shadow: var(--shadow-s); }
-#cart-list h4 { font: 500 1.08rem/1.2 var(--serif); }
+#cart-list h3 { font: 500 1.08rem/1.2 var(--serif); }
 #cart-list small { color: var(--muted); display: block; margin: 2px 0 8px; }
 #cart-list .end { text-align: right; display: grid; gap: 8px; justify-items: end; }
 #cart-list .qty { margin-top: 8px; }
 .rm { border: 0; background: none; font-size: .76rem; color: var(--muted); text-decoration: underline; padding: 2px 0; }
-.empty { text-align: center; padding: 60px 10px; color: var(--muted); }
+#cart-list li.empty { display: block; text-align: center; padding: 60px 10px; color: var(--muted); border: 0; }
 .drawer-box > footer { padding: 18px 26px calc(24px + var(--safe-b)); border-top: 1px solid var(--line); }
 .sum { display: grid; gap: 6px; margin-bottom: 10px; }
 .sum-row { display: flex; justify-content: space-between; gap: 12px; font-size: .94rem; color: var(--body); }
@@ -563,4 +574,25 @@ body.scrolled .header { background: var(--header-bg); backdrop-filter: blur(16px
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
   .js .reveal { opacity: 1; transform: none; }
+  .motion-btn { display: none; }
+}
+
+/* without JavaScript (or if the shop script fails): hide controls that can't work and say so plainly */
+.nojs-note { margin: 0; padding: 14px 16px; background: var(--rose-l); color: var(--ink); text-align: center; font-size: .9rem; }
+.js .nojs-note, .js .nojs-only { display: none; }
+html:not(.js) .needs-js { display: none !important; }
+html:not(.js) .hero-grid, html:not(.js) .focus-grid, html:not(.js) .story-grid { grid-template-columns: minmax(0, 1fr); }
+/* the header can't tell when the page has scrolled, so it keeps its solid background rather than letting text run under it */
+html:not(.js) .header { background: var(--header-bg); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); box-shadow: 0 1px 0 var(--line); }
+@media (max-width: 900px) {
+  /* no burger menu: the links sit in a wrapped row under the logo */
+  html:not(.js) { scroll-padding-top: calc(104px + var(--safe-t)); }
+  html:not(.js) .bar { flex-wrap: wrap; height: auto; padding: 14px 0 4px; row-gap: 2px; }
+  html:not(.js) .actions { display: none; }
+  html:not(.js) .nav { position: static; flex-direction: row; flex-wrap: wrap; gap: 0 22px; width: 100%; padding: 0; background: none; border: 0; box-shadow: none; opacity: 1; visibility: visible; transform: none; transition: none; }
+  html:not(.js) .nav a { padding: 10px 0; border: 0; }
+}
+@media (max-width: 360px) {
+  html:not(.js) .nav { gap: 0 12px; }
+  html:not(.js) .nav a { letter-spacing: .03em; }
 }

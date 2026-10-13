@@ -295,6 +295,12 @@
       cache[key] = cv;
       return cv;
     },
+    /* Forget a cached canvas once it has been encoded to an image, so its pixels can be freed. Returns it. */
+    release: function (p, scale) {
+      var key = p.id + '@' + (scale || 1), cv = cache[key];
+      delete cache[key];
+      return cv;
+    },
     /* Blank inside-of-card paper with a handwritten note, for the 3D hero. */
     inside: function (note, small) {
       var cv = document.createElement('canvas'); cv.width = 640; cv.height = 800;
