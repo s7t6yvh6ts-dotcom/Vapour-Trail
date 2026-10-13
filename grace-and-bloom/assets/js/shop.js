@@ -5,11 +5,14 @@
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var money = function (n) { return cfg.currency + n.toFixed(2); };
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var touch = window.matchMedia && window.matchMedia('(hover: none)').matches;
   var store = {
     get: function (k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   };
   var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  /* [square brackets] in product copy mark things still to confirm, and are highlighted */
+  var rich = function (s) { return esc(s).replace(/\[([^\]]+)\]/g, '<span class="ph">[$1]</span>'); };
 
   /* ---------- artwork ----------
      Pictures are painted only when they near the screen (then the rest in idle time), one at a time,
@@ -94,9 +97,7 @@
     var el = document.createElement('div');
     el.className = 'mock mock--' + p.kind;
     var inner = '<div class="obj">';
-    if (p.kind === 'card') inner += '<i class="env"></i>';
     if (p.kind === 'calendar') inner += '<i class="rings"></i><i class="hook"></i>';
-    if (p.kind === 'bookmark') inner += '<i class="tassel"></i>';
     inner += '<img alt="' + esc(alt || '') + '">';
     inner += '<i class="gloss"></i></div><i class="drop"></i>';
     el.innerHTML = inner;
@@ -104,12 +105,12 @@
     return el;
   }
   function tilt(host, target) {
-    if (reduce) return;
+    if (reduce || touch) return;
     target = target || host;
     host.addEventListener('pointermove', function (e) {
       var r = host.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
-      target.style.setProperty('--ry', (x * 22).toFixed(1) + 'deg');
-      target.style.setProperty('--rx', (-y * 16).toFixed(1) + 'deg');
+      target.style.setProperty('--ry', (x * 10).toFixed(1) + 'deg');
+      target.style.setProperty('--rx', (-y * 7).toFixed(1) + 'deg');
       target.style.setProperty('--gx', ((x + 0.5) * 100).toFixed(0) + '%');
       target.style.setProperty('--gy', ((y + 0.5) * 100).toFixed(0) + '%');
     });
@@ -121,8 +122,20 @@
   var fb = $('.hero-stage .fallback');
   if (fb) fb.appendChild(mock(GB.byId('peony-birthday'), 1, ''));
 
-  /* ---------- grid ---------- */
-  var grid = $('#grid'), current = 'all';
+  /* ---------- shop ---------- */
+  var grid = $('#grid'), state = { cat: 'all', occ: -1, q: '', sort: 'featured' };
+  var OCCASIONS = [
+    ['Birthday', function (p) { return has(p, 'birthday'); }],
+    ['Christmas', function (p) { return has(p, 'christmas'); }],
+    ['Thank you', function (p) { return has(p, 'thank you'); }],
+    ['Get organised', function (p) { return has(p, 'organise'); }],
+    ['Money & goals', function (p) { return has(p, 'money') || has(p, 'goals'); }],
+    ['For the wall', function (p) { return has(p, 'wall art'); }]
+  ];
+  function has(p, t) { return (GB.tags[p.id] || []).indexOf(t) > -1; }
+  function catLabel(id) { var c = GB.categories.filter(function (c) { return c.id === id; })[0]; return c ? c.label : id; }
+  function inCart(id) { return cart.some(function (l) { return l.id === id; }); }
+
   function card(p, i) {
     var a = document.createElement('article');
     a.className = 'product reveal'; a.style.setProperty('--d', (i % 4) * 70 + 'ms'); a.dataset.id = p.id;
@@ -130,10 +143,9 @@
       '<button class="stage" type="button" aria-haspopup="dialog" aria-label="Quick view: ' + esc(p.name) + '"></button>' +
       (p.badge ? '<span class="badge">' + esc(p.badge) + '</span>' : '') +
       '<button class="fav" type="button" aria-label="Save ' + esc(p.name) + '" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7.5 2.5c0 5.4-7.5 10-7.5 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>' +
-      '<div class="meta"><div><h3>' + esc(p.name) + '</h3><p class="cat">' + esc(catLabel(p.cat)) + '</p></div>' +
-      '<div class="row"><span class="price">' + (fromPrice(p) ? 'From ' : '') + money(p.price) + '</span></div></div>' +
-      // products with options open the quick view to choose them, so the button says so; the hidden name gives screen readers context
-      '<button class="btn btn--ghost add" type="button" data-add="' + p.id + '"' + (p.variants ? ' aria-haspopup="dialog">Choose options' : '>Add to basket') + '<span class="sr">: ' + esc(p.name) + '</span></button>';
+      '<div class="meta"><h3>' + esc(p.name) + '</h3><p class="cat">' + esc(catLabel(p.cat)) + '</p>' +
+      // products with options open the quick view to choose them; the hidden name gives screen readers context
+      '<div class="row"><span class="price">' + money(p.price) + '</span><button class="add" type="button" data-add="' + p.id + '"' + (p.variants ? ' aria-haspopup="dialog"' : '') + '><span class="add-t"></span><span class="sr">: ' + esc(p.name) + '</span></button></div></div>';
     var st = $('.stage', a); st.appendChild(mock(p, 1)); tilt(st, $('.mock', st));
     st.addEventListener('click', function () { openModal(p); });
     var fav = $('.fav', a), favs = store.get('gb-favs', []);
@@ -145,72 +157,55 @@
     });
     return a;
   }
-  /* a product whose options cost more is priced "From" its lowest price */
-  function fromPrice(p) { return !!(p.variants && p.variants.options.some(function (o) { return o[1] > 0; })); }
-  function catLabel(id) { var c = GB.categories.filter(function (c) { return c.id === id; })[0]; return c ? c.label : id; }
-  var query = '', sortBy = 'featured';
-  function haystack(p) { return (p.name + ' ' + p.blurb + ' ' + catLabel(p.cat) + ' ' + (GB.tags[p.id] || []).join(' ')).toLowerCase(); }
-  function sorted(a) {
-    var b = a.slice();
-    if (sortBy === 'low') b.sort(function (x, y) { return x.price - y.price; });
-    else if (sortBy === 'high') b.sort(function (x, y) { return y.price - x.price; });
-    return b;
+  /* "Add" becomes "In basket" once a design is in the basket: each download is bought once */
+  function syncAdd() {
+    $$('.add[data-add]').forEach(function (b) {
+      var p = GB.byId(b.dataset.add), on = inCart(p.id);
+      b.classList.toggle('is-in', on);
+      $('.add-t', b).textContent = on ? 'In basket' : (p.variants ? 'Choose' : 'Add');
+    });
   }
+  function haystack(p) { return (p.name + ' ' + p.blurb + ' ' + catLabel(p.cat) + ' ' + (GB.tags[p.id] || []).join(' ')).toLowerCase(); }
   var gridStatus = $('#grid-status');
   function status(el, msg, wait) { clearTimeout(el._t); el._t = setTimeout(function () { el.textContent = msg; }, wait || 0); }
-  function render(filter, announce) {
-    current = filter; grid.innerHTML = '';
-    var q = query.trim().toLowerCase();
-    var items = sorted(GB.products.filter(function (p) { return (filter === 'all' || p.cat === filter) && (!q || haystack(p).indexOf(q) > -1); }));
-    if (!items.length) grid.innerHTML = '<p class="none">Nothing ' + (filter === 'all' ? '' : 'in ' + esc(catLabel(filter)) + ' ') + 'matches “' + esc(query) + '”. ' + (filter === 'all' ? 'Try “birthday”, “planner” or “print”.' : 'Try the All filter, or “birthday”, “planner” or “print”.') + '</p>';
+  function render(announce) {
+    grid.innerHTML = '';
+    var q = state.q.trim().toLowerCase();
+    var items = GB.products.filter(function (p) {
+      return (state.cat === 'all' || p.cat === state.cat) && (state.occ < 0 || OCCASIONS[state.occ][1](p)) && (!q || haystack(p).indexOf(q) > -1);
+    });
+    if (state.sort === 'low') items.sort(function (x, y) { return x.price - y.price; });
+    else if (state.sort === 'high') items.sort(function (x, y) { return y.price - x.price; });
+    if (!items.length) grid.innerHTML = '<p class="none">Nothing matches that yet. Try “birthday”, “planner” or “print”, or clear the filters.</p>';
     items.forEach(function (p, i) { grid.appendChild(card(p, i)); });
-    $$('.chip[data-filter]').forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.filter === filter)); });
-    observe();
+    $('#count').textContent = items.length === GB.products.length ? GB.products.length + ' designs' : 'Showing ' + items.length + ' of ' + GB.products.length + ' designs';
+    $$('#chips .chip').forEach(function (c) { c.setAttribute('aria-pressed', String(state.occ < 0 && c.dataset.filter === state.cat)); });
+    $$('#occasions .chip').forEach(function (c, i) { c.setAttribute('aria-pressed', String(i === state.occ)); });
+    syncAdd(); observe();
     if (announce) status(gridStatus, (items.length ? 'Showing ' + items.length + (items.length === 1 ? ' product' : ' products') : 'No products') +
-      (filter === 'all' ? '' : ' in ' + catLabel(filter)) + (q ? ' matching “' + query.trim() + '”' : '') + '.', announce === 'typing' ? 600 : 0);
+      (state.occ >= 0 ? ' for ' + OCCASIONS[state.occ][0] : state.cat === 'all' ? '' : ' in ' + catLabel(state.cat)) + (q ? ' matching “' + state.q.trim() + '”' : '') + '.', announce === 'typing' ? 600 : 0);
   }
+  function setCat(c, announce) { state.cat = c; state.occ = -1; render(announce); }
   var chips = $('#chips');
   [{ id: 'all', label: 'All' }].concat(GB.categories).forEach(function (c) {
     var b = document.createElement('button'); b.className = 'chip'; b.dataset.filter = c.id; b.textContent = c.label;
-    b.type = 'button'; b.addEventListener('click', function () { render(c.id, true); }); chips.appendChild(b);
+    b.type = 'button'; b.addEventListener('click', function () { setCat(c.id, true); }); chips.appendChild(b);
   });
-
-  $('#q').addEventListener('input', function (e) { query = e.target.value; render(current, 'typing'); });
-  $('#sort').addEventListener('change', function (e) { sortBy = e.target.value; render(current, true); });
-
-  /* ---------- gift finder ---------- */
-  var FINDER = [
-    ['A birthday card', function (p) { return has(p, 'birthday') && p.cat === 'cards'; }],
-    ['A Christmas card', function (p) { return has(p, 'christmas'); }],
-    ['A thank you', function (p) { return has(p, 'thank you') || has(p, 'thinking of you'); }],
-    ['Under £15', function (p) { return p.price <= 15; }],
-    ['A gift for her', function (p) { return has(p, 'gift') || has(p, 'personalised'); }],
-    ['Get organised', function (p) { return has(p, 'organise'); }],
-    ['Money & goals', function (p) { return has(p, 'money') || has(p, 'goals'); }],
-    ['Something for the wall', function (p) { return has(p, 'wall art') || has(p, 'calendar'); }]
-  ];
-  function has(p, t) { return (GB.tags[p.id] || []).indexOf(t) > -1; }
-  var fchips = $('#finder-chips'), fres = $('#finder-results'), fstatus = $('#finder-status');
-  function pick(i, announce) {
-    $$('.chip', fchips).forEach(function (c, j) { c.setAttribute('aria-pressed', String(i === j)); });
-    fres.innerHTML = '';
-    var found = GB.products.filter(FINDER[i][1]).slice(0, 4);
-    found.forEach(function (p, k) { var c = card(p, k); c.classList.add('in'); fres.appendChild(c); });
-    if (announce) status(fstatus, found.length ? 'Showing ' + found.length + (found.length === 1 ? ' idea' : ' ideas') + ': ' + FINDER[i][0] + '.' : 'Nothing matches that yet.');
-  }
-  FINDER.forEach(function (f, i) {
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = f[0]; b.addEventListener('click', function () { pick(i, true); }); fchips.appendChild(b);
+  OCCASIONS.forEach(function (o, i) {
+    var b = document.createElement('button'); b.className = 'chip chip--sm'; b.type = 'button'; b.textContent = o[0];
+    b.addEventListener('click', function () { state.occ = state.occ === i ? -1 : i; state.cat = 'all'; render(true); }); $('#occasions').appendChild(b);
   });
-  pick(0);
+  $('#q').addEventListener('input', function (e) { state.q = e.target.value; render('typing'); });
+  $('#sort').addEventListener('change', function (e) { state.sort = e.target.value; render(true); });
 
   /* ---------- collections ---------- */
   var cols = $('#collections-grid');
   GB.categories.forEach(function (c, i) {
     var p = GB.byId(c.rep), a = document.createElement('a');
     a.href = '#shop'; a.className = 'collection reveal'; a.style.setProperty('--d', i * 80 + 'ms');
-    a.innerHTML = '<div class="cstage"></div><h3>' + esc(c.label) + '</h3><p>' + esc(c.blurb) + '</p><span class="more">Shop ' + esc(c.label.toLowerCase()) + '&nbsp;→</span>';
+    a.innerHTML = '<div class="cstage"></div><h3>' + esc(c.label) + '</h3><p>' + esc(c.blurb) + '</p><span class="more">Explore&nbsp;→</span>';
     $('.cstage', a).appendChild(mock(p, 1, '')); tilt(a, $('.mock', a));
-    a.addEventListener('click', function () { render(c.id, true); });
+    a.addEventListener('click', function () { setCat(c.id, true); });
     cols.appendChild(a);
   });
 
@@ -240,25 +235,25 @@
     // swap: a related product replaces the one on show, so focus still returns to whatever first opened the dialog
     var swap = mOpen;
     if (!swap) lastFocus = document.activeElement;
-    mOpen = true; qv = { p: p, v: 0, q: 1 }; clearTimeout(modalT);
+    mOpen = true; qv = { p: p, v: 0 }; clearTimeout(modalT);
+    var no = GB.products.indexOf(p) + 1;
     var vr = p.variants;
     mbody.innerHTML =
       '<div class="qv-stage"></div><div class="qv-info">' +
-      '<p class="cat">' + esc(catLabel(p.cat)) + '</p><h2 id="modal-title" tabindex="-1">' + esc(p.name) + '</h2>' +
+      '<p class="cat">' + esc(catLabel(p.cat)) + ' · No.&nbsp;' + (no < 10 ? '0' : '') + no + '</p><h2 id="modal-title" tabindex="-1">' + esc(p.name) + '</h2>' +
       '<p class="qv-price" id="qv-price"></p><p class="blurb">' + esc(p.blurb) + '</p>' +
       (vr ? '<fieldset class="opts"><legend>' + esc(vr.label) + '</legend>' + vr.options.map(function (o, i) { return '<label><input type="radio" name="v" value="' + i + '"' + (i === 0 ? ' checked' : '') + '><span>' + esc(o[0]) + '</span></label>'; }).join('') + '</fieldset>' : '') +
-      '<div class="qty-row"><div class="qty" role="group" aria-label="Quantity"><button type="button" data-q="-1" aria-label="One fewer">−</button><output id="qv-q" aria-live="polite">1</output><button type="button" data-q="1" aria-label="One more">+</button></div>' +
-      '<button class="btn btn--primary" id="qv-add" type="button">Add to basket</button></div>' +
-      (p.etsyUrl ? '<a class="etsy" href="' + esc(p.etsyUrl) + '" target="_blank" rel="noopener">Also available on Etsy →</a>' : '') + '<ul class="details">' + p.details.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>' + relatedHtml(p) + '</div>';
+      '<button class="btn btn--primary btn--block" id="qv-add" type="button"></button>' +
+      '<p class="digital"><b>Digital download.</b> You receive the files after purchase and nothing is posted. Formats and sizes: <span class="ph">[to confirm]</span>.</p>' +
+      (p.etsyUrl ? '<a class="etsy" href="' + esc(p.etsyUrl) + '" target="_blank" rel="noopener">Also available on Etsy →</a>' : '') + '<ul class="details">' + p.details.map(function (d) { return '<li>' + rich(d) + '</li>'; }).join('') + '</ul>' + relatedHtml(p) + '</div>';
     $$('[data-rel]', mbody).forEach(function (b) { b.addEventListener('click', function () { openModal(GB.byId(b.dataset.rel)); }); });
     $$('.related img[data-art]', mbody).forEach(function (im) { bindArt(im, GB.byId(im.dataset.art), 1); });
     var st = $('.qv-stage', mbody); st.appendChild(mock(p, 1.3, p.name)); tilt(st, $('.mock', st));
     function price() { return p.price + (vr ? vr.options[qv.v][1] : 0); }
-    function upd() { $('#qv-price').textContent = money(price()); $('#qv-q').textContent = qv.q; }
+    function upd() { $('#qv-price').textContent = money(price()); $('#qv-add').textContent = inCart(p.id) ? 'In your basket' : 'Add to basket'; }
     upd();
     $$('input[name=v]', mbody).forEach(function (r) { r.addEventListener('change', function () { qv.v = +r.value; upd(); }); });
-    $$('[data-q]', mbody).forEach(function (b) { b.addEventListener('click', function () { qv.q = Math.max(1, Math.min(20, qv.q + +b.dataset.q)); upd(); }); });
-    $('#qv-add').addEventListener('click', function () { add(p.id, qv.v, qv.q, true); closeModal(); openCart(); });
+    $('#qv-add').addEventListener('click', function () { add(p.id, qv.v, true); closeModal(); openCart(); });
     modal.hidden = false; document.body.classList.add('locked'); setInert(true);
     // the clicked related button has just been replaced, so focus moves to the new product's name (screen readers hear what changed)
     if (swap) { $('.modal-box', modal).scrollTop = 0; $('#modal-title').focus({ preventScroll: true }); }
@@ -272,68 +267,59 @@
   modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 
   /* ---------- basket ---------- */
+  /* each download is bought once: any saved quantity or duplicate from an older version is tidied to one */
   var cart = store.get('gb-cart', []).filter(function (l) {
     var p = l && GB.byId(l.id);
-    return p && l.q > 0 && (!p.variants || p.variants.options[l.v]);
-  }), drawer = $('#cart'), list = $('#cart-list'), checkout = $('#cart-checkout');
-  function add(id, v, q, quiet) {
-    var ex = cart.filter(function (l) { return l.id === id && l.v === v; })[0];
-    if (ex) ex.q += q; else cart.push({ id: id, v: v, q: q });
+    return p && (!p.variants || p.variants.options[l.v]);
+  }).filter(function (l, i, a) { return a.findIndex(function (x) { return x.id === l.id; }) === i; }).map(function (l) { return { id: l.id, v: l.v || 0 }; });
+  var drawer = $('#cart'), list = $('#cart-list'), checkout = $('#cart-checkout');
+  function add(id, v, quiet) {
+    if (inCart(id)) { if (!quiet) toast('Already in your basket'); return false; }
+    cart.push({ id: id, v: v || 0 });
     save(); if (!quiet) toast('Added to your basket');
+    return true;
   }
   function unit(l) { var p = GB.byId(l.id); return p.price + (p.variants ? p.variants.options[l.v][1] : 0); }
   function save() { store.set('gb-cart', cart); var m = $('#checkout-msg'); if (m) m.textContent = ''; paint(); }
   function paint() {
-    var n = cart.reduce(function (s, l) { return s + l.q; }, 0), sub = cart.reduce(function (s, l) { return s + unit(l) * l.q; }, 0);
+    var n = cart.length, sub = cart.reduce(function (s, l) { return s + unit(l); }, 0);
     $$('.cart-count').forEach(function (c) { c.textContent = n; c.hidden = !n; });
     // the visible count is part of the button's name, so screen readers hear it too
     $$('[data-open-cart]').forEach(function (b) { b.setAttribute('aria-label', n ? 'Open basket, ' + n + (n === 1 ? ' item' : ' items') : 'Open basket'); });
-    if (!cart.length) list.innerHTML = '<li class="empty"><p>Your basket is empty.</p><a class="btn btn--ghost" href="#shop" data-close>Find something lovely</a></li>';
+    if (!cart.length) list.innerHTML = '<li class="empty"><p>Your basket is empty.</p><a class="btn btn--ghost" href="#shop" data-close>Browse the shop</a></li>';
     else list.innerHTML = cart.map(function (l, i) {
       var p = GB.byId(l.id);
-      return '<li><img alt="" data-art="' + esc(p.id) + '"><div><h3>' + esc(p.name) + '</h3>' + (p.variants ? '<small>' + esc(p.variants.options[l.v][0]) + '</small>' : '') +
-        '<div class="qty qty--sm" role="group" aria-label="Quantity of ' + esc(p.name) + '"><button type="button" data-ci="' + i + '" data-d="-1" aria-label="One fewer">−</button><output>' + l.q + '</output><button type="button" data-ci="' + i + '" data-d="1" aria-label="One more">+</button></div></div>' +
-        '<div class="end"><strong>' + money(unit(l) * l.q) + '</strong><button class="rm" type="button" data-rm="' + i + '" aria-label="Remove ' + esc(p.name) + '">Remove</button></div></li>';
+      return '<li><img alt="" data-art="' + esc(p.id) + '"><div><h3>' + esc(p.name) + '</h3><small>' + (p.variants ? esc(p.variants.options[l.v][0]) + ' · ' : '') + 'Digital download</small></div>' +
+        '<div class="end"><strong>' + money(unit(l)) + '</strong><button class="rm" type="button" data-rm="' + i + '" aria-label="Remove ' + esc(p.name) + '">Remove</button></div></li>';
     }).join('');
     $$('img[data-art]', list).forEach(function (im) { bindArt(im, GB.byId(im.dataset.art), 1); });
-    var left = Math.max(0, cfg.freeShippingOver - sub), pct = Math.min(100, (sub / cfg.freeShippingOver) * 100);
-    var ship = !cart.length ? 0 : left > 0 ? cfg.shippingFlat : 0;
-    $('#ship-msg').innerHTML = !cart.length ? 'Free UK delivery on orders of ' + money(cfg.freeShippingOver) + ' or more' : left > 0 ? 'Add <strong>' + money(left) + '</strong> more for free UK delivery' : 'Your order qualifies for <strong>free UK delivery</strong>';
-    $('#ship-bar').style.width = (cart.length ? pct : 0) + '%';
-    $('#cart-sub').textContent = money(sub);
-    $('#cart-ship').textContent = !cart.length ? money(0) : ship ? money(ship) : 'Free';
-    $('#cart-total').textContent = money(sub + ship);
+    $('#cart-total').textContent = money(sub);
     if (checkout.tagName === 'A') { if (cart.length) checkout.removeAttribute('aria-disabled'); else checkout.setAttribute('aria-disabled', 'true'); }
     else checkout.disabled = !cart.length;
     var up = $('#upsell'), tags = GB.byId('posy-gift-tags');
-    var want = tags && cart.some(function (l) { return GB.byId(l.id).cat === 'cards'; }) && !cart.some(function (l) { return l.id === tags.id; });
+    var want = tags && cart.some(function (l) { return GB.byId(l.id).cat === 'cards'; }) && !inCart(tags.id);
     up.hidden = !want;
     if (want) { up.innerHTML = '<img alt="" data-art="' + tags.id + '"><div><b>Complete the gift</b>Add ' + esc(tags.name) + ' for ' + money(tags.price) + '</div><button class="btn btn--ghost" type="button" data-upsell>Add<span class="sr"> ' + esc(tags.name) + '</span></button>'; bindArt($('img', up), tags, 1); }
+    syncAdd();
   }
   /* the basket redraws on every change, so keyboard focus is put back by hand and the change is announced */
   var cartStatus = $('#cart-status');
   function say(msg) { cartStatus.textContent = ''; status(cartStatus, msg + ' Total ' + $('#cart-total').textContent + '.', 60); }
   $('#upsell').addEventListener('click', function (e) {
     if (!e.target.closest('[data-upsell]')) return;
-    add('posy-gift-tags', 0, 1, true);
+    add('posy-gift-tags', 0, true);
     checkout.focus(); // the offer has gone, so carry on to the next control rather than dropping focus to the page
     say(GB.byId('posy-gift-tags').name + ' added.');
   });
   list.addEventListener('click', function (e) {
     var t = e.target.closest('button, a'); if (!t) return;
-    var i = +(t.dataset.ci || t.dataset.rm), l = cart[i], gone = false;
-    if (t.dataset.d) { l.q += +t.dataset.d; if (l.q < 1) { cart.splice(i, 1); gone = true; } save(); }
-    else if (t.dataset.rm) { cart.splice(i, 1); gone = true; save(); }
-    else if (t.hasAttribute('data-close')) return closeCart();
-    else return;
-    if (gone) {
-      // next line's Remove button, else the one before, else the empty-basket link
-      ($('[data-rm="' + Math.min(i, cart.length - 1) + '"]', list) || $('a[data-close]', list)).focus();
-      say(GB.byId(l.id).name + ' removed.');
-    } else {
-      $('[data-ci="' + i + '"][data-d="' + t.dataset.d + '"]', list).focus();
-      say(GB.byId(l.id).name + ', quantity ' + l.q + '.');
-    }
+    if (t.hasAttribute('data-close')) return closeCart();
+    if (!t.dataset.rm) return;
+    var i = +t.dataset.rm, l = cart[i];
+    cart.splice(i, 1); save();
+    // next line's Remove button, else the one before, else the empty-basket link
+    ($('[data-rm="' + Math.min(i, cart.length - 1) + '"]', list) || $('a[data-close]', list)).focus();
+    say(GB.byId(l.id).name + ' removed.');
   });
   var cartFocus;
   function openCart() { hideToast(); clearTimeout(drawerT); cartFocus = document.activeElement; drawer.hidden = false; document.body.classList.add('locked'); setInert(true); requestAnimationFrame(function () { drawer.classList.add('on'); $('.drawer-close', drawer).focus(); }); }
@@ -353,11 +339,11 @@
     if (e.key === 'Escape') { if (!modal.hidden) closeModal(); else if (!drawer.hidden) closeCart(); else if (nav.classList.contains('open')) closeNav(); }
     if (e.key === 'Tab') { if (!modal.hidden) trap(modal, e); else if (!drawer.hidden) trap(drawer, e); }
   });
-  [grid, fres].forEach(function (g) { g.addEventListener('click', function (e) {
+  grid.addEventListener('click', function (e) {
     var b = e.target.closest('[data-add]'); if (!b) return;
     var p = GB.byId(b.dataset.add);
-    if (p.variants) openModal(p); else add(p.id, 0, 1);
-  }); });
+    if (inCart(p.id)) openCart(); else if (p.variants) openModal(p); else add(p.id, 0);
+  });
   if (cfg.checkoutUrl) {
     // a real link: works in the artifact viewer and on a normal host (window.open is blocked in many viewers)
     var link = document.createElement('a');
@@ -405,13 +391,25 @@
   window.addEventListener('resize', progressSoon);
   progressSoon();
 
+  /* the nav underlines the section you are in */
+  if ('IntersectionObserver' in window) {
+    var links = {}; $$('.nav a').forEach(function (l) { links[l.getAttribute('href')] = l; });
+    var spy = new IntersectionObserver(function (en) {
+      en.forEach(function (e) {
+        var l = links['#' + e.target.id]; if (!l) return;
+        if (e.isIntersecting) { $$('.nav a').forEach(function (x) { x.removeAttribute('aria-current'); }); l.setAttribute('aria-current', 'true'); } else l.removeAttribute('aria-current');
+      });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    ['collections', 'shop', 'focus', 'story', 'faq'].forEach(function (id) { var el = document.getElementById(id); if (el) spy.observe(el); });
+  }
+
   var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (en) {
     en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
   }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }) : null;
   function observe() { $$('.reveal:not(.in)').forEach(function (el) { io ? io.observe(el) : el.classList.add('in'); }); }
 
   /* journal call-to-action filters the shop */
-  $$('[data-filter-link]').forEach(function (a) { a.addEventListener('click', function () { render(a.dataset.filterLink, true); }); });
+  $$('[data-filter-link]').forEach(function (a) { a.addEventListener('click', function () { setCat(a.dataset.filterLink, true); }); });
 
   /* story artwork (painted when it nears the screen) */
   var sc = $('#story-canvas');
@@ -455,7 +453,7 @@
   syncMotion();
 
   /* products, basket and reveals are ready straight away; only the pictures wait for the fonts */
-  render('all'); paint(); observe();
+  render(); paint(); observe();
 
   /* ---------- 3D hero: three.min.js (~600 KB) loads only after the page is usable and the hero is near view ---------- */
   function load3d() {

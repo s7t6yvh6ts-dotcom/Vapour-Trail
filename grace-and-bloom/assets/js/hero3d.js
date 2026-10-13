@@ -77,6 +77,9 @@
   var coverGeo = new THREE.BoxGeometry(CW, CH, CT); coverGeo.translate(CW / 2, 0, 0);
   var cover = new THREE.Mesh(coverGeo, [paper, paper, paper, paper, texMat(function () { return GB.art.make(GB.byId('peony-birthday'), 1.3); }), texMat(function () { return GB.art.inside(null, true); })]);
   hinge.add(cover);
+  /* a generous invisible target around the card, so a fingertip doesn't have to land exactly on the paper */
+  var hit = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  hit.position.z = 0.1; card.add(hit);
 
   /* ---------- journal ---------- */
   var JW = 1.25, JH = 1.7, JT = 0.26;
@@ -138,6 +141,7 @@
   // reduced motion (or paused): the card starts open; with reduced motion, opening or closing it snaps instead of animating
   var open = still() ? 1 : 0, openTarget = open, mx = 0, my = 0, tx = 0, ty = 0, visible = true, clock = new THREE.Clock(), started = performance.now();
   var amb = 0; // ambient clock: only runs while things are allowed to drift
+  var peek = 0, hover = false, used = false, nudgeAt = 2.2;
   function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 
   function layout() {
@@ -145,34 +149,44 @@
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     var a = camera.aspect;
-    camera.position.set(0, 0.25, a < 0.75 ? 15 : a < 1.3 ? 13 : 10.5);
+    camera.position.set(0, 0.25, w < 520 ? 8.6 : a < 1.3 ? 13 : 10.5);
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
     // keep the journal and print a clear margin inside the canvas at any aspect, so the soft edge fade never eats them
     var halfW = (camera.position.z + 1.6) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * a;
-    var side = Math.max(2, Math.min(2.9, halfW - 1));
+    var side = Math.max(1.8, Math.min(2.9, halfW - 1));
     jg.visible = pg.visible = true;
     jg.position.x = -side; pg.position.x = side;
     dirty = true;
   }
   window.addEventListener('resize', layout); layout();
 
+  var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function overCard(ev) {
+    var r = canvas.getBoundingClientRect();
+    ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    return ray.intersectObject(hit, false).length > 0;
+  }
   stage.addEventListener('pointermove', function (e) {
     var r = stage.getBoundingClientRect();
     mx = ((e.clientX - r.left) / r.width - 0.5) * 2; my = ((e.clientY - r.top) / r.height - 0.5) * 2;
+    if (e.pointerType === 'mouse') { hover = overCard(e); canvas.style.cursor = hover ? 'pointer' : 'default'; }
   });
-  stage.addEventListener('pointerleave', function () { mx = my = 0; });
-  var btn = document.getElementById('toggle-card');
-  // the visible label names the action, so it carries no aria-pressed (a changing label plus a pressed state reads back contradictory)
-  function setLabel() {
-    if (!btn) return;
-    btn.dataset.open = String(!!openTarget);
-    btn.querySelector('span').textContent = openTarget ? 'Close the card' : 'Open the card';
+  stage.addEventListener('pointerleave', function () { mx = my = 0; hover = false; canvas.style.cursor = 'default'; });
+  /* the card itself is the control: tap, click or press Enter / Space. There is no separate button. */
+  var hintText = document.getElementById('hero-hint-text');
+  function setHint() {
+    if (hintText) hintText.textContent = (window.matchMedia && matchMedia('(hover: none)').matches ? 'Tap' : 'Click') + ' the card to ' + (openTarget ? 'close' : 'open') + ' it';
   }
-  function toggle() { openTarget = openTarget ? 0 : 1; if (reduce) open = openTarget; dirty = true; setLabel(); }
-  setLabel();
-  canvas.addEventListener('click', toggle);
-  if (btn) btn.addEventListener('click', toggle);
+  function toggle() {
+    openTarget = openTarget ? 0 : 1; if (reduce) open = openTarget; dirty = true;
+    canvas.setAttribute('aria-pressed', String(!!openTarget));
+    if (!used) { used = true; stage.classList.add('used'); }
+  }
+  canvas.setAttribute('aria-pressed', String(!!openTarget)); setHint();
+  canvas.addEventListener('click', function (e) { if (overCard(e)) toggle(); });
+  canvas.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
 
   if ('IntersectionObserver' in window) new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }, { threshold: 0.01 }).observe(stage);
 
@@ -184,7 +198,13 @@
     if (!quiet) amb += dt;
     var t = amb;
 
-    if (!started.done && performance.now() - started > 1100) { started = { done: true }; if (!quiet && !openTarget) toggle(); }
+    /* the cue: the cover lifts a little when the pointer is over the card, and nudges once or twice by itself until someone has tried it */
+    var want = 0;
+    if (!quiet && !openTarget) {
+      if (hover) want = 0.2;
+      else if (!used && t > nudgeAt) { want = 0.2 * Math.sin(Math.min(1, (t - nudgeAt) / 1.4) * Math.PI); if (t - nudgeAt > 1.4) nudgeAt += 7; }
+    }
+    peek += (want - peek) * Math.min(1, dt * 7);
     var settling = Math.abs(openTarget - open) > 0.0005;
     open = settling ? open + (openTarget - open) * Math.min(1, dt * 3.2) : openTarget;
     // reduced motion: no pointer parallax either
@@ -196,7 +216,8 @@
     dirty = false;
     var e = ease(Math.max(0, Math.min(1, open)));
 
-    hinge.rotation.y = -e * 2.3;
+    hinge.rotation.y = -(e * 2.3 + peek * (1 - e));
+    hit.scale.set(CW * (1.25 + e * 0.8), CH * 1.15, 1); hit.position.x = -e * CW * 0.3;
     card.position.x = e * (CW / 2) * 0.8;
     card.rotation.x = -0.1 * e;
 
