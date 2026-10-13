@@ -114,7 +114,11 @@ class SetPricesTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn('RESULT: PASS', out)
         self.assertIn('fails: 0', out)
+        # the preview's stock.js (empty) is read and passes
+        self.assertIn('STOCK (stock.js), checked as go_live.py checks it, on the preview (no checkout route yet):\n'
+                      '  No problems.', out)
         self.assertEqual(self.changed(), [])
+        self.assertFalse(os.path.isdir(os.path.join(HERE, '..', '__pycache__')), 'importing go_live.py left a __pycache__')
 
     def test_write_is_idempotent(self):
         code, out = self.run_tool('--write', self.site)
@@ -596,6 +600,125 @@ class SetPricesTest(unittest.TestCase):
         code, out = self.run_tool('--set', 'iPhone 13', '128GB', 'Good', '199', self.site, '--dry-run')
         self.assertEqual(code, 0, out)
         self.assertNotIn('pay.js', out)
+
+    # -------------------------------------------------------------------------------------------- stock.js (R12)
+    def phones(self):
+        return sorted(f[:-len('.html')] for f in os.listdir(os.path.join(self.site, 'products')) if f.endswith('.html'))
+
+    def stock_js(self, body):
+        """stock.js in the copy: its header, then body (None deletes the file)."""
+        p = os.path.join(self.site, 'stock.js')
+        if body is None:
+            os.remove(p)
+            return
+        src = read(os.path.join(self.orig, 'stock.js'))
+        write(p, src[:src.rindex('window.FULLBARS_STOCK =')] + body)
+
+    def stock_body(self, drop=()):
+        return 'window.FULLBARS_STOCK = {\n' + ',\n'.join(
+            f'  "{h}": ' + ('{"128GB|Good": 1}' if h == 'iphone-13' else '{}') for h in self.phones() if h not in drop) + '\n};\n'
+
+    def mark_static_route(self):
+        """Mark the copy as go_live.py --checkout stripe does (data-stock-required="1" where stock_mark_tags says)."""
+        sys.path.insert(0, os.path.join(HERE, '..'))
+        sys.dont_write_bytecode = True
+        import go_live
+        for d, _, fs in os.walk(self.site):
+            for f in fs:
+                if f.endswith('.html'):
+                    p = os.path.join(d, f)
+                    page = read(p)
+                    for _, m in sorted(go_live.stock_mark_tags(page), key=lambda t: -t[1].start()):
+                        page = page[:m.end() - 1] + ' data-stock-required="1"' + page[m.end() - 1:]
+                    write(p, page)
+
+    def test_check_fails_on_every_stock_js_typo(self):
+        """set_prices.py --check, the routine check after every edit, reads stock.js as go_live.py does: each typo that
+        makes browsers drop the file, and each bad entry, fails it (on the preview too); the empty preview file passes."""
+        good = self.stock_body()
+        cases = {
+            'stray comma': (good.replace('"128GB|Good": 1', '"128GB|Good": 1,,'), 'is not valid JSON'),
+            # a phone's last count deleted and its comma left, inside a phone's braces and as the whole list
+            '{,} for a phone': (good.replace('"pixel-8": {}', '"pixel-8": {,}'), '(a comma with no entry before it'),
+            '{ , } for a phone': (good.replace('"pixel-8": {}', '"pixel-8": { , }'), '(a comma with no entry before it'),
+            '{,} as the list': ('window.FULLBARS_STOCK = {,};\n', '(a comma with no entry before it'),
+            '{ , } as the list': ('window.FULLBARS_STOCK = {\n  ,\n};\n', '(a comma with no entry before it'),
+            'let': (good.replace('window.FULLBARS_STOCK', 'let FULLBARS_STOCK'), 'makes a variable browsers don\'t put on window'),
+            'stray comma before the list': (',\n' + good, '"," is outside the comment, before window.FULLBARS_STOCK'),
+            'stray comma after the list': (good.replace('};', '},'), 'has something after the stock list (",")'),
+            'missing inner brace': (good.replace('"128GB|Good": 1}', '"128GB|Good": 1'), 'is not valid JSON'),
+            'missing outer brace': (good.replace('};', ';'), 'is not valid JSON'),
+            'trailing garbage': (good + 'oops\n', 'has something after the stock list ("oops")'),
+            'stray comment end': ('*/\n' + good, '"*/" is outside the comment'),
+            'unclosed comment': ('/* sold one\n' + good, 'a comment that is never closed'),
+            'wrong key': (good.replace('128GB|Good', '128GB|Goood'), 'stock.js "iphone-13" key(s) that aren\'t a storage and '
+                          'condition on that phone\'s page: 128GB|Goood'),
+            'colour in the key': (good.replace('128GB|Good', '128GB|Good|Blue'), 'key(s) with a colour in them: 128GB|Good|Blue'),
+            'negative count': (good.replace('"128GB|Good": 1', '"128GB|Good": -1'), 'count(s) that aren\'t a whole number of '
+                               'units (0 or more): "128GB|Good": -1'),
+            'unknown handle': (good.replace('"iphone-13"', '"iphone13"'), 'stock.js: "iphone13" is not a product page'),
+        }
+        for name, (body, why) in cases.items():
+            self.assertNotEqual(body, good, name)
+            self.stock_js(body)
+            code, out = self.run_tool('--check', self.site)
+            self.assertEqual(code, 1, f'{name}: {out[-1500:]}')
+            self.assertIn(why, out, name)
+            self.assertIn('RESULT: FAIL', out, name)
+        self.stock_js(good)
+        code, out = self.run_tool('--check', self.site)
+        self.assertEqual(code, 0, out[-1500:])
+        # the preview has no route yet: a phone left out (no stock data) or no stock.js at all is not a failure there
+        self.stock_js(self.stock_body(drop=('pixel-8',)))
+        self.assertEqual(self.run_tool('--check', self.site)[0], 0)
+        self.stock_js(None)
+        code, out = self.run_tool('--check', self.site)
+        self.assertEqual(code, 0, out[-1500:])
+        self.assertIn('the pages load stock.js, but the site folder has none', out)
+        self.assertEqual([k for k in self.changed() if k != 'stock.js'], [])
+
+    def test_check_on_the_static_route(self):
+        """Once go_live.py --checkout stripe has marked the pages, --check is on the static route: a phone with no stock
+        data, a missing stock.js or a page that lost its mark fails it, the way go_live.py reports them."""
+        self.mark_static_route()
+        self.stock_js(self.stock_body())
+        code, out = self.run_tool('--check', self.site)
+        self.assertEqual(code, 0, out[-1500:])
+        self.assertIn('on the static (Stripe) route: every phone needs stock data, and the pages fail closed', out)
+        self.stock_js(self.stock_body(drop=('pixel-8',)))
+        code, out = self.run_tool('--check', self.site)
+        self.assertEqual(code, 1, out[-1500:])
+        self.assertIn('no stock data for 1 of 19 product pages (products/pixel-8.html): neither stock.js nor the page\'s '
+                      'data-stock says what you hold', out)
+        self.stock_js(None)
+        code, out = self.run_tool('--check', self.site)
+        self.assertEqual(code, 1, out[-1500:])
+        self.assertIn('the site folder has no stock.js', out)
+        # a phone held only in its page's older data-stock: its cards can't read it and would say "None in stock right
+        # now" while its page sells it, so the check fails until the phone is moved into stock.js
+        self.stock_js(self.stock_body(drop=('galaxy-s23',)))
+        p = os.path.join(self.site, 'products', 'galaxy-s23.html')
+        page = read(p)
+        write(p, page.replace(' data-stock-required="1"', ' data-stock="{&quot;128GB|Good&quot;: 2}" data-stock-required="1"', 1))
+        code, out = self.run_tool('--check', self.site)
+        self.assertEqual(code, 1, out[-1500:])
+        self.assertIn('1 phone(s) keep their stock only in the older data-stock attribute: products/galaxy-s23.html', out)
+        write(p, page)
+        self.stock_js(self.stock_body())
+        p = os.path.join(self.site, 'index.html')
+        write(p, read(p).replace('<div class="tiles" data-stock-required="1">', '<div class="tiles">'))
+        code, out = self.run_tool('--check', self.site)
+        self.assertEqual(code, 1, out[-1500:])
+        self.assertIn('1 product picker(s), card grid(s) or row(s) of range tiles have no data-stock-required="1": '
+                      'index.html:129 (range tiles)', out)
+
+    def test_no_stock_check_is_only_for_go_live(self):
+        self.stock_js(',\n' + self.stock_body())
+        code, out = self.run_tool('--check', self.site, '--no-stock-check')
+        self.assertEqual(code, 0, out[-1500:])
+        self.assertNotIn('STOCK (stock.js)', out)
+        code, out = self.run_tool('--write', self.site, '--no-stock-check')
+        self.assertEqual(code, 2, out)
 
     def test_writes_only_inside_the_folder(self):
         sibling = os.path.join(self.work, 'sibling.txt')

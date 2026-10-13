@@ -27,6 +27,10 @@ It switches, on every page that has them:
   - the "Not trading yet" boxes on terms, privacy, cookies, warranty, delivery-returns and contact go
   - --checkout stripe: the contact form gets its "Order a phone" topic (site.js looks for it). --checkout shopify:
     it doesn't (and an existing one is removed), so there is no email-order route beside Shopify
+  - --checkout stripe: data-stock-required="1" goes on each product picker and on each grid of product cards and row of
+    range tiles. There site.js fails closed: if stock.js is missing, has a typo that stops browsers reading it, or has a
+    missing or malformed entry for a phone, that phone shows as not in stock ("Not in stock — ask us", "None in stock
+    right now"), never as orderable. --checkout shopify takes the mark off again (stock.js is optional there)
   - "Last updated ..." on the legal pages and every <lastmod> in sitemap.xml become the launch date. Only in
     the run that switches the site out of preview, or when you pass --launch-date: rerunning on a site that is
     already live leaves those dates alone, because nothing on those pages changed
@@ -46,10 +50,15 @@ It will NOT run (exit code 1, nothing written) while any of these launch blocker
   - stock that site.js can't use, in stock.js (the one place to keep it: {"<handle>": {"storage|condition": units}})
     or in a page's older data-stock attribute: not valid JSON, a count that isn't a whole number of 0 or more, a key
     that isn't one of that page's "storage|condition" pairs (colour is never part of the key), or a handle that isn't
-    a product page; on both routes. With --checkout stripe, also a product page with no stock data from either: site.js
-    would offer every option with no stock behind it. On the Shopify route stock data is optional: stock.js is then a
-    snapshot written from Shopify by fetch_shopify_variants.py --write-stock (a hand-kept, partial or other-store one,
-    or a stale one: more than 24 hours old, or with no time on it, is a warning). stock.js wins over data-stock
+    a product page; on both routes. stock.js is read as a browser reads it, so a stray comma, a missing brace or a stray
+    character outside its comment, which make browsers ignore the whole file, is a blocker too. With --checkout stripe,
+    also a product page with no stock data from either (the page would show that phone as not in stock), a phone whose
+    stock is only in its page's data-stock (its cards would say "None in stock right now"), no stock.js at all, or a
+    page with a picker, cards or range tiles that doesn't load stock.js. On the Shopify route stock data is
+    optional: stock.js is then a snapshot written from Shopify by fetch_shopify_variants.py --write-stock (a hand-kept,
+    partial or other-store one, or a stale one: more than 24 hours old, or with no time on it, is a warning). stock.js
+    wins over data-stock. After launch, set_prices.py --check runs the same stock check on the route the site is on:
+    run it after every edit to stock.js and before every deploy
   - --shop-variants with a key that isn't one of that page's storage, condition and colour options, or an ID that
     isn't a whole number
   - --trade-ins open while the sell pages have no quote-sending form
@@ -131,6 +140,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PRICE_CHECKER = os.path.join(HERE, 'check_site_prices.py')
@@ -412,34 +422,144 @@ def _no_constant(name):
     raise ValueError(f'{name} isn\'t allowed in JSON')
 
 
+# JavaScript's whitespace (besides Unicode "space separator" characters) and line ends: browsers read stock.js as a script
+JS_SPACE = '\t\v\f \u00a0\ufeff'
+JS_LINE_END = '\n\r\u2028\u2029'
+
+
+def _js_string_end(src, i):
+    """Index just past the string literal that starts at src[i] (a quote), or at the line end that cuts it short."""
+    q, j, n = src[i], i + 1, len(src)
+    while j < n and src[j] != q and src[j] not in JS_LINE_END:
+        j += 2 if src[j] == '\\' else 1
+    return min(j + 1, n)
+
+
+def js_code(src):
+    """(code, None) or (None, line): src as a browser's JavaScript parser reads it, with each comment (/* */ or //, never
+    one inside a string) and every character JavaScript counts as whitespace made a plain space, and each line end a
+    newline (so line numbers still match the file). line is where a /* comment that is never closed starts."""
+    out, i, n = [], 0, len(src)
+    while i < n:
+        c = src[i]
+        if c in '"\'':
+            j = _js_string_end(src, i)
+            out.append(src[i:j])
+            i = j
+        elif src.startswith('/*', i):
+            j = src.find('*/', i + 2)
+            if j < 0:
+                return None, line_of(src, i)
+            ends = len(re.findall('\r\n|[' + JS_LINE_END + ']', src[i:j]))   # a comment over several lines keeps them
+            out.append('\n' * ends if ends else ' ')
+            i = j + 2
+        elif src.startswith('//', i):
+            while i < n and src[i] not in JS_LINE_END:
+                i += 1
+        elif c == '\r':
+            out.append('\n')
+            i += 2 if src.startswith('\r\n', i) else 1
+        elif c in JS_LINE_END:
+            out.append('\n')
+            i += 1
+        elif c in JS_SPACE or unicodedata.category(c) == 'Zs':
+            out.append(' ')
+            i += 1
+        else:
+            out.append(c)
+            i += 1
+    return ''.join(out), None
+
+
+def _drop_trailing_commas(code):
+    """code with each trailing comma (one JavaScript allows just before } or ]) made a space, outside strings. Only a
+    comma after a value or a closing bracket is a trailing comma: one straight after {, [ or another comma ({,} or
+    1,,}) is a typo in an object, so it stays and the JSON read fails, as the browser's does. (In a list, [,] or [1,,]
+    is a hole a browser accepts; it stays too and is refused: stock.js has no lists.)"""
+    out, i, n = [], 0, len(code)
+    while i < n:
+        c = code[i]
+        if c in '"\'':
+            j = _js_string_end(code, i)
+            out.append(code[i:j])
+            i = j
+            continue
+        if c == ',':
+            k, p = i + 1, i - 1
+            while k < n and code[k] in ' \n':
+                k += 1
+            while p >= 0 and code[p] in ' \n':
+                p -= 1
+            if k < n and code[k] in '}]' and p >= 0 and code[p] not in '{[,':
+                c = ' '
+        out.append(c)
+        i += 1
+    return ''.join(out)
+
+
+# How stock.js may set the stock. The header's form is window.FULLBARS_STOCK = { ... }; a browser runs a few other
+# spellings the same way in a classic script, so they are read too: window["FULLBARS_STOCK"] (or in single quotes),
+# spaces around the dot, a top-level FULLBARS_STOCK = or var FULLBARS_STOCK =, and semicolons before it. let and const
+# are not: they make a variable that isn't on window, so site.js would find no stock (read_stock_js says so).
+STOCK_ASSIGN = re.compile(r'''(?:window\s*(?:\.\s*FULLBARS_STOCK|\[\s*(?:"FULLBARS_STOCK"|'FULLBARS_STOCK')\s*\])|(?:\bvar\s+)?\bFULLBARS_STOCK)'''
+                          r'\s*=(?!=)\s*')
+
+
 def read_stock_js(files):
     """(entries, problems) from stock.js, as site.js reads window.FULLBARS_STOCK: entries is {handle: {key: count}}, or
-    None when the site has no stock.js. It must be JSON after "window.FULLBARS_STOCK =", as the file's header shows;
-    comments and a trailing comma (both fine in JavaScript) are allowed."""
+    None when the site has no stock.js. It is read as a browser reads it: comments (/* */ and //), trailing commas,
+    semicolons and any whitespace are fine, as in JavaScript, and so are the other spellings of the assignment in
+    STOCK_ASSIGN; then the file must be window.FULLBARS_STOCK = <JSON> and nothing else, because anything a browser
+    can't run (a stray comma, {,}, a missing brace, a stray letter or */ outside a comment) makes it ignore the whole
+    file, and the stock with it. Problems name the line.
+    Deliberately refused although a browser would run them, so that what passes here is exactly what the pages read:
+    anything JSON doesn't allow inside the list (single quotes, unquoted keys, a count written 0x2, 01 or 2_0, NaN,
+    Infinity), an <!-- line, let or const, a second assignment or any other statement before or after it."""
     src = files.get(STOCK_JS)
     if src is None:
         return None, []
-    code = re.sub(r'(?m)^\s*//.*$', '', re.sub(r'/\*.*?\*/', ' ', src, flags=re.S))   # the header's example is a comment
-    if '/*' in code:
-        return {}, [f'{STOCK_JS} has a comment that is never closed ("/*" with no "*/"), so browsers can\'t read the file and '
-                    'every phone would look in stock. Close it with */, as the header does']
-    m = re.search(r'window\.FULLBARS_STOCK\s*=\s*', code)
+    lost = ('If a browser can\'t run the file (a stray comma, a missing brace or a stray character stops it), it ignores all '
+            'of it: on the live static route every phone then shows as not in stock, and elsewhere every option as orderable')
+    why = ('Write it as JSON, as the header of the file shows: each phone\'s handle and each "storage|condition" in double '
+           'quotes, each count a whole number, a comma between entries, and outside the /* */ comment nothing but '
+           'window.FULLBARS_STOCK = { ... }; (this check refuses anything else, even forms a browser would run such as '
+           'single quotes or 0x2, so that what passes is exactly what the pages read)')
+    code, open_line = js_code(src)
+    if code is None:
+        return {}, [f'{STOCK_JS} line {open_line}: a comment that is never closed ("/*" with no "*/"). {lost}. Close it with '
+                    '*/, as the header does']
+    m = STOCK_ASSIGN.search(code)
     if not m:
         return {}, [f'{STOCK_JS} doesn\'t set window.FULLBARS_STOCK, so site.js finds no stock in it. Put the counts after '
                     '"window.FULLBARS_STOCK = ", as the header of the file shows']
-    body = code[m.end():]
-    body = re.sub(r',(\s*[}\]])', r'\1', body).strip()
-    why = ('Write it as JSON, as the header of the file shows: each phone\'s handle and each "storage|condition" in double '
-           'quotes, each count a whole number, a comma between entries')
+    before = code[:m.start()]
+    bad = before.strip(' \n;')
+    if bad:
+        at = len(before) - len(before.lstrip(' \n;'))
+        if bad in ('let', 'const'):
+            return {}, [f'{STOCK_JS} line {line_of(code, at)}: "{show(bad, 40)} FULLBARS_STOCK" makes a variable browsers '
+                        'don\'t put on window, so site.js finds no stock in it: on the live static route every phone then '
+                        'shows as not in stock, and elsewhere every option as orderable. Write window.FULLBARS_STOCK = '
+                        '{ ... }, as the header of the file shows']
+        return {}, [f'{STOCK_JS} line {line_of(code, at)}: "{show(bad, 40)}" is outside the comment, before '
+                    f'window.FULLBARS_STOCK. {lost}. Delete it. {why}']
+    body = _drop_trailing_commas(code[m.end():])
     try:
         data, end = json.JSONDecoder(parse_constant=_no_constant).raw_decode(body)
     except ValueError as e:
         at = getattr(e, 'pos', 0) or 0
         near = show(body[max(0, at - 30):at + 30])
-        return {}, [f'{STOCK_JS} is not valid JSON ({getattr(e, "msg", e)}, near "{near}"), so its stock can\'t be checked. {why}. '
-                    '(A typo that breaks the JavaScript makes browsers ignore the whole file, and then every phone looks in stock.)']
-    if body[end:].strip() not in ('', ';'):
-        return {}, [f'{STOCK_JS} has something after the stock list ("{show(body[end:].strip(), 40)}"). {why}']
+        prev = body[:at].rstrip(' \n')[-1:]
+        comma = (' (a comma with no entry before it, as in {,} or 1,,: delete it)'
+                 if body[at:at + 1] == ',' and prev and prev in '{,' else '')
+        return {}, [f'{STOCK_JS} line {line_of(code, m.end() + at)} is not valid JSON ({getattr(e, "msg", e)}, near "{near}"){comma}, '
+                    f'so its stock can\'t be checked. {why}. {lost}.']
+    rest = body[end:]
+    tail = rest.strip(' \n;')
+    if tail:
+        at = end + len(rest) - len(rest.lstrip(' \n;'))
+        return {}, [f'{STOCK_JS} line {line_of(code, m.end() + at)} has something after the stock list '
+                    f'("{show(tail, 40)}"). {lost}. {why}']
     if not isinstance(data, dict):
         return {}, [f'{STOCK_JS} must set window.FULLBARS_STOCK to a list of phones in braces {{ }}. {why}']
     return data, []
@@ -551,6 +671,101 @@ def picker_combos(tag):
         return {f'{st}|{gr}' for st, g in json.loads(attr(tag, 'data-prices') or '{}').items() for gr in g}
     except (ValueError, AttributeError):
         return set()   # check_site_prices.py reports a broken data-prices
+
+
+# The live static route's fail-closed stock (site.js). --checkout stripe puts data-stock-required="1" on every product
+# picker and on the element holding each group of product cards (the card grid) and range tiles (a tile with
+# data-handles: the home page's row of tiles); inside them site.js treats stock data that is missing, unreadable or
+# malformed as nothing held. --checkout shopify takes it off: on that route stock.js is optional.
+STOCK_REQUIRED = 'data-stock-required'
+CARD_TAG = re.compile(r'<article class="card"[^>]*>')
+STOCK_TILE_TAG = re.compile(r'<a class="tile[^"]*"[^>]*\bdata-handles="[^"]*"[^>]*>')
+STOCK_REQUIRED_ATTR = re.compile(r'\s' + STOCK_REQUIRED + r'(?:="[^"]*")?(?=[\s/>])')
+DIV_TAG = re.compile(r'<(/?)div\b[^>]*>', re.I)
+
+
+def stock_mark_tags(src):
+    """[(what, match)] for each start tag on a page that takes data-stock-required on the static route, in page order:
+    each product picker, and for product cards and range tiles the <div> holding them (a card grid, the row of tiles),
+    or the card or tile itself when no <div> holds it."""
+    found = [('product picker', m) for m in PICKER_TAG.finditer(src)]
+    items = sorted([('card grid', m) for m in CARD_TAG.finditer(src)] + [('range tiles', m) for m in STOCK_TILE_TAG.finditer(src)],
+                   key=lambda t: t[1].start())
+    divs, stack, seen, d = list(DIV_TAG.finditer(src)), [], set(), 0
+    for what, m in items:
+        while d < len(divs) and divs[d].start() < m.start():   # the <div>s still open where the card or tile starts
+            if divs[d].group(1):
+                if stack:
+                    stack.pop()
+            else:
+                stack.append(divs[d])
+            d += 1
+        holder = stack[-1] if stack else m
+        if holder.start() not in seen:
+            seen.add(holder.start())
+            found.append((what if stack else ('product card' if what == 'card grid' else 'range tile'), holder))
+    return sorted(found, key=lambda t: t[1].start())
+
+
+def stock_marks(files):
+    """(marked, unmarked): "page:line (what)" for each product picker, card grid and row of range tiles (stock_mark_tags)
+    with and without data-stock-required (site.js goes by the attribute alone, whatever its value)."""
+    marked, unmarked = [], []
+    for rel in sorted(files):
+        if rel.endswith('.html'):
+            for what, m in stock_mark_tags(files[rel]):
+                (marked if STOCK_REQUIRED_ATTR.search(m.group(0)) else unmarked).append(
+                    f'{rel}:{line_of(files[rel], m.start())} ({what})')
+    return marked, unmarked
+
+
+def few(items, n=4):
+    return ', '.join(items[:n]) + (f' and {len(items) - n} more' if len(items) > n else '')
+
+
+def stock_mark_problems(files, checkout):
+    """What is wrong with the data-stock-required marks of a switched site on this route: with --checkout stripe every
+    picker, card grid and row of range tiles needs one (or a stock.js typo would make every phone there look orderable again); with
+    --checkout shopify none may have one (stock.js is optional there, so a marked page would show nothing in stock)."""
+    marked, unmarked = stock_marks(files)
+    if checkout == 'stripe' and unmarked:
+        return [f'{len(unmarked)} product picker(s), card grid(s) or row(s) of range tiles have no {STOCK_REQUIRED}="1": {few(unmarked)}. '
+                'On the static route that mark makes site.js fail closed (nothing in stock) when stock.js is missing or '
+                'broken; without it a typo in stock.js shows every option there as orderable. Run go_live.py --checkout '
+                'stripe on the site again: it adds the mark']
+    if checkout == 'shopify' and marked:
+        return [f'{len(marked)} product picker(s), card grid(s) or row(s) of range tiles still have {STOCK_REQUIRED} on the Shopify route: '
+                f'{few(marked)}. It is for the static route only: with no stock.js snapshot those pages show every phone as '
+                'not in stock. Run go_live.py --checkout shopify on the site again: it takes the mark off']
+    return []
+
+
+def site_route(files):
+    """The checkout route a site is on, as the pages show it: 'shopify' when a product picker has data-shop; 'stripe' when
+    anything has data-stock-required, or when the pickers are live (no data-preview) and pay.js has a Payment Link; else
+    None (the preview, or not switched yet)."""
+    tags = [tag for _, tag, _ in pickers(files)]
+    if any(attr(t, 'data-shop') is not None for t in tags):
+        return 'shopify'
+    if stock_marks(files)[0]:
+        return 'stripe'
+    live = tags and not any(attr(t, 'data-preview') is not None for t in tags)
+    if live and any(v.strip() for _, v in pay_links(files.get('pay.js', ''))):
+        return 'stripe'
+    return None
+
+
+def routine_stock_check(root):
+    """For set_prices.py --check, the check to run after every edit and before every deploy: (route, blockers, warnings)
+    for the site folder's stock data, exactly as go_live.py checks it (stock_check), on the route the site is on now
+    (site_route), plus its data-stock-required marks on a switched site."""
+    files = load_site(root)
+    route = site_route(files)
+    filled = [(k, v.strip()) for k, v in pay_links(files.get('pay.js', '')) if v.strip()]
+    shop = next((attr(tag, 'data-shop') for _, tag, _ in pickers(files) if attr(tag, 'data-shop')), None)
+    shop = re.sub(r'/products/[^/?#]+$', '', shop) if shop else None
+    blockers, warnings = stock_check(files, route, shop, filled if route == 'stripe' else ())
+    return route, blockers + stock_mark_problems(files, route), warnings
 
 
 def pay_units(files):
@@ -848,6 +1063,18 @@ def plan_switches(files, opt):
             a = re.search(r'\sdata-preview(?:="[^"]*")?', tag)
             where = {'picker': 'product picker', 'contactForm': 'contact form', 'qt': 'trade-in quote tool'}.get(attr(tag, 'id'), 'element')
             edits.append(Edit(rel, m.start() + a.start(), m.start() + a.end(), '', f'{where}: data-preview removed (switches it on)'))
+        # the static route's fail-closed stock: data-stock-required="1" on each product picker, card grid and row of range
+        # tiles, so site.js shows nothing as held there if stock.js is missing or broken (stock.js is the only thing that
+        # stops a sale on this route); off again on the Shopify route, where stock.js is optional
+        for what, m in stock_mark_tags(src) if opt.checkout in ('stripe', 'shopify') else ():
+            have = STOCK_REQUIRED_ATTR.search(m.group(0))
+            if opt.checkout == 'stripe' and not have:
+                at = m.end() - 1
+                edits.append(Edit(rel, at, at, f' {STOCK_REQUIRED}="1"',
+                                  f'{what}: {STOCK_REQUIRED} added (nothing shows as in stock if stock.js is missing or broken)'))
+            elif opt.checkout == 'shopify' and have:
+                edits.append(Edit(rel, m.start() + have.start(), m.start() + have.end(), '',
+                                  f'{what}: {STOCK_REQUIRED} removed (Shopify route: stock.js is optional)'))
         # Shopify route: the picker's data-shop (site.js sends the Order button there)
         pk = PICKER_TAG.search(src)
         shop = opt.shop_targets.get(rel) if opt.checkout == 'shopify' else None
@@ -1039,7 +1266,7 @@ def run_set_prices_check(site, price_check_failed=False):
     It checks everything check_site_prices.py does, plus the #pdFrom line and the "Lowest price" badge."""
     if not os.path.isfile(SET_PRICES):
         return [f'set_prices.py is missing from {HERE}, so the "Lowest price" badge and "From" lines can\'t be checked']
-    r = _run([sys.executable, SET_PRICES, '--check', site])
+    r = _run([sys.executable, SET_PRICES, '--check', site, '--no-stock-check'])   # stock: checked below (stock_check)
     if r is None:
         return ['set_prices.py --check took over 5 minutes and was stopped']
     if r.returncode == 0:
@@ -1092,6 +1319,139 @@ def run_checks(site):
     return price + run_set_prices_check(site, bool(price)) + run_facts_check(site)
 
 
+def stock_check(files, checkout=None, shop_url=None, filled=()):
+    """(blockers, warnings) for the site's stock data on a checkout route ('stripe', 'shopify', or None for the preview):
+    stock.js (read as a browser reads it) and any page's older data-stock, checked against each product page's storage
+    and condition pairs. go_live.py runs it before switching, and set_prices.py --check after every edit (on the route the
+    site is on: site_route). filled: pay.js's Payment Links [(key, link)], for the static route's unheld-link warning."""
+    blockers, warnings = [], []
+    sj, sj_problems = read_stock_js(files)
+    blockers.extend(sj_problems)
+    entries = sj or {}
+    handles = {page_handle(rel) for rel, _, _ in pickers(files)}
+    for h in sorted(entries):
+        if h not in handles:
+            blockers.append(f'{STOCK_JS}: "{h}" is not a product page (there is no products/{h}.html), so its stock is never '
+                            f'used. Use the page\'s name, one of: {", ".join(sorted(handles))}')
+        elif not isinstance(entries[h], dict):
+            blockers.append(f'{STOCK_JS}: "{h}" must be its storage and condition counts in braces, such as '
+                            f'"{h}": {{"128GB|Good": 2}} ({{}} if you hold none of it), not {json.dumps(entries[h])}')
+    missing, with_stock, both, no_include, held_by_key, with_attr = [], [], [], [], {}, []
+    for rel, tag, pos in pickers(files):
+        h = page_handle(rel)
+        where = f'{rel}:{line_of(files[rel], pos)}'
+        combos = picker_combos(tag)
+        page_stock = None
+        raw = attr(tag, 'data-stock')
+        if raw is not None:
+            with_attr.append(rel)
+            try:
+                page_stock = json.loads(raw, parse_constant=_no_constant)   # NaN/Infinity: browsers refuse the attribute
+                if not isinstance(page_stock, dict):
+                    raise ValueError('not an object')
+            except ValueError as e:
+                blockers.append(f'{where}: data-stock is not valid JSON ({e}), so site.js ignores it: on the live static route the '
+                                'phone then shows as not in stock, elsewhere every option looks in stock')
+                page_stock = None
+            else:
+                blockers.extend(stock_problems(f'{where}: data-stock', page_stock, combos))
+        js_stock = entries.get(h) if isinstance(entries.get(h), dict) else None
+        if js_stock is not None:
+            blockers.extend(stock_problems(f'{STOCK_JS} "{h}"', js_stock, combos, place='on that phone\'s page'))
+            if not loads_stock_js(files[rel]):
+                no_include.append(rel)
+            if raw is not None:
+                both.append(rel)
+        stock = js_stock if js_stock is not None else page_stock
+        if js_stock is None and raw is None:
+            missing.append(rel)
+            continue
+        with_stock.append(rel)
+        if stock is None:
+            continue   # a data-stock that isn't valid JSON: reported above
+        model = attr(tag, 'data-model') or ''
+        for k in combos | set(stock):
+            v = stock.get(k)
+            held_by_key[f'{model} {k.replace("|", " ")}'] = whole_count(v) and v > 0
+    if no_include:
+        blockers.append(f'{len(no_include)} product page(s) have stock in {STOCK_JS} but don\'t load it before site.js, so '
+                        f'site.js never sees it: {", ".join(no_include)}. Add <script src="../{STOCK_JS}" defer></script> '
+                        'just before the site.js script tag, as on the other pages')
+    if both:
+        warnings.append(f'{len(both)} product page(s) have data-stock as well as an entry in {STOCK_JS}: {", ".join(both)}. '
+                        f'{STOCK_JS} wins and the page\'s data-stock is ignored. Remove data-stock from those pages, so '
+                        f'{STOCK_JS} is the only place to change')
+    if sj is None and checkout == 'stripe':
+        blockers.append(f'the site folder has no {STOCK_JS}. On the live static route site.js fails closed without it: every '
+                        'phone shows as not in stock and nothing can be ordered. Put it back with every phone you hold in it '
+                        '(GO-LIVE.md section 6, step 2)')
+    elif sj is None and any(loads_stock_js(src) for rel, src in files.items() if rel.endswith('.html')):
+        warnings.append(f'the pages load {STOCK_JS}, but the site folder has none: browsers log a "not found" error for it. '
+                        f'Put back {STOCK_JS} (on the Shopify route, write it with fetch_shopify_variants.py --write-stock, '
+                        'or leave it empty)')
+    if checkout == 'stripe':
+        if missing and not sj_problems:   # an unreadable stock.js is reported above: fix that first
+            blockers.append(f'no stock data for {len(missing)} of {len(missing) + len(with_stock)} product pages '
+                            f'({", ".join(missing)}): neither {STOCK_JS} nor the page\'s data-stock says what you hold. On the '
+                            'live static route site.js fails closed, so each of those phones shows as not in stock at all and '
+                            'can\'t be ordered (without that safeguard, every option would look orderable with no phone '
+                            f'behind it). Add each phone to {STOCK_JS}: "iphone-13": {{"128GB|Good": 2}} means 2 units of '
+                            '128GB in Good, any colour; a missing key or 0 means not in stock; {} means none at all '
+                            '(GO-LIVE.md section 6, step 2)')
+        # every page with a picker, phone cards or range tiles must load stock.js: on the live static route site.js treats
+        # stock it can't see as none (product pages with stock.js entries are listed above already)
+        unloaded = [rel for rel in sorted(files) if rel.endswith('.html') and rel not in no_include
+                    and stock_mark_tags(files[rel]) and not loads_stock_js(files[rel])]
+        if unloaded and sj is not None:
+            blockers.append(f'{len(unloaded)} page(s) with a product picker, phone cards or range tiles don\'t load {STOCK_JS} '
+                            f'before site.js: {", ".join(unloaded)}. On the live static route site.js would then show every '
+                            f'phone there as not in stock. Add <script src="{STOCK_JS}" defer></script> (../{STOCK_JS} in a '
+                            'folder) just before the site.js script tag, as on the other pages')
+        # a phone held only in a page's older data-stock: its product page sells it, but its cards and range tiles (which
+        # read stock.js alone) would tell customers "None in stock right now". A blocker, not a warning: that is false
+        attr_only = [rel for rel in with_attr if page_handle(rel) not in entries]
+        if attr_only and not sj_problems:   # an unreadable stock.js is reported above: fix that first
+            blockers.append(f'{len(attr_only)} phone(s) keep their stock only in the older data-stock attribute: '
+                            f'{", ".join(attr_only)}. Their product pages use it, but their cards and range tiles can\'t read '
+                            f'it, so on the live static route they would say "None in stock right now" while the page sells '
+                            f'the phone. Copy each phone\'s data-stock list into {STOCK_JS} under its handle '
+                            f'("{page_handle(attr_only[0])}": {{...}}) and remove data-stock from its #picker (GO-LIVE.md '
+                            'section 6, step 2)')
+    elif checkout == 'shopify':
+        # Shopify's own stock decides what can be bought. Stock data here is optional and checked as above; it only turns
+        # a page's button into "Not in stock — ask us" and puts "None in stock right now" on cards, so it must come from
+        # Shopify (fetch_shopify_variants.py --write-stock) and be fresh
+        snap = stock_snapshot(files.get(STOCK_JS))
+        how = ('Write it from Shopify instead: python3 launch/full-bars/fetch_shopify_variants.py --shop-url '
+               f'{shop_url or "<shop-url>"} --write-stock <this site folder>/{STOCK_JS} (GO-LIVE.md section 5, step 13)')
+        if entries and not snap:
+            warnings.append(f'{STOCK_JS} lists {len(entries)} phone(s) but wasn\'t written by fetch_shopify_variants.py '
+                            '--write-stock, so it doesn\'t follow Shopify\'s stock: a phone Shopify has could show "Not in stock '
+                            f'— ask us". {how}')
+        if snap:
+            # its age to the minute, in UTC as written: a snapshot more than 24 hours old (or of unknown age) is stale
+            stale = snapshot_age_warning(snap, 'python3 launch/full-bars/fetch_shopify_variants.py --shop-url '
+                                         f'{shop_url or "<shop-url>"} --write-stock <this site folder>/{STOCK_JS}')
+            if stale:
+                warnings.append(stale)
+            if snap.shop.startswith('https://') and shop_url and snap.shop.rstrip('/') != shop_url:
+                warnings.append(f'{STOCK_JS} is a stock snapshot from {snap.shop}, not from --shop-url {shop_url}. {how}')
+        if entries and missing:
+            warnings.append(f'{len(missing)} product page(s) have no stock data while {STOCK_JS} lists other phones: '
+                            f'{", ".join(missing)}. They show every option as orderable (Shopify still refuses what it '
+                            'doesn\'t have). fetch_shopify_variants.py --write-stock lists every phone it can read from Shopify')
+        if with_attr:
+            warnings.append(f'{len(with_attr)} product page(s) have the older data-stock attribute, kept by hand, which doesn\'t '
+                            f'follow Shopify\'s stock: {", ".join(with_attr)}. Remove it from each #picker and use a {STOCK_JS} '
+                            'snapshot from Shopify')
+    if checkout == 'stripe':
+        unheld = [k for k, v in filled if k in held_by_key and not held_by_key[k]]
+        if unheld:
+            warnings.append(f'pay.js has Payment Link(s) for phones your stock data says you don\'t hold, so the page shows '
+                            f'"Not in stock" and never offers them: {", ".join(unheld)}. Deactivate them in Stripe and clear them')
+    return blockers, warnings
+
+
 def find_blockers(site, files, opt):
     blockers, warnings = [], []
     # 1. placeholders
@@ -1141,104 +1501,9 @@ def find_blockers(site, files, opt):
                                 f'never shows: {", ".join(over)}')
     # 4. stock: stock.js ({handle: {"128GB|Good": 2}}, the one place to keep it) or a page's older data-stock
     #    attribute ({"128GB|Good": 2}); units held per storage and condition (colour isn't tracked). stock.js wins.
-    sj, sj_problems = read_stock_js(files)
-    blockers.extend(sj_problems)
-    entries = sj or {}
-    handles = {page_handle(rel) for rel, _, _ in pickers(files)}
-    for h in sorted(entries):
-        if h not in handles:
-            blockers.append(f'{STOCK_JS}: "{h}" is not a product page (there is no products/{h}.html), so its stock is never '
-                            f'used. Use the page\'s name, one of: {", ".join(sorted(handles))}')
-        elif not isinstance(entries[h], dict):
-            blockers.append(f'{STOCK_JS}: "{h}" must be its storage and condition counts in braces, such as '
-                            f'"{h}": {{"128GB|Good": 2}} ({{}} if you hold none of it), not {json.dumps(entries[h])}')
-    missing, with_stock, both, no_include, held_by_key, with_attr = [], [], [], [], {}, []
-    for rel, tag, pos in pickers(files):
-        h = page_handle(rel)
-        where = f'{rel}:{line_of(files[rel], pos)}'
-        combos = picker_combos(tag)
-        page_stock = None
-        raw = attr(tag, 'data-stock')
-        if raw is not None:
-            with_attr.append(rel)
-            try:
-                page_stock = json.loads(raw, parse_constant=_no_constant)   # NaN/Infinity: browsers refuse the attribute
-                if not isinstance(page_stock, dict):
-                    raise ValueError('not an object')
-            except ValueError as e:
-                blockers.append(f'{where}: data-stock is not valid JSON ({e}), so site.js ignores it and every option looks in stock')
-                page_stock = None
-            else:
-                blockers.extend(stock_problems(f'{where}: data-stock', page_stock, combos))
-        js_stock = entries.get(h) if isinstance(entries.get(h), dict) else None
-        if js_stock is not None:
-            blockers.extend(stock_problems(f'{STOCK_JS} "{h}"', js_stock, combos, place='on that phone\'s page'))
-            if not loads_stock_js(files[rel]):
-                no_include.append(rel)
-            if raw is not None:
-                both.append(rel)
-        stock = js_stock if js_stock is not None else page_stock
-        if js_stock is None and raw is None:
-            missing.append(rel)
-            continue
-        with_stock.append(rel)
-        if stock is None:
-            continue   # a data-stock that isn't valid JSON: reported above
-        model = attr(tag, 'data-model') or ''
-        for k in combos | set(stock):
-            v = stock.get(k)
-            held_by_key[f'{model} {k.replace("|", " ")}'] = whole_count(v) and v > 0
-    if no_include:
-        blockers.append(f'{len(no_include)} product page(s) have stock in {STOCK_JS} but don\'t load it before site.js, so '
-                        f'site.js never sees it: {", ".join(no_include)}. Add <script src="../{STOCK_JS}" defer></script> '
-                        'just before the site.js script tag, as on the other pages')
-    if both:
-        warnings.append(f'{len(both)} product page(s) have data-stock as well as an entry in {STOCK_JS}: {", ".join(both)}. '
-                        f'{STOCK_JS} wins and the page\'s data-stock is ignored. Remove data-stock from those pages, so '
-                        f'{STOCK_JS} is the only place to change')
-    if sj is None and any(loads_stock_js(src) for rel, src in files.items() if rel.endswith('.html')):
-        warnings.append(f'the pages load {STOCK_JS}, but the site folder has none: browsers log a "not found" error for it. '
-                        f'Put back {STOCK_JS} (on the Shopify route, write it with fetch_shopify_variants.py --write-stock, '
-                        'or leave it empty)')
-    if opt.checkout == 'stripe' and missing:
-        blockers.append(f'no stock data for {len(missing)} of {len(missing) + len(with_stock)} product pages '
-                        f'({", ".join(missing)}): neither {STOCK_JS} nor the page\'s data-stock says what you hold. On the '
-                        'static route site.js would show every storage and condition as in stock and orderable, with no '
-                        f'phone behind it. Add each phone to {STOCK_JS}: "iphone-13": {{"128GB|Good": 2}} means 2 units of '
-                        '128GB in Good, any colour; a missing key or 0 means not in stock; {} means none at all '
-                        '(GO-LIVE.md section 6, step 2)')
-    elif opt.checkout == 'shopify':
-        # Shopify's own stock decides what can be bought. Stock data here is optional and checked as above; it only turns
-        # a page's button into "Not in stock — ask us" and puts "None in stock right now" on cards, so it must come from
-        # Shopify (fetch_shopify_variants.py --write-stock) and be fresh
-        snap = stock_snapshot(files.get(STOCK_JS))
-        how = ('Write it from Shopify instead: python3 launch/full-bars/fetch_shopify_variants.py --shop-url '
-               f'{opt.shop_url or "<shop-url>"} --write-stock <this site folder>/{STOCK_JS} (GO-LIVE.md section 5, step 13)')
-        if entries and not snap:
-            warnings.append(f'{STOCK_JS} lists {len(entries)} phone(s) but wasn\'t written by fetch_shopify_variants.py '
-                            '--write-stock, so it doesn\'t follow Shopify\'s stock: a phone Shopify has could show "Not in stock '
-                            f'— ask us". {how}')
-        if snap:
-            # its age to the minute, in UTC as written: a snapshot more than 24 hours old (or of unknown age) is stale
-            stale = snapshot_age_warning(snap, 'python3 launch/full-bars/fetch_shopify_variants.py --shop-url '
-                                         f'{opt.shop_url or "<shop-url>"} --write-stock <this site folder>/{STOCK_JS}')
-            if stale:
-                warnings.append(stale)
-            if snap.shop.startswith('https://') and opt.shop_url and snap.shop.rstrip('/') != opt.shop_url:
-                warnings.append(f'{STOCK_JS} is a stock snapshot from {snap.shop}, not from --shop-url {opt.shop_url}. {how}')
-        if entries and missing:
-            warnings.append(f'{len(missing)} product page(s) have no stock data while {STOCK_JS} lists other phones: '
-                            f'{", ".join(missing)}. They show every option as orderable (Shopify still refuses what it '
-                            'doesn\'t have). fetch_shopify_variants.py --write-stock lists every phone it can read from Shopify')
-        if with_attr:
-            warnings.append(f'{len(with_attr)} product page(s) have the older data-stock attribute, kept by hand, which doesn\'t '
-                            f'follow Shopify\'s stock: {", ".join(with_attr)}. Remove it from each #picker and use a {STOCK_JS} '
-                            'snapshot from Shopify')
-    if opt.checkout == 'stripe':
-        unheld = [k for k, v in filled if k in held_by_key and not held_by_key[k]]
-        if unheld:
-            warnings.append(f'pay.js has Payment Link(s) for phones your stock data says you don\'t hold, so the page shows '
-                            f'"Not in stock" and never offers them: {", ".join(unheld)}. Deactivate them in Stripe and clear them')
+    b, w = stock_check(files, opt.checkout, opt.shop_url, filled if opt.checkout == 'stripe' else ())
+    blockers.extend(b)
+    warnings.extend(w)
     # 4b. Shopify variant IDs (data-variants / --shop-variants)
     blockers.extend(getattr(opt, 'variant_blockers', []))
     warnings.extend(getattr(opt, 'variant_warnings', []))
@@ -1935,6 +2200,7 @@ def verify(files, opt, new_host, old_host_changed):
                 json.loads(m.group(1))
             except ValueError as e:
                 bad.append(f'{rel}:{line_of(src, m.start(1))}: structured data (JSON-LD) is no longer valid JSON ({e})')
+    bad.extend(stock_mark_problems(files, checkout))
     if 'robots.txt' not in files or robots_blocks_all(files['robots.txt']):
         bad.append('robots.txt does not allow crawling')
     sm = files.get('sitemap.xml')
@@ -2052,7 +2318,11 @@ def manual_items(opt, files):
                      'payment against stock.js before dispatch and refund any payment for a phone already sold '
                      '(GO-LIVE.md section 6, step 1).')
         items.append(f'Stock: change {STOCK_JS} (and only {STOCK_JS}) the moment a phone sells or arrives: units held per storage '
-                     'and condition for each phone (GO-LIVE.md section 6, step 2). Then deploy the site to your web host again.')
+                     'and condition for each phone (GO-LIVE.md section 6, step 2). After every edit, and again just before every '
+                     'deploy, run python3 launch/full-bars/set_prices.py --check <this site folder>: it reads stock.js as a '
+                     'browser does and fails on a typo. Then deploy the site to your web host again. If a broken stock.js '
+                     'goes up anyway, the pages fail closed (data-stock-required): every phone shows "Not in stock — ask '
+                     'us" and "None in stock right now", with nothing to order, and the browser console names stock.js.')
         prices, units = pay_prices(files), pay_units(files)
         listed = ', '.join((f'{k} ({gbp(prices[k])}' + (', none held: deactivate and clear it)' if units.get(k) == 0 else ')'))
                            if k in prices else f'{k} (no such phone on the site)' for k in filled)
@@ -2087,7 +2357,8 @@ def manual_items(opt, files):
                      '("Buy now — £…" with a Payment Link, "Not in stock — ask us" for an option you don\'t hold) that '
                      'changes when you change storage, condition or colour, and a phone stock.js lists with no units must show '
                      '"None in stock right now" on its cards. "Opening soon" or greyed-out options mean site.js didn\'t '
-                     'load or data-prices is wrong (GO-LIVE.md section 6, step 3).')
+                     'load or data-prices is wrong (GO-LIVE.md section 6, step 3). Every phone "Not in stock" when you hold '
+                     'some means stock.js is broken or not deployed: the browser console says why ("Full Bars: stock.js ...").')
     items.append('Open sell.html: the quote questions must appear, not "The instant quote hasn\'t loaded".')
     if opt.trade_ins == 'closed':
         items.append('Trade-ins stay closed: the quote tool still gives guide prices only. To open them, add a quote-sending form '

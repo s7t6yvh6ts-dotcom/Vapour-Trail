@@ -5,6 +5,7 @@ Run from the repo root:  python3 launch/full-bars/tests/test_go_live.py
 Each test works on a fresh copy of sites/full-bars in a temporary folder (set TMPDIR to choose where).
 The real site folder is only ever read. Python 3 standard library only.
 """
+import collections
 import hashlib
 import html
 import json
@@ -384,6 +385,9 @@ class GoLiveTest(unittest.TestCase):
                 self.assertNotIn('Opening soon', src, rel)
             for c in re.findall(r'<link rel="canonical" href="([^"]+)"', src):
                 self.assertTrue(c.startswith(f'https://{host}/'), (rel, c))
+        # R12: the static route fails closed: every product picker, card grid and row of range tiles is marked
+        marked, unmarked = go_live.stock_marks(go_live.load_site(site))
+        self.assertEqual((len(marked), unmarked), (58, []))
         robots = read(site, 'robots.txt')
         self.assertIn('Allow: /', robots.splitlines())
         self.assertNotIn('Disallow: /', robots.splitlines())
@@ -736,6 +740,8 @@ class GoLiveTest(unittest.TestCase):
         self.assertIn('<select id="cTopic"><option>Question about a phone</option><option>Selling my phone</option>', contact)
         r = subprocess.run([sys.executable, '-B', CHECKER, '--site', self.site, '--quiet'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        # R12: no fail-closed mark on the Shopify route (stock.js is optional there)
+        self.assertEqual(go_live.stock_marks(go_live.load_site(self.site))[0], [])
 
     def test_shopify_route_points_every_order_button_at_shopify(self):
         """--checkout shopify: data-shop and the Order link go to <shop>/products/<handle>, there is no email-order route,
@@ -791,6 +797,8 @@ class GoLiveTest(unittest.TestCase):
         code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'shopify', '--shop-url', SHOP)
         self.assertEqual(code, 0, out[-3000:])
         self.assertIn('contact form: "Order a phone" topic removed (Shopify takes the orders)', out)
+        self.assertIn('  19  product picker: data-stock-required removed (Shopify route: stock.js is optional)\n', out)
+        self.assertIn('  38  card grid: data-stock-required removed (Shopify route: stock.js is optional)\n', out)
         self.assertEqual(len(re.findall(r'^  products/[\w-]+\.html:\d+  Order button: link -> https://shop\.example/products/[\w-]+$', out, re.M)), 19)
         self.assert_shopify_switched()
 
@@ -829,7 +837,9 @@ class GoLiveTest(unittest.TestCase):
         self.assertEqual(snapshot(self.site), before)
 
     def test_stock_validation_and_blockers(self):
-        """The older per-page data-stock is still read and checked (stock.js empty here)."""
+        """The older per-page data-stock is still read and checked (stock.js empty here). On the static route a phone whose
+        stock is only there is itself a blocker (its cards can't read it), so a well-formed data-stock leaves exactly that
+        one blocker."""
         self.ready()
         add_page_stock(self.site)
         stripe = ('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
@@ -847,16 +857,22 @@ class GoLiveTest(unittest.TestCase):
         self.assertIn('products/pixel-8.html:84: data-stock is not valid JSON', out)
         self.assertIn('no stock data for 1 of 19 product pages (products/galaxy-s23.html): neither stock.js nor the page\'s '
                       'data-stock says what you hold', out)
-        # the right format passes: units per storage and condition, any whole number, {} = none held
+        # the right format: units per storage and condition, any whole number, {} = none held. It passes its own checks,
+        # leaving only the blocker that the stock isn't in stock.js
+        only_attr = ('BLOCKERS (1): fix these first', '1. 19 phone(s) keep their stock only in the older data-stock attribute')
         set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 2, "256GB|Very Good": 0}')
         for rel in ('products/iphone-14.html', 'products/iphone-15.html', 'products/pixel-8.html', 'products/galaxy-s23.html'):
             set_stock(self.site, rel, '{}')
         code, out = self.run_tool(*stripe)
-        self.assertEqual(code, 0, out)
+        self.assertEqual(code, 1, out)
+        for line in only_attr:
+            self.assertIn(line, out)
         # 2.0 and 1e0 are whole numbers in JSON (site.js counts them as held); NaN and Infinity aren't JSON at all
         set_stock(self.site, 'products/iphone-14.html', '{"128GB|Good": 2.0, "256GB|Good": 1e0}')
         code, out = self.run_tool(*stripe)
-        self.assertEqual(code, 0, out)
+        self.assertEqual(code, 1, out)
+        for line in only_attr:
+            self.assertIn(line, out)
         set_stock(self.site, 'products/iphone-14.html', '{"128GB|Good": NaN}')
         set_stock(self.site, 'products/iphone-15.html', '{"128GB|Good": Infinity}')
         code, out = self.run_tool(*stripe)
@@ -872,7 +888,9 @@ class GoLiveTest(unittest.TestCase):
         # a Payment Link for a phone data-stock says isn't held: never offered, so flagged
         set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 0}')
         code, out = self.run_tool(*stripe)
-        self.assertEqual(code, 0, out)
+        self.assertEqual(code, 1, out)
+        for line in only_attr:
+            self.assertIn(line, out)
         self.assertIn('pay.js has Payment Link(s) for phones your stock data says you don\'t hold', out)
         # Shopify: Shopify's stock decides, so no data-stock is fine, and hand-kept data-stock that is there gets a warning
         edit(self.site, 'pay.js', LINK, '')
@@ -1023,19 +1041,30 @@ class GoLiveTest(unittest.TestCase):
         set_stock_js(self.site, raw='window.FULLBARS_STOCK = {\n  // what we hold\n' + body + ',\n};\n')
         code, out = self.run_tool(*stripe)
         self.assertEqual(code, 0, out)
-        # data-stock still fills a gap for a page stock.js doesn't list; where both exist stock.js wins, with a warning
+        # data-stock for a page stock.js doesn't list: its product page would sell the phone, but its cards and range
+        # tiles read stock.js alone and would say "None in stock right now", so on the static route it is a blocker
         del good['galaxy-s23']
         set_stock_js(self.site, good)
         set_stock(self.site, 'products/galaxy-s23.html', '{"128GB|Good": 1}')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out)
+        self.assertIn('1 phone(s) keep their stock only in the older data-stock attribute: products/galaxy-s23.html. Their '
+                      'product pages use it, but their cards and range tiles can\'t read it, so on the live static route they '
+                      'would say "None in stock right now" while the page sells the phone', out)
+        self.assertNotIn('no stock data for', out)
+        # where both exist stock.js wins, with a warning
+        set_stock_js(self.site, dict(good, **{'galaxy-s23': {'128GB|Good': 1}}))
         set_stock(self.site, 'products/iphone-13.html', '{"128GB|Good": 5}')
         code, out = self.run_tool(*stripe)
         self.assertEqual(code, 0, out)
-        self.assertIn('1 product page(s) have data-stock as well as an entry in stock.js: products/iphone-13.html. stock.js wins', out)
+        self.assertIn('2 product page(s) have data-stock as well as an entry in stock.js: products/galaxy-s23.html, '
+                      'products/iphone-13.html. stock.js wins', out)
         # the Payment Link's phone: stock.js says 1 held, so no warning; at 0 the link is flagged even though data-stock says 5
         self.assertNotIn('your stock data says you don\'t hold', out)
         good['iphone-13'] = {'128GB|Good': 0}
-        set_stock_js(self.site, good)
+        set_stock_js(self.site, dict(good, **{'galaxy-s23': {'128GB|Good': 1}}))
         code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out)
         self.assertIn('pay.js has Payment Link(s) for phones your stock data says you don\'t hold, so the page shows "Not in '
                       'stock" and never offers them: iPhone 13 128GB Good', out)
         # a product page that doesn't load stock.js would never see its stock: a blocker
@@ -1047,6 +1076,7 @@ class GoLiveTest(unittest.TestCase):
         edit(self.site, 'products/pixel-8.html', '<script src="../pay.js" defer></script>\n\n',
              '<script src="../pay.js" defer></script>\n<script src="../stock.js" defer></script>\n')
         # a missing stock.js is only a warning on Shopify (and stock data there is a warning too)
+        set_stock_js(self.site, good)         # 18 phones: galaxy-s23 left out
         edit(self.site, 'pay.js', LINK, '')   # Shopify needs pay.js empty
         for rel in ('products/galaxy-s23.html', 'products/iphone-13.html'):
             set_stock(self.site, rel, None)
@@ -1061,6 +1091,157 @@ class GoLiveTest(unittest.TestCase):
         code, out = self.run_tool(*shopify)
         self.assertEqual(code, 0, out)
         self.assertIn('the pages load stock.js, but the site folder has none', out)
+
+    # ------------------------------------------------------------------ R12: stock.js after launch, fail closed
+    def stock_body(self, drop=()):
+        """stock.js's code as add_stock() writes it (one iPhone 13 128GB Good, every other phone {}), minus drop."""
+        entries = {h: ({'128GB|Good': 1} if h == 'iphone-13' else {}) for h in handles(self.site) if h not in drop}
+        return 'window.FULLBARS_STOCK = ' + json.dumps(entries, indent=2) + ';\n'
+
+    def test_stock_js_typos_a_browser_cant_read_block_the_launch(self):
+        """Typos that make browsers drop the whole of stock.js are blockers, with the line, even the ones outside the
+        stock list (before it, or a comment closed twice); comments and trailing commas are still fine. They are reported
+        once, by go_live.py itself (set_prices.py --check, which it also runs, leaves stock to it)."""
+        self.ready()
+        stripe = ('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
+        good = self.stock_body()
+        js = read(self.site, 'stock.js')
+        head = js[:js.rindex('window.FULLBARS_STOCK =')]   # the header comment
+        n = head.count('\n') + 1                          # the first line after it
+        for raw, why in ((',\n' + good, f'stock.js line {n}: "," is outside the comment, before window.FULLBARS_STOCK'),
+                         ('s' + good, f'stock.js line {n}: "s" is outside the comment, before window.FULLBARS_STOCK'),
+                         ('*/\n' + good, f'stock.js line {n}: "*/" is outside the comment'),
+                         ('/* a /* b */ c */\n' + good, f'stock.js line {n}: "c */" is outside the comment'),
+                         (good.replace('"128GB|Good": 1', '"128GB|Good": 1,,'), 'is not valid JSON'),
+                         # a phone's last count deleted, its comma left: {,} (browsers refuse it; a JSON reader that
+                         # drops "trailing" commas would read {})
+                         (good.replace('"pixel-8": {}', '"pixel-8": {,}'), '(a comma with no entry before it, as in {,} or '
+                          '1,,: delete it)'),
+                         (good.replace('};', '},'), 'has something after the stock list (",")'),
+                         (good + '}\n', 'has something after the stock list ("}")')):
+            write(self.site, 'stock.js', head + raw)
+            code, out = self.run_tool(*stripe)
+            self.assertEqual(code, 1, out[-2000:])
+            self.assertIn(why, out)
+            self.assertNotIn('no stock data for', out)   # the typo is the problem to fix, not 19 phones
+            self.assertIn('If a browser can\'t run the file (a stray comma, a missing brace or a stray character stops it), '
+                          'it ignores all of it', out)
+            self.assertNotIn('set_prices.py --check failed', out)
+            self.assertEqual(out.count('stock.js line'), 1, out[-3000:])
+        for raw in (good.replace('};', '}; // sold the 13 on Monday'), good.replace('\n', '\r\n'),
+                    good.replace('{}\n};', '{},\n};')):
+            write(self.site, 'stock.js', head + raw)
+            code, out = self.run_tool(*stripe)
+            self.assertEqual(code, 0, out[-2000:])
+
+    def test_static_route_needs_stock_js_on_every_page(self):
+        """With the pages failing closed, the static route needs stock.js itself and every page with a picker, cards or
+        range tiles must load it; a phone whose stock is only in the older data-stock is a blocker (its cards can't
+        read it). The Shopify route needs none of this."""
+        self.ready()
+        stripe = ('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
+        js = read(self.site, 'stock.js')
+        os.remove(os.path.join(self.site, 'stock.js'))
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out[-2000:])
+        self.assertIn('the site folder has no stock.js. On the live static route site.js fails closed without it', out)
+        write(self.site, 'stock.js', js)
+        edit(self.site, 'shop.html', '<script src="stock.js" defer></script>', '')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out[-2000:])
+        self.assertIn('1 page(s) with a product picker, phone cards or range tiles don\'t load stock.js before site.js: '
+                      'shop.html', out)
+        edit(self.site, 'shop.html', '<script src="site.js"', '<script src="stock.js" defer></script><script src="site.js"')
+        set_stock_js(self.site, raw=self.stock_body(drop=('galaxy-s23',)))
+        set_stock(self.site, 'products/galaxy-s23.html', '{"128GB|Good": 1}')
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 1, out[-2000:])   # its cards would say "None in stock right now" while the page sells it
+        self.assertIn('1 phone(s) keep their stock only in the older data-stock attribute: products/galaxy-s23.html. Their '
+                      'product pages use it, but their cards and range tiles can\'t read it', out)
+        self.assertIn('Copy each phone\'s data-stock list into stock.js under its handle ("galaxy-s23": {...})', out)
+        self.assertNotIn('no stock data for', out)
+        # moved into stock.js (the page's data-stock left too: stock.js wins, a warning only): it launches
+        set_stock_js(self.site, raw=self.stock_body())
+        code, out = self.run_tool(*stripe)
+        self.assertEqual(code, 0, out[-2000:])
+        self.assertNotIn('keep their stock only in the older data-stock', out)
+        self.assertIn('1 product page(s) have data-stock as well as an entry in stock.js: products/galaxy-s23.html', out)
+
+    def test_after_launch_set_prices_check_reads_stock_js(self):
+        """The routine check after every stock edit (set_prices.py --check) runs go_live.py's stock check on the switched
+        static site: it passes as switched, and fails on a typo, a phone left out, a lost mark or a missing stock.js."""
+        self.ready()
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe')
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertEqual(go_live.site_route(go_live.load_site(self.site)), 'stripe')
+
+        def check():
+            r = subprocess.run([sys.executable, '-B', os.path.join(PACK, 'set_prices.py'), '--check', self.site],
+                               capture_output=True, text=True, timeout=300)
+            return r.returncode, r.stdout + r.stderr
+        code, out = check()
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('STOCK (stock.js), checked as go_live.py checks it, on the static (Stripe) route', out)
+        js = read(self.site, 'stock.js')
+        for name, raw, why in (
+                ('stray comma', js.replace('"128GB|Good": 1', '"128GB|Good": 1,,'), 'is not valid JSON'),
+                ('phone left out', re.sub(r'\n  "pixel-8": \{\}', '', js).replace('},\n}', '}\n}'),
+                 'no stock data for 1 of 19 product pages (products/pixel-8.html)'),
+                ('negative count', js.replace('"128GB|Good": 1', '"128GB|Good": -1'),
+                 'stock.js "iphone-13" count(s) that aren\'t a whole number of units (0 or more): "128GB|Good": -1'),
+                # a phone's last count deleted, its comma left: browsers drop the whole file
+                ('{,}', js.replace('"pixel-8": {}', '"pixel-8": {,}'), '(a comma with no entry before it'),
+                ('{ , } as the list', js[:js.rindex('window.FULLBARS_STOCK =')] + 'window.FULLBARS_STOCK = {\n  ,\n};\n',
+                 '(a comma with no entry before it')):
+            self.assertNotEqual(raw, js, name)
+            write(self.site, 'stock.js', raw)
+            code, out = check()
+            self.assertEqual(code, 1, name)
+            self.assertIn(why, out, name)
+            self.assertIn('RESULT: FAIL', out, name)
+            code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')
+            self.assertEqual(code, 1, name)
+            self.assertIn(why, out, name)
+        write(self.site, 'stock.js', js)
+        # a phone held only in its page's older data-stock: the page would sell it while its cards said "None in stock
+        # right now", so both checks fail until it is moved into stock.js
+        write(self.site, 'stock.js', re.sub(r'\n  "galaxy-s23": \{\},?', '', js))
+        set_stock(self.site, 'products/galaxy-s23.html', '{"128GB|Good": 2}')
+        code, out = check()
+        self.assertEqual(code, 1, out[-3000:])
+        self.assertIn('1 phone(s) keep their stock only in the older data-stock attribute: products/galaxy-s23.html', out)
+        self.assertEqual(self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe', '--check-only')[0], 1)
+        write(self.site, 'stock.js', js)
+        set_stock(self.site, 'products/galaxy-s23.html', None)
+        edit(self.site, 'shop.html', ' id="shopGrid" data-stock-required="1"', ' id="shopGrid"')
+        code, out = check()
+        self.assertEqual(code, 1, out[-3000:])
+        self.assertIn('1 product picker(s), card grid(s) or row(s) of range tiles have no data-stock-required="1": '
+                      'shop.html:', out)
+        # go_live.py puts the mark back (and reports it as the switch would be incomplete without it otherwise)
+        code, out = self.run_tool('--domain', 'fullbars.co.uk', '--checkout', 'stripe')
+        self.assertEqual(code, 0, out[-3000:])
+        self.assertIn('card grid: data-stock-required added', out)
+        self.assertEqual(check()[0], 0)
+
+    def test_stock_marks_and_route(self):
+        """stock_mark_tags finds what go_live.py marks; verify() wants the marks on the static route and none on Shopify;
+        site_route reads the route off the pages."""
+        files = go_live.load_site(SITE)
+        marked, unmarked = go_live.stock_marks(files)
+        self.assertEqual((marked, len(unmarked)), ([], 58))
+        kinds = collections.Counter(u.rsplit('(', 1)[1] for u in unmarked)
+        self.assertEqual(kinds, {'product picker)': 19, 'card grid)': 38, 'range tiles)': 1})
+        self.assertIsNone(go_live.site_route(files))   # the preview
+        page = '<div class="x"><div class="grid"><article class="card"><a href="products/a.html">A</a></article></div></div>' \
+               '<article class="card"><a href="products/b.html">B</a></article>'
+        tags = [(w, m.group(0)) for w, m in go_live.stock_mark_tags(page)]
+        self.assertEqual(tags, [('card grid', '<div class="grid">'), ('product card', '<article class="card">')])
+        self.assertTrue(go_live.stock_mark_problems({'p.html': page}, 'stripe'))
+        self.assertEqual(go_live.stock_mark_problems({'p.html': page}, 'shopify'), [])
+        marked_page = page.replace('<div class="grid">', '<div class="grid" data-stock-required="1">')
+        self.assertTrue(go_live.stock_mark_problems({'p.html': marked_page}, 'shopify'))
+        self.assertEqual(go_live.site_route({'p.html': marked_page}), 'stripe')
 
     def variants_file(self, pick=lambda h, i: True, name='variants.json', extra=None):
         """A --shop-variants file as fetch_shopify_variants.py writes it, with made-up IDs for every option on the pages
@@ -1716,8 +1897,24 @@ class UnitTest(unittest.TestCase):
         with open(os.path.join(SITE, 'stock.js'), encoding='utf-8') as fh:
             self.assertEqual(go_live.read_stock_js({'stock.js': fh.read()}), ({}, []))   # the preview's: empty
         for bad in ('var x = 1;', 'window.FULLBARS_STOCK = [];', 'window.FULLBARS_STOCK = {"a": Infinity};',
-                    '/* note\nwindow.FULLBARS_STOCK = {};'):
+                    '/* note\nwindow.FULLBARS_STOCK = {};',
+                    # an object holding only a comma: browsers refuse it (a "trailing" comma needs an entry before it)
+                    'window.FULLBARS_STOCK = {,};', 'window.FULLBARS_STOCK = {\n ,\n };', 'window.FULLBARS_STOCK = {"a": {,}};',
+                    'window.FULLBARS_STOCK = {"a": { , }};', 'window.FULLBARS_STOCK = {"a": {/* sold */,}};',
+                    'window.FULLBARS_STOCK = {"a": {"x|y": 1,,}};', 'window.FULLBARS_STOCK = {"a": [,]};',
+                    # let and const don't put it on window: site.js would find no stock
+                    'let FULLBARS_STOCK = {};', 'const FULLBARS_STOCK = {};',
+                    # deliberately refused although browsers run them (see read_stock_js)
+                    '<!-- note\nwindow.FULLBARS_STOCK = {};', 'window.FULLBARS_STOCK = {"a": {"x|y": 0x2}};',
+                    'window.FULLBARS_STOCK = {};\nwindow.FULLBARS_STOCK = {};', "window.FULLBARS_STOCK = {'a': {}};",
+                    'self.FULLBARS_STOCK = {};', 'varFULLBARS_STOCK = {};'):
             self.assertTrue(go_live.read_stock_js({'stock.js': bad})[1], bad)
+        self.assertIn('makes a variable browsers don\'t put on window', go_live.read_stock_js({'stock.js': 'let FULLBARS_STOCK = {};'})[1][0])
+        # the other spellings of the assignment that browsers run the same way are read
+        for good in ('window["FULLBARS_STOCK"] = {"a": {}};', "window['FULLBARS_STOCK'] = {\"a\": {}};",
+                     'window . FULLBARS_STOCK = {"a": {}};', 'FULLBARS_STOCK = {"a": {}};', 'var FULLBARS_STOCK = {"a": {}};',
+                     ';\nwindow.FULLBARS_STOCK = {"a": {},};;', 'window.FULLBARS_STOCK = {"a": {"x|y": 1,},};'):
+            self.assertEqual(go_live.read_stock_js({'stock.js': good})[0], {'a': {'x|y': 1}} if 'x|y' in good else {'a': {}}, good)
 
     def test_variant_helpers(self):
         self.assertEqual([go_live.variant_id(v) for v in (44012345678901, '44012345678901', ' 7 ', 0, -1, 1.5, True, 'abc', '01', None)],
@@ -1800,6 +1997,33 @@ class UnitTest(unittest.TestCase):
         self.assertNotIn('leave this empty', header)
         for text in ('fetch_shopify_variants.py --write-stock', 'straight after you add stock, and at least daily',
                      'a phone sold since still shows as in stock', 'a phone\n   added since shows "Not in stock — ask us"'):
+            self.assertIn(text, header)
+
+    def test_docs_say_to_check_stock_js_after_every_edit(self):
+        """R12: GO-LIVE.md section 6 step 2, the "After any edit" line and stock.js's header all say to run
+        set_prices.py --check after every stock edit and before every deploy, and what the fail-closed pages look like
+        if you forget; section 6 step 1 turns on Stripe's receipts and the confirmation-page message."""
+        with open(GOLIVE, encoding='utf-8') as fh:
+            md = fh.read()
+        step2 = md.split('\n2. **`stock.js`: edit this file only.**')[1].split('\n3. **Order button')[0]
+        for text in ('After every edit, and again just before every deploy, run `python3 launch/full-bars/set_prices.py '
+                     '--check sites/full-bars`', '`go_live.py ... --checkout stripe --check-only` runs the same stock check',
+                     'a stray comma, a missing brace', 'If you forget and a broken `stock.js` goes up, the live pages fail closed',
+                     '"Not in stock — ask us" on every option and "None in stock right now" on its cards, nothing offers '
+                     'Order or Buy now', '"Full Bars: stock.js ..."'):
+            self.assertIn(text, step2)
+        after = md.split('**After any edit to the site**')[1].split('\n')[0]
+        for text in ('(`stock.js` included), and again just before every deploy', 'set_prices.py --check',
+                     'check_site_facts.py', 'fail closed'):
+            self.assertIn(text, after)
+        step1 = md.split('## 6. If you stay on the static site')[1].split('\n2. **`stock.js`')[0]
+        for text in ('Settings > Business > Customer emails', '**Successful payments**', '**After the payment**',
+                     '**Confirmation page**', 'within one working day'):
+            self.assertIn(text, step1)
+        with open(os.path.join(SITE, 'stock.js'), encoding='utf-8') as fh:
+            header = fh.read()
+        for text in ('After\n   every edit, and again just before every deploy, run python3 launch/full-bars/set_prices.py --check',
+                     'fail closed', 'every phone shows "Not in stock — ask us" and "None in stock right now"', 'Full Bars: stock.js'):
             self.assertIn(text, header)
 
     def test_stock_snapshot_line(self):

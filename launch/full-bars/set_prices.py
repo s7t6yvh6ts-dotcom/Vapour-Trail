@@ -19,7 +19,8 @@ WHERE PRICES LIVE
 
 HOW TO USE IT (from the repo root; put a model name with spaces in quotes)
 
-  Check the site. Nothing is written:
+  Check the site (prices, and the stock in stock.js). Nothing is written. Run it after every edit to
+  the site, stock.js included, and before every deploy:
       python3 launch/full-bars/set_prices.py --check
       python3 launch/full-bars/set_prices.py --check sites/full-bars
 
@@ -79,10 +80,23 @@ badge sits on a phone that is no longer the cheapest. It also lists every Paymen
 under "PAYMENT LINKS IN pay.js", each with the site's price for it now, for you to compare with what
 Stripe shows. That list never fails the check: this tool can't see what Stripe charges.
 
+--check also checks the stock (stock.js), with go_live.py's own code, on the route the site is on
+(the preview; the static Stripe route once go_live.py --checkout stripe has marked the pages
+data-stock-required; or the Shopify route). It reads stock.js as a browser does, so a stray comma, a
+missing brace, {,} or anything else that makes browsers ignore the whole file fails, and so do a
+handle that isn't a product page, a key that isn't one of that phone's storage and condition pairs,
+and a count that isn't a whole number of 0 or more. On the static route it also fails for a phone
+with no stock data, a phone whose stock is only in its page's older data-stock (its cards can't read
+it), and pages that have lost their data-stock-required mark. Run it after every edit to
+stock.js and before every deploy (GO-LIVE.md section 6, step 2). If a broken stock.js goes up anyway,
+the static route's pages fail closed: every phone shows "Not in stock — ask us" and "None in stock
+right now", nothing can be ordered, and the browser console names stock.js.
+
 EXIT CODES
   0  all good: prices consistent (and written, for --write/--set), check_site_prices.py passes.
   1  something needs you: stale prices (--check), a hand edit (nothing written, unless you passed
-     --allow-hand-edits), or check_site_prices.py fails.
+     --allow-hand-edits), check_site_prices.py fails, or (--check) stock.js or the stock data has a
+     problem.
   2  bad command or bad input (including a pay.js it can't read in full): nothing was written.
 
 Python 3 standard library only. It finds what to rewrite with the same patterns check_site_prices.py
@@ -108,6 +122,7 @@ SD_COVER = 750               # Royal Mail Special Delivery standard cover (GO-LI
 MAX_PRICE = 999_999          # a sanity limit on --set: anything bigger is a typo
 GRADE_ALIASES = {'ex': 'Excellent', 'vg': 'Very Good', 'gd': 'Good'}
 PAY_FILE = 'pay.js'          # the static route's Stripe Payment Links (GO-LIVE.md section 6, step 1)
+STOCK_FILE = 'stock.js'      # the stock (GO-LIVE.md section 4, and section 6, step 2): --check checks it as go_live.py does
 # One pay.js entry per line, after window.FULLBARS_PAY: "iPhone 13 128GB Good": "https://buy.stripe.com/...",
 # (the same pattern go_live.py and check_site_prices.py read it with). read_pay() refuses any other layout.
 PAY_LINE_RX = re.compile(r'^\s*"([^"]+)":\s*"([^"]*)",?\s*$', re.M)
@@ -950,6 +965,43 @@ def pay_links_report(site, products, links, problems):
     return out
 
 
+# ----------------------------------------------------------------------------------------------- stock
+ROUTE_WORDS = {
+    'stripe': 'the static (Stripe) route: every phone needs stock data, and the pages fail closed (data-stock-required)',
+    'shopify': 'the Shopify route: stock.js is an optional snapshot from Shopify',
+    None: 'the preview (no checkout route yet)',
+}
+
+
+def stock_report(root):
+    """--check: (ok, lines) for stock.js and the stock data, checked by go_live.py's own code (go_live.routine_stock_check):
+    stock.js read as a browser reads it (a stray comma, a missing brace or anything else that makes browsers ignore the
+    whole file fails), unknown handles, bad keys or counts, and on the static route a phone with no stock data, a phone
+    whose stock is only in its page's data-stock, and pages without their data-stock-required mark. Warnings are listed
+    but never fail the check."""
+    sys.dont_write_bytecode = True     # importing go_live.py must leave no __pycache__ in this folder
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    try:
+        import go_live
+    except ImportError as e:
+        return False, [f'\nSTOCK ({STOCK_FILE}): go_live.py can\'t be loaded from {HERE} ({e}), so stock.js wasn\'t checked.']
+    try:
+        route, problems, warnings = go_live.routine_stock_check(root)
+    except go_live.Fail as e:
+        return False, [f'\nSTOCK ({STOCK_FILE}): can\'t read the site ({e}), so stock.js wasn\'t checked.']
+    out = [f'\nSTOCK ({STOCK_FILE}), checked as go_live.py checks it, on {ROUTE_WORDS[route]}:']
+    if problems:
+        out.append(f'  {len(problems)} problem(s). Fix them before you deploy:')
+        out += ['  - ' + p for p in problems]
+    else:
+        out.append('  No problems.')
+    if warnings:
+        out.append('  Worth reading (not a failure):')
+        out += ['  - ' + w for w in warnings]
+    return not problems, out
+
+
 # ----------------------------------------------------------------------------------------------- checker
 def run_checker(root):
     """Run check_site_prices.py on root. Returns (ok, summary_lines)."""
@@ -1019,23 +1071,27 @@ def main(argv=None):
                'That includes a price --set changes that has a Stripe Payment Link in pay.js: the link keeps charging the\n'
                'price it was made with, so it needs a new link. --check lists every pay.js link with the site\'s price.\n'
                'pay.js must stay one entry per line, as it ships; otherwise --set and --write refuse (exit 2).\n'
-               'Exit codes: 0 all good; 1 something needs you (stale prices, a hand edit, or check_site_prices.py '
-               'fails); 2 bad command or input, nothing written.\n'
+               'Exit codes: 0 all good; 1 something needs you (stale prices, a hand edit, check_site_prices.py '
+               'fails, or a stock.js problem); 2 bad command or input, nothing written.\n'
                'Then rebuild the Shopify CSV: build_shopify_csv.py and validate_shopify_csv.py.')
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument('--check', nargs='?', const='', metavar='DIR',
-                   help='check every derived price against data-prices and run check_site_prices.py; writes nothing '
-                        '(DIR defaults to sites/full-bars)')
+                   help='check every derived price against data-prices, run check_site_prices.py, and check stock.js as '
+                        'go_live.py does; writes nothing (DIR defaults to sites/full-bars). Run it after every edit and '
+                        'before every deploy')
     g.add_argument('--write', metavar='DIR', help='rewrite every derived price in DIR from data-prices')
     g.add_argument('--set', nargs=5, action='append', metavar=('MODEL', 'STORAGE', 'GRADE', 'PRICE', 'DIR'),
                    help='change one price in data-prices, then do --write; repeat for several prices (same DIR)')
     ap.add_argument('--dry-run', action='store_true', help='with --write or --set: show what would change, write nothing')
+    ap.add_argument('--no-stock-check', action='store_true', help=argparse.SUPPRESS)   # go_live.py checks stock.js itself
     ap.add_argument('--allow-hand-edits', action='store_true',
                     help='with --write or --set: write even though something needs a hand edit (by default it refuses and '
                          'writes nothing, so the site never goes out half-done)')
     args = ap.parse_args(argv)
     if args.check is not None and (args.dry_run or args.allow_hand_edits):
         ap.error(f'{"--dry-run" if args.dry_run else "--allow-hand-edits"} does nothing with --check, which never writes')
+    if args.no_stock_check and args.check is None:
+        ap.error('--no-stock-check goes with --check only')
 
     try:
         if args.check is not None:
@@ -1087,12 +1143,15 @@ def main(argv=None):
         print('\n'.join(pay_links_report(site, plan.products, links, pay_problems)))
         ok, lines = run_checker(site.root)
         print('\ncheck_site_prices.py: ' + ('\n  '.join(lines) if lines else 'no output'))
+        stock_ok, stock_lines = (True, []) if args.no_stock_check else stock_report(site.root)
+        if stock_lines:
+            print('\n'.join(stock_lines))
         stale = bool(plan.files)
         if stale:
             me = os.path.relpath(os.path.abspath(__file__))
             me = me if not me.startswith('..') else os.path.abspath(__file__)
             print(f'\n{len(plan.changes)} derived price(s) out of date. Fix: python3 {me} --write {root}')
-        good = ok and not stale and not plan.hand
+        good = ok and not stale and not plan.hand and stock_ok
         print('\nRESULT: ' + ('PASS' if good else 'FAIL'))
         return 0 if good else 1
 

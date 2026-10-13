@@ -368,6 +368,21 @@ class FetchVariantsTest(unittest.TestCase):
         self.assertEqual(js2.count('Shopify stock snapshot:'), 1)
         self.assertEqual(go_live.read_stock_js({'stock.js': js2})[0], entries)
 
+    def test_stock_header_finds_every_spelling_go_live_reads(self):
+        """--write-stock keeps a stock.js's own header whichever spelling of the assignment go_live.py reads it in (the
+        example inside the header comment, indented, is not the assignment)."""
+        with open(os.path.join(SITE, 'stock.js'), encoding='utf-8') as fh:
+            src = fh.read()
+        head = src[:src.rindex('window.FULLBARS_STOCK =')]
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'stock.js')
+            for spelling in ('window.FULLBARS_STOCK', 'window["FULLBARS_STOCK"]', "window['FULLBARS_STOCK']",
+                             'FULLBARS_STOCK', 'var FULLBARS_STOCK', ';window.FULLBARS_STOCK'):
+                with open(p, 'w', encoding='utf-8') as fh:
+                    fh.write(head + spelling + ' = {\n  "pixel-8": {}\n};\n')
+                self.assertEqual(go_live.read_stock_js({'stock.js': head + spelling + ' = {};'}), ({}, []), spelling)
+                self.assertEqual(fv.stock_header(p, SITE), head, spelling)
+
     def test_write_stock_leaves_out_what_it_cant_read(self):
         """A phone whose variants have no true/false "available", or that can't be fetched, gets no stock data (all its
         options show as orderable; Shopify decides), never a false "none in stock"."""

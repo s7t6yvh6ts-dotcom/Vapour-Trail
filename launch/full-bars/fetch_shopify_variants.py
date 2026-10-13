@@ -348,7 +348,7 @@ def stock_header(path, site):
                 src = fh.read()
         except OSError:
             continue
-        m = re.search(r'^window\.FULLBARS_STOCK\s*=', src, re.M)
+        m = re.search(r'(?m)^;*' + go_live.STOCK_ASSIGN.pattern, src)   # any spelling go_live.py reads, at a line's start
         if m:
             head = re.sub(r'(?m)^/\* ' + re.escape(SNAPSHOT_MARK) + r'.*?\*/[ \t]*\n', '', src[:m.start()])
             return head if head.endswith('\n') or not head else head + '\n'

@@ -22,7 +22,8 @@
   /* ---------- stock (stock.js) ----------
      stock.js sets window.FULLBARS_STOCK = { "iphone-13": { "128GB|Good": 2, ... }, ... }: for each product handle (its
      page name), the units held per storage and condition. A handle that isn't there has no stock data. stock.js is
-     loaded before this script; if it is missing or broken, this is {} and nothing changes. Static route: kept by hand.
+     loaded before this script; if it is missing or broken, this is {} and nothing changes, except on the live static
+     route's marked pages, which fail closed (data-stock-required, below). Static route: kept by hand.
      Shopify route: a snapshot of Shopify's available variants (fetch_shopify_variants.py --write-stock); it never sells
      anything (every Order button goes to Shopify, which refuses a sold-out variant), it only says what's available. */
   var STOCK = isObj(window.FULLBARS_STOCK) ? window.FULLBARS_STOCK : {};
@@ -33,6 +34,47 @@
   /* a count that means units held: a whole number above 0 */
   function held1(n) { return typeof n === 'number' && isFinite(n) && Math.floor(n) === n && n > 0; }
   function anyHeld(map) { return Object.keys(map).some(function (k) { return held1(map[k]); }); }
+  /* Live static (Stripe) route only: go_live.py --checkout stripe puts data-stock-required="1" on each product picker
+     and on each grid of product cards and row of range tiles, because there stock.js is the only thing that stops a sale
+     of a phone that isn't held. Inside those it fails closed: if stock.js didn't load or has a typo (window.FULLBARS_STOCK isn't a list of phones in
+     braces), or a phone's entry is missing or malformed (a key that isn't "storage|condition" - on the phone's own page,
+     one of its options - or a count that isn't a whole number of 0 or more), that phone counts as holding nothing:
+     "Not in stock — ask us" on every option, "None in stock right now" on its cards and tiles, never Order or Buy now.
+     The browser console says why, starting "Full Bars: stock.js". Without the attribute (the preview, the Shopify
+     route, where stock.js is optional) none of this applies and stock is read as above. */
+  var STOCK_BROKEN = isObj(window.FULLBARS_STOCK) ? '' : window.FULLBARS_STOCK === undefined
+    ? 'stock.js did not load, or has a typo that stops browsers reading it'
+    : 'stock.js does not set window.FULLBARS_STOCK to a list of phones in braces { }';
+  var stockSaid = {};
+  function stockError(msg) {
+    if (stockSaid[msg] || !window.console) return;
+    stockSaid[msg] = true;
+    console.error('Full Bars: ' + msg + '. Until it is fixed, this page shows the phone(s) concerned as not in stock. Check stock.js with set_prices.py --check (GO-LIVE.md section 6, step 2).');
+  }
+  function stockRequired(el) {
+    for (; el && el.nodeType === 1; el = el.parentNode) if (el.hasAttribute('data-stock-required')) return true;
+    return false;
+  }
+  /* why a phone's counts can't be trusted, or ''. pairs: the "storage|condition" options of its page, when known */
+  function entryProblem(map, pairs) {
+    if (!isObj(map)) return 'its entry is not storage and condition counts in braces { }';
+    var keys = Object.keys(map);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i], n = map[k];
+      if (!/^[^|]+\|[^|]+$/.test(k) || (pairs && pairs.indexOf(k) < 0)) return 'its key "' + k + '" is not one of its storage and condition pairs';
+      if (!(typeof n === 'number' && isFinite(n) && Math.floor(n) === n && n >= 0)) return 'its count for "' + k + '" is not a whole number of 0 or more';
+    }
+    return '';
+  }
+  /* On a marked element: the phone's counts from stock.js when they can be trusted; null when they can't (nothing is
+     held); undefined when stock.js is fine but doesn't list the phone */
+  function requiredStock(handle, pairs) {
+    if (STOCK_BROKEN) { stockError(STOCK_BROKEN); return null; }
+    if (!handle || !Object.prototype.hasOwnProperty.call(STOCK, handle)) return undefined;
+    var why = entryProblem(STOCK[handle], pairs);
+    if (why) { stockError('stock.js "' + handle + '": ' + why); return null; }
+    return STOCK[handle];
+  }
   /* "iphone-13" from a link or address such as ../products/iphone-13.html */
   function handleOf(href) { var m = /(?:^|\/)products\/([a-z0-9-]+)\.html(?:[?#]|$)/.exec(href || ''); return m ? m[1] : ''; }
 
@@ -166,11 +208,30 @@
        { "128GB|Good": 2, ... }, the number of units held for each storage and condition (colour isn't tracked).
        A missing key, 0 or anything that isn't a whole number above 0 means not in stock. With neither, every
        option counts as available and no 'not in stock' note is shown (go_live.py won't launch the static route
-       like that). A data-stock that isn't valid JSON is ignored (with a console warning), so a typo can't freeze
-       the price. On the Shopify route too, a storage and condition with no stock reads "Not in stock — ask us"
-       rather than an Order link to a sold-out Shopify variant. */
+       like that), except on a picker marked data-stock-required (the live static route), where missing, unreadable
+       or malformed stock data means nothing is held. A data-stock that isn't valid JSON is ignored (with a console
+       warning), so a typo can't freeze the price. On the Shopify route too, a storage and condition with no stock
+       reads "Not in stock — ask us" rather than an Order link to a sold-out Shopify variant. */
     var canon = $('link[rel="canonical"]');
-    var stock = stockFor(handleOf(canon && canon.getAttribute('href')) || handleOf(location.pathname)) || dataJSON(picker, 'data-stock');
+    var pageHandle = handleOf(canon && canon.getAttribute('href')) || handleOf(location.pathname);
+    var stock;
+    if (stockRequired(picker)) {
+      /* live static route (data-stock-required, above): fail closed. stock.js's entry if it can be trusted; if stock.js
+         is fine but doesn't list the phone, the page's data-stock if that can be; otherwise nothing is held */
+      var pairs = [];
+      Object.keys(prices).forEach(function (s) { Object.keys(prices[s] || {}).forEach(function (g) { pairs.push(s + '|' + g); }); });
+      stock = requiredStock(pageHandle, pairs);
+      if (stock === undefined) {
+        var hasOwn = picker.hasAttribute('data-stock'), own = hasOwn ? dataJSON(picker, 'data-stock') : null;
+        var ownWhy = !hasOwn ? 'stock.js does not list "' + pageHandle + '"' : entryProblem(own, pairs)
+          ? 'stock.js does not list "' + pageHandle + '" and the page\'s data-stock can\'t be used: ' + entryProblem(own, pairs) : '';
+        if (ownWhy) stockError(ownWhy);
+        stock = ownWhy ? null : own;
+      }
+      stock = stock || {};
+    } else {
+      stock = stockFor(pageHandle) || dataJSON(picker, 'data-stock');
+    }
     function inStock(key) { return held1(stock[key]); }
     /* Shopify route: data-variants (written by go_live.py --shop-variants) maps "storage|condition|colour" to that
        phone's Shopify variant ID, so the Order button can open Shopify on exactly the phone chosen here. */
@@ -341,11 +402,18 @@
   }
 
   /* ---------- "None in stock right now" on cards and range tiles ----------
-     Only for phones stock.js lists with no units at all. A phone it doesn't list says nothing (no stock data), and
-     the card stays in place either way, with its "from" price (the lowest price of any option, held or not). */
+     Only for phones stock.js lists with no units at all. A phone it doesn't list says nothing (no stock data), except
+     on a marked card or tile (below), and the card stays in place either way, with its "from" price (the lowest price
+     of any option, held or not). */
   var NONE_IN_STOCK = 'None in stock right now';
+  /* a card or tile in a grid or row marked data-stock-required (live static route): a phone whose stock.js entry is
+     missing or can't be trusted, or a stock.js browsers couldn't read, counts as none in stock (above) */
+  function cardStock(el, handle) {
+    if (!stockRequired(el)) return stockFor(handle);
+    return handle ? requiredStock(handle) || {} : null;
+  }
   $all('article.card').forEach(function (card) {
-    var a = $('a[href]', card), map = stockFor(handleOf(a && a.getAttribute('href'))), body = $('.card-body', card);
+    var a = $('a[href]', card), map = cardStock(card, handleOf(a && a.getAttribute('href'))), body = $('.card-body', card);
     if (!map || anyHeld(map) || !body || $('.card-stock', body)) return;
     var p = document.createElement('p');
     p.className = 'card-stock';
@@ -356,7 +424,7 @@
      them, with no units */
   $all('a.tile[data-handles]').forEach(function (tile) {
     var hs = tile.getAttribute('data-handles').split(/\s+/).filter(Boolean);
-    if (!hs.length || $('.tile-stock', tile) || !hs.every(function (h) { var m = stockFor(h); return m && !anyHeld(m); })) return;
+    if (!hs.length || $('.tile-stock', tile) || !hs.every(function (h) { var m = cardStock(tile, h); return m && !anyHeld(m); })) return;
     var em = document.createElement('em');
     em.className = 'tile-stock';
     em.textContent = NONE_IN_STOCK;

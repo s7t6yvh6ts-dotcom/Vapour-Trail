@@ -10,11 +10,21 @@
      "Not in stock — ask us".
    - A phone listed with no units at all (like "pixel-8" above) also shows "None in stock right now" on its cards.
    - A phone that isn't listed has no stock data here. Its product page then uses that page's old data-stock
-     attribute if it has one (stock.js wins when both are there), or else shows every option as available, so
-     go_live.py --checkout stripe won't launch until every phone is listed here or has data-stock.
-   Write it as JSON: keys in double quotes, counts as whole numbers. There's no build step.
-   Static (Stripe) route: you keep this file by hand. Change a count the moment a phone sells or arrives, then deploy
-   the site again.
+     attribute if it has one (stock.js wins when both are there). Otherwise, in the preview and on the Shopify route,
+     it shows every option as available; on the live static route it shows the phone as not in stock (below), and
+     go_live.py --checkout stripe won't launch until every phone is listed here (its cards can't read data-stock).
+   Write it as JSON: keys in double quotes, counts as whole numbers, a comma between entries, and nothing outside
+   this comment but window.FULLBARS_STOCK = { ... }; exactly as above. The check refuses anything else, even a few
+   forms a browser would run (single quotes, a count written 0x2 or 01, an <!-- line, let or const, a second
+   window.FULLBARS_STOCK =), so that what passes is exactly what the pages read. There's no build step.
+   Static (Stripe) route: you keep this file by hand. Change a count the moment a phone sells or arrives. After
+   every edit, and again just before every deploy, run python3 launch/full-bars/set_prices.py --check: it reads
+   this file as a browser does and fails on a typo (a stray comma, a missing brace, or {,} left after deleting a
+   phone's last count), a mistyped handle or key, a count that isn't a whole number, or a phone left out. Then
+   deploy the site again. One typo makes browsers ignore the whole file, so if a broken file goes up anyway, the
+   live pages fail closed (go_live.py marks them data-stock-required):
+   every phone shows "Not in stock — ask us" and "None in stock right now", nothing can be ordered, and the
+   browser console says "Full Bars: stock.js ...". A phone whose own entry is wrong shows the same.
    Shopify route: Shopify counts the stock and refuses a sold-out variant, so this file never sells anything. Don't
    edit it by hand: write it from Shopify with fetch_shopify_variants.py --write-stock (GO-LIVE.md section 5, step 13),
    which counts each variant Shopify says is available, any colour counting 1. Then fetch again and deploy the site
