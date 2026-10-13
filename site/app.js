@@ -1,4 +1,13 @@
 const S = window.SHOP || {}, $ = id => document.getElementById(id);
+// index.html shows a "didn't load" message if this file is slow or missing. It got here: take it down.
+document.documentElement.classList.remove("stalled");
+$("stalled")?.remove();
+// If config.js didn't load, the shop doesn't know its own delivery charge or trader details:
+// say so rather than fall back to anything that reads as a promise (like "free delivery").
+const HAS_CONFIG = !!window.SHOP;
+const HAS_SHIP = typeof S.shipping === "number" && S.shipping >= 0;
+const CONFIG_OK = HAS_CONFIG && HAS_SHIP;
+if (HAS_CONFIG && !HAS_SHIP) console.warn("config.js: shipping must be a number (0 for free delivery). The shop stays closed until it is.");
 const CUR = S.currency || "£";
 const money = n => CUR + n.toFixed(2);
 // Whole amounts without ".00" for running text: "free over £100", "UK delivery £3.95".
@@ -6,6 +15,7 @@ const pounds = n => Math.round(n * 100) % 100 === 0 ? CUR + Math.round(n) : mone
 // product.stock = { size: unitsLeft }. Vintage one-offs are just { "L": 1 }.
 // cart = [{id, size, qty}]
 let products = [], cart = [], cat = "All", type = "All";
+let state = "loading"; // loading | ready | error
 const chosen = {}; // product id -> selected size, kept across re-renders
 // Whatever is in storage gets checked: one bad entry mustn't break the basket or the shop.
 const validLine = i => i && typeof i === "object" && typeof i.id === "string" && typeof i.size === "string";
@@ -46,19 +56,21 @@ function fillConfig() {
   });
 }
 function deliveryLine() {
+  if (!HAS_SHIP) return "";
   if (!(S.shipping > 0)) return "Free UK delivery on every order.";
   return S.freeShippingOver ? `UK delivery ${pounds(S.shipping)}, free over ${pounds(S.freeShippingOver)}.` : `UK delivery ${pounds(S.shipping)} per order.`;
 }
 function renderStatic() {
   $("shopname").textContent = S.name || "Second Rail";
   if (S.tagline) $("tagline").textContent = S.tagline;
-  const facts = S.shipping > 0
+  const facts = !HAS_SHIP ? []
+    : S.shipping > 0
     ? [[`UK delivery ${pounds(S.shipping)}`, "#delivery"], ...(S.freeShippingOver ? [[`Free over ${pounds(S.freeShippingOver)}`, "#delivery"]] : [])]
     : [["Free UK delivery", "#delivery"]];
   facts.push(["14 days to change your mind", "#returns"]);
   $("facts").innerHTML = facts.map(([t, h]) => `<li><a href="${h}">${esc(t)}</a></li>`).join("");
-  $("foot-delivery").textContent = `${deliveryLine()} 14 days to change your mind.`;
-  $("info-delivery").textContent = S.shipping > 0
+  $("foot-delivery").textContent = `${deliveryLine()} 14 days to change your mind.`.trim();
+  if (HAS_SHIP) $("info-delivery").textContent = S.shipping > 0
     ? `UK delivery is ${pounds(S.shipping)} per order${S.freeShippingOver ? `, and free on orders over ${pounds(S.freeShippingOver)}` : ""}. The basket shows the delivery charge and the full total before you check out.`
     : "UK delivery is free on every order.";
   fillConfig();
@@ -96,6 +108,7 @@ function chips(el, items, current, set) {
 }
 function renderFilters() {
   chips($("types"), ["All", "New", "Vintage"], type === "All" ? "All" : type === "new" ? "New" : "Vintage", c => { type = c === "All" ? "All" : c.toLowerCase(); renderFilters(); renderGrid(); });
+  if (state !== "ready") return; // categories come from products.json
   const cats = ["All categories", ...new Set(products.filter(p => type === "All" || p.type === type).map(p => p.category))];
   if (!cats.includes(cat)) cat = "All";
   chips($("filters"), cats, cat === "All" ? "All categories" : cat, c => { cat = c === "All categories" ? "All" : c; renderFilters(); renderGrid(); });
@@ -115,31 +128,32 @@ function stockMessage(p, sel, soldOut) {
 function cardHTML(p, soldOut) {
   const isVintage = p.type === "vintage";
   const tag = soldOut ? "Sold out" : isVintage ? "Vintage" : "New";
-  const meta = isVintage ? `${esc(p.era)} · ${esc(p.category)}` : esc(p.category);
-  const desc = isVintage ? `Condition: ${p.condition}` : p.desc;
+  const meta = [isVintage ? p.era : "", p.category].filter(Boolean).map(esc).join(" · ");
+  const desc = isVintage && p.condition ? `Condition: ${p.condition}` : p.desc;
   const spec = [];
   if (isVintage && p.measurements) spec.push(["Measured", p.measurements]);
   if (p.fabric) spec.push(["Fibre", String(p.fabric).replace(/^Fibre:\s*/i, "")]);
   const free = S.freeShippingOver && p.price >= S.freeShippingOver;
-  const deliv = !(S.shipping > 0) || free ? "Free UK delivery" : `+ ${pounds(S.shipping)} UK delivery${S.freeShippingOver ? `, free over ${pounds(S.freeShippingOver)}` : ""}`;
+  const deliv = !HAS_SHIP ? "" : !(S.shipping > 0) || free ? "Free UK delivery" : `+ ${pounds(S.shipping)} UK delivery${S.freeShippingOver ? `, free over ${pounds(S.freeShippingOver)}` : ""}`;
   const art = p.image
     ? `<img src="${esc(p.image)}" alt="${esc(p.alt || p.name)}" loading="lazy">`
     : `<span class="fig" aria-hidden="true"><svg class="hook" viewBox="0 0 40 24" focusable="false"><use href="#hanger"/></svg><span class="garment g-${shapeOf(p)}"></span></span>`;
   return `<div class="pic${tone(p)}${p.image ? " has-img" : ""}"${swatch(p)}>${art}<span class="tag" aria-hidden="true">${tag}</span></div>
     <div class="body">
       <p class="meta">${meta}</p>
-      <h3 id="t-${esc(p.id)}">${esc(p.name)}</h3>
+      <h3 id="t-${esc(p.id)}">${esc(p.name)}<span class="sr">, ${isVintage ? "vintage" : "new"}${soldOut ? ", sold out" : ""}</span></h3>
       ${desc ? `<p class="desc">${flag(desc)}</p>` : ""}
       ${spec.length ? `<dl class="spec">${spec.map(([k, v]) => `<div><dt>${k}</dt><dd>${flag(v)}</dd></div>`).join("")}</dl>` : ""}
       <div class="buy">
         <div class="sizes" role="group" aria-label="Size"></div>
         <p class="stockmsg" aria-live="polite"></p>
         <div class="row"><strong class="price">${money(p.price)}</strong><button class="add" type="button" aria-describedby="t-${esc(p.id)}">Add to basket</button></div>
-        <p class="deliv">${deliv}</p>
+        ${deliv ? `<p class="deliv">${deliv}</p>` : ""}
       </div>
     </div>`;
 }
 function renderGrid() {
+  if (state !== "ready") return;
   const grid = $("grid");
   const list = products.filter(p => (cat === "All" || p.category === cat) && (type === "All" || p.type === type))
     .sort((a, b) => (totalLeft(a) === 0) - (totalLeft(b) === 0));
@@ -150,7 +164,8 @@ function renderGrid() {
     $("reset").onclick = () => { cat = "All"; type = "All"; renderFilters(); renderGrid(); };
     return;
   }
-  list.forEach(p => {
+  // One odd product row mustn't take the rest of the rail down with it.
+  list.forEach(p => tryOrWarn(`Couldn't show product "${p.id}"`, () => {
     const sizes = Object.keys(p.stock), soldOut = totalLeft(p) === 0;
     let sel = chosen[p.id] !== undefined && left(p, chosen[p.id]) > 0 ? chosen[p.id]
       : sizes.length === 1 && left(p, sizes[0]) > 0 ? sizes[0] : null;
@@ -178,10 +193,10 @@ function renderGrid() {
     add.onclick = () => {
       if (sel === null || left(p, sel) <= 0) return;
       const hit = cart.find(i => i.id === p.id && i.size === sel); hit ? hit.qty++ : cart.push({ id: p.id, size: sel, qty: 1 });
-      save(); renderCart(); refresh(); bump(); openDrawer();
+      save(); renderCart(); refresh(); bump(); openDrawer(p.id);
     };
     refresh(); grid.appendChild(el);
-  });
+  }));
 }
 
 /* Basket */
@@ -240,10 +255,14 @@ function bump() {
 
 /* Drawer open/close, with focus kept inside while it's open */
 const drawer = $("drawer"), scrim = $("scrim");
-let returnFocus = null;
-function openDrawer() {
+// Where focus goes back to on close. From a product, remember the product, not the button:
+// adding the last one disables the button, and changing quantities in the basket redraws the cards.
+let returnFocus = null, returnId = null;
+const focusable = el => el && el !== document.body && document.contains(el) && !el.disabled;
+function openDrawer(fromId) {
   if (drawer.classList.contains("open")) return;
-  returnFocus = document.activeElement;
+  returnId = typeof fromId === "string" ? fromId : null;
+  returnFocus = focusable(document.activeElement) ? document.activeElement : null;
   drawer.inert = false; drawer.removeAttribute("inert"); drawer.setAttribute("aria-hidden", "false");
   drawer.classList.add("open"); scrim.classList.add("on");
   document.documentElement.classList.add("locked");
@@ -254,9 +273,12 @@ function closeDrawer() {
   drawer.classList.remove("open"); scrim.classList.remove("on");
   drawer.setAttribute("aria-hidden", "true"); drawer.inert = true; drawer.setAttribute("inert", "");
   document.documentElement.classList.remove("locked");
-  (returnFocus && document.contains(returnFocus) ? returnFocus : $("open")).focus({ preventScroll: true });
+  const card = returnId ? $("p-" + returnId) : null;
+  const target = card ? card.querySelector(".add:not(:disabled)") || card : focusable(returnFocus) ? returnFocus : $("open");
+  returnFocus = returnId = null;
+  target.focus({ preventScroll: true });
 }
-$("open").onclick = openDrawer;
+$("open").onclick = () => openDrawer();
 $("close").onclick = closeDrawer;
 scrim.onclick = closeDrawer;
 drawer.addEventListener("keydown", e => {
@@ -288,15 +310,101 @@ function fibreLine() {
 function safeRenderCart() {
   try { renderCart(); } catch (e) { cart = []; save(); try { renderCart(); } catch (e2) {} }
 }
+function tryOrWarn(what, fn) { try { fn(); } catch (e) { console.warn(what, e); } }
+
+/* products.json is checked row by row. A row that can't be sold safely (no name, no price,
+   no sizes) is left off the page and named in the browser console, so a typo in one row
+   hides that row, not the shop. */
+function cleanProducts(d) {
+  if (!Array.isArray(d)) throw new Error("products.json isn't a list");
+  const seen = new Set(), out = [];
+  d.forEach((p, n) => {
+    const why = !p || typeof p !== "object" ? "not a product"
+      : typeof p.id !== "string" || !p.id ? "no id"
+      : seen.has(p.id) ? `duplicate id "${p.id}"`
+      : typeof p.name !== "string" || !p.name.trim() ? "no name"
+      : typeof p.price !== "number" || !isFinite(p.price) || p.price < 0 ? "price isn't a number"
+      : !p.stock || typeof p.stock !== "object" || Array.isArray(p.stock) ? "no stock sizes" : "";
+    if (why) { console.warn(`products.json row ${n + 1} skipped: ${why}`); return; }
+    const stock = {};
+    Object.keys(p.stock).forEach(k => { const v = Number(p.stock[k]); if (isFinite(v) && v >= 0) stock[k] = Math.floor(v); });
+    if (!Object.keys(stock).length) { console.warn(`products.json row ${n + 1} skipped: no stock sizes`); return; }
+    seen.add(p.id);
+    out.push(Object.assign({}, p, { stock, type: p.type === "vintage" ? "vintage" : "new", category: typeof p.category === "string" && p.category.trim() ? p.category : "Other" }));
+  });
+  return out;
+}
+
+/* Until the clothes load, the basket can't be priced or checked against stock. Show what's saved
+   in the header count, and say why the panel has nothing in it, rather than "0" and a blank panel. */
+const savedCount = () => cart.reduce((n, i) => n + Math.max(1, i.qty | 0), 0);
+function basketOnHold(msg) {
+  $("count").textContent = savedCount();
+  $("items").innerHTML = `<div class="basket-empty"><p>${esc(msg)}</p></div>`;
+  ["sub", "shipcost", "total"].forEach(id => { $(id).textContent = "–"; });
+  $("ship").textContent = ""; $("mode").textContent = ""; $("checkout").disabled = true;
+}
+
+/* Loading, failure and empty states. The skeleton cards in index.html hold the space while
+   products.json loads, so nothing below jumps when the clothes arrive. */
+const SKELETON = $("grid").innerHTML;
+function showState(kind, reason) {
+  state = kind;
+  const grid = $("grid"), loaded = kind === "ready";
+  $("rail").hidden = !loaded && kind !== "loading";
+  $("toolbar").hidden = !loaded && kind !== "loading";
+  if (kind === "loading") { grid.innerHTML = SKELETON; basketOnHold("Your basket shows once the clothes have loaded."); return; }
+  if (kind === "empty") {
+    grid.innerHTML = `<div class="emptystate" role="status"><p>Nothing’s on the rail right now.</p></div>`;
+    basketOnHold(savedCount() ? "Nothing’s on the rail right now, so nothing in your basket can be bought. It stays saved in this browser." : "Your basket is empty.");
+    return;
+  }
+  if (kind === "error") {
+    const why = !CONFIG_OK ? "The shop’s settings didn’t load, so we can’t show prices or delivery charges. Try again in a minute."
+      : reason === "offline" ? "It looks like you’re offline. Check your connection, then try again."
+      : reason === "network" ? "We couldn’t reach the shop. Check your connection, then try again."
+      : reason === "timeout" ? "It’s taking too long. Check your connection, then try again."
+      : "Something went wrong fetching the list. Try again in a minute.";
+    grid.innerHTML = `<div class="emptystate loaderror" role="alert"><p class="loaderror-title">The clothes didn’t load.</p><p>${esc(why)}</p><button class="pill ghost" type="button" id="retry">Try again</button></div>`;
+    $("retry").onclick = () => {
+      if (!CONFIG_OK) { location.reload(); return; }
+      // The button is about to be replaced: park focus on the section heading so it isn't lost.
+      const h = $("shop-title"); h.tabIndex = -1; h.focus({ preventScroll: true });
+      loadProducts();
+    };
+    basketOnHold("Your basket shows once the clothes have loaded.");
+  }
+}
+let loadTimer = null;
+function loadProducts() {
+  showState("loading");
+  clearTimeout(loadTimer);
+  const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+  let timedOut = false, reached = false;
+  if (ctrl) loadTimer = setTimeout(() => { timedOut = true; ctrl.abort(); }, 15000);
+  fetch("products.json", ctrl ? { signal: ctrl.signal } : undefined)
+    .then(r => { reached = true; if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(d => {
+      clearTimeout(loadTimer);
+      products = cleanProducts(d);
+      if (!products.length) { showState("empty"); return; }
+      showState("ready");
+      safeRenderCart();
+      renderFilters(); renderGrid();
+      tryOrWarn("Couldn't draw the rail", () => { renderRail(); railEdges(); });
+      tryOrWarn("Couldn't check fibre details", fibreLine);
+    })
+    .catch(e => {
+      clearTimeout(loadTimer);
+      console.warn("Products didn't load:", e);
+      showState("error", timedOut ? "timeout" : reached ? "server" : navigator.onLine === false ? "offline" : "network");
+    });
+}
+// Coming back online after a failed load: try again without making the customer do it.
+window.addEventListener("online", () => { if (state === "error" && CONFIG_OK) loadProducts(); });
 
 /* Start */
 renderStatic();
-fetch("products.json")
-  .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-  .then(d => {
-    products = Array.isArray(d) ? d.filter(p => p && typeof p === "object" && typeof p.id === "string" && p.stock && typeof p.stock === "object") : [];
-    renderFilters(); renderGrid(); renderRail(); railEdges(); fibreLine();
-  }, () => {
-    $("grid").innerHTML = `<p class="loading">The product list didn’t load. Refresh the page to try again.</p>`;
-  })
-  .finally(safeRenderCart);
+renderFilters();
+if (CONFIG_OK) loadProducts(); else showState("error");
+window.__srBooted = true; // tells index.html's watchdog the shop started

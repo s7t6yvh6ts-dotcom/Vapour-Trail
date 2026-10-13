@@ -265,7 +265,9 @@ a.hang:focus-visible { outline-offset: 4px; border-radius: 4px; }
 }
 .filters button:hover { border-color: var(--line-strong); }
 .filters button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
-.count { margin: 0 0 0 auto; font: 400 13px/1 var(--mono); color: var(--mute); font-variant-numeric: tabular-nums; }
+/* Categories arrive with products.json: hold a row for them so the grid doesn't jump */
+.filters:empty { min-height: 38px; }
+.count { margin: 0 0 0 auto; min-height: 1em; font: 400 13px/1 var(--mono); color: var(--mute); font-variant-numeric: tabular-nums; }
 
 /* Product grid */
 .grid {
@@ -276,7 +278,19 @@ a.hang:focus-visible { outline-offset: 4px; border-radius: 4px; }
 }
 .loading { margin: 0; color: var(--mute); font: 400 var(--t-sm) var(--mono); }
 .emptystate { grid-column: 1 / -1; display: grid; gap: 12px; justify-items: start; padding: 32px 0; color: var(--mute); }
-.emptystate p { margin: 0; }
+.emptystate p { margin: 0; max-width: 52ch; text-wrap: pretty; }
+.loaderror-title { color: var(--ink); font: 600 var(--t-lg)/1.2 var(--display); letter-spacing: -.01em; }
+
+/* Loading: blank cards the same shape as real ones hold the space until products.json arrives */
+.skel .body { min-height: 300px; gap: 12px; }
+.skel .bar { display: block; height: 12px; width: 40%; border-radius: 4px; background: var(--surface-2); }
+.skel .bar:nth-child(2) { width: 70%; height: 20px; }
+.skel .bar:nth-child(3) { width: 90%; }
+.skel .bar:nth-child(4) { width: 100%; height: 42px; margin-top: auto; }
+.skel .pic, .skel .bar { animation: skel 1.6s ease-in-out infinite; }
+@keyframes skel { 50% { opacity: .55; } }
+/* app.js never arrived (index.html's watchdog adds .stalled): drop the loading cards for its message */
+.stalled #grid > .skel, .stalled #grid > .sr, .stalled #rail, .stalled #toolbar { display: none; }
 
 .card {
   display: flex; flex-direction: column; min-width: 0;
@@ -286,7 +300,8 @@ a.hang:focus-visible { outline-offset: 4px; border-radius: 4px; }
   transition: border-color .2s, box-shadow .3s;
 }
 .card:hover { border-color: var(--line-strong); }
-.card:focus { outline: none; }
+/* Cards take focus when picked from the rail: show it to keyboard users, not after a click */
+.card:focus:not(:focus-visible) { outline: none; }
 .card.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 .pic {
@@ -359,7 +374,10 @@ a.hang:focus-visible { outline-offset: 4px; border-radius: 4px; }
 .add:disabled { background: var(--surface-2); color: var(--mute); cursor: default; }
 .deliv { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--mute); }
 
-.card.sold .pic { filter: grayscale(1); opacity: .5; }
+/* Sold out: the art fades but the swing tag stays fully readable */
+.card.sold .pic { filter: grayscale(1); }
+.card.sold .pic::after { content: ""; position: absolute; inset: 0; background: var(--surface); opacity: .5; }
+.card.sold .tag { z-index: 1; }
 .card.sold h3 { color: var(--mute); text-decoration: line-through; text-decoration-thickness: 1px; }
 
 /* Small print */
@@ -485,6 +503,18 @@ a.hang:focus-visible { outline-offset: 4px; border-radius: 4px; }
   .pic { aspect-ratio: 5 / 4; padding-top: 7%; }
   .pic .fig { width: 34%; margin-top: calc(-2.8% - 1.5px); }
   .count { width: 100%; margin-left: 0; }
+  .filters:empty { flex-basis: 100%; }
+}
+
+/* Windows High Contrast and other forced-colour modes drop background colours,
+   which is how the chosen size and filter show. Put the state back with system colours. */
+@media (forced-colors: active) {
+  .seg button[aria-pressed="true"], .filters button[aria-pressed="true"], .size[aria-pressed="true"] {
+    forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight;
+  }
+  .seg button, .add, .checkout { border: 1px solid ButtonText; }
+  .add:disabled, .checkout:disabled { border-color: GrayText; color: GrayText; }
+  .skel .pic, .skel .bar { border: 1px solid GrayText; }
 }
 
 @media (prefers-reduced-motion: reduce) {

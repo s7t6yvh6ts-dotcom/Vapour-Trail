@@ -4,12 +4,41 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Second Rail</title>
-<meta name="description" content="Second Rail — new drops and one-off vintage clothing, sold direct with no marketplace fees.">
+<!-- When the shop opens, take "Preview of" and "Not taking orders yet." out of both descriptions.
+     Once it has a web address, add og:url, a canonical link and an og:image (absolute URLs). -->
+<meta name="description" content="Preview of Second Rail, a UK clothing shop: new drops and one-off vintage, with measurements and any faults in every vintage listing. Not taking orders yet.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Second Rail">
+<meta property="og:locale" content="en_GB">
+<meta property="og:title" content="Second Rail">
+<meta property="og:description" content="New drops and one-off vintage clothing. Preview: not taking orders yet.">
+<meta name="twitter:card" content="summary">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0f1214" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#eef0f1" media="(prefers-color-scheme: light)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232740ff'/%3E%3Cpath d='M6 9h20M16 9v3l-9 8h18z' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="preload" href="products.json" as="fetch" crossorigin>
+<script>
+/* If app.js fails to download, or never starts, don't leave the loading cards up for good. */
+function srStalled() {
+  if (window.__srBooted || document.getElementById("stalled")) return;
+  var g = document.getElementById("grid");
+  if (!g) { document.addEventListener("DOMContentLoaded", srStalled); return; }
+  document.documentElement.classList.add("stalled");
+  var m = document.createElement("div");
+  m.id = "stalled"; m.className = "emptystate loaderror"; m.setAttribute("role", "alert");
+  m.innerHTML = '<p class="loaderror-title">The clothes didn\u2019t load.</p><p>Part of the shop didn\u2019t load. Check your connection, then reload the page.</p><button class="pill ghost" type="button" onclick="location.reload()">Reload</button>';
+  g.appendChild(m);
+}
+setTimeout(srStalled, 8000);
+</script>
+<script src="config.js" defer blocking="render"></script>
+<script src="app.js" defer blocking="render" onerror="srStalled()"></script>
+<noscript><style>#grid > .skel, #grid > .sr { display: none; }</style></noscript>
 </head>
 <body>
 <svg class="sprite" aria-hidden="true" focusable="false">
@@ -20,12 +49,12 @@
 </svg>
 <a class="skip" href="#shop">Skip to the clothes</a>
 
-<div class="preview" role="note" aria-label="Preview notice">
+<section class="preview" aria-label="Preview notice">
   <div class="wrap preview-in">
     <span class="chip">Preview</span>
     <p>Second Rail isn’t trading yet. Nothing here can be ordered, no payment is taken, and stock levels aren’t live.</p>
   </div>
-</div>
+</section>
 
 <header class="top">
   <div class="wrap top-in">
@@ -47,14 +76,18 @@
     <nav class="rail" id="rail" aria-label="On the rail now"></nav>
   </section>
 
-  <section class="shop wrap" id="shop" aria-label="Clothes">
-    <div class="toolbar">
+  <section class="shop wrap" id="shop" aria-labelledby="shop-title">
+    <h2 class="sr" id="shop-title">Clothes</h2>
+    <div class="toolbar" id="toolbar">
       <div class="seg" id="types" role="group" aria-label="New or vintage"></div>
       <div class="filters" id="filters" role="group" aria-label="Category"></div>
       <p class="count" id="resultcount" aria-live="polite"></p>
     </div>
     <div class="grid" id="grid">
-      <p class="loading">Loading the rail…</p>
+      <p class="sr" role="status">Loading the rail…</p>
+      <div class="card skel" aria-hidden="true"><div class="pic"></div><div class="body"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div></div>
+      <div class="card skel" aria-hidden="true"><div class="pic"></div><div class="body"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div></div>
+      <div class="card skel" aria-hidden="true"><div class="pic"></div><div class="body"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span class="bar"></span></div></div>
       <noscript><p class="loading">Turn on JavaScript to see what’s on the rail.</p></noscript>
     </div>
   </section>
@@ -142,11 +175,11 @@
 </footer>
 
 <div class="scrim" id="scrim"></div>
-<aside id="drawer" role="dialog" aria-modal="true" aria-labelledby="basket-title" aria-hidden="true" inert>
-  <header class="drawer-head">
+<div id="drawer" role="dialog" aria-modal="true" aria-labelledby="basket-title" aria-hidden="true" inert>
+  <div class="drawer-head">
     <h2 id="basket-title">Basket</h2>
     <button class="pill ghost" id="close" type="button">Close</button>
-  </header>
+  </div>
   <div id="items"></div>
   <div class="cartfoot">
     <dl class="sums">
@@ -158,9 +191,7 @@
     <button class="checkout" id="checkout" type="button" disabled>Checkout</button>
     <p class="note" id="mode" role="status"></p>
   </div>
-</aside>
+</div>
 
-<script src="config.js"></script>
-<script src="app.js"></script>
 </body>
 </html>
