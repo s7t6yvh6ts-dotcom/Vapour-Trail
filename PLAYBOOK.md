@@ -69,7 +69,7 @@ Run it every Monday. Anything marked `LATE - ORDER NOW` or `ORDER THIS WEEK` get
 
 Nicotine pouches are made in Europe, so there's no reason for them to be stuck behind a Chinese holiday. UK trade wholesalers deliver next day:
 
-- [Wholesale Nicotine Pouches](https://www.wholesalenicotinepouches.co.uk/): free trade account (ZYN, Velo, Pablo, Killa). Apply on the site's sign-up page, or call 0121 751 3353 (Mon–Fri 9–5)
+- [Wholesale Nicotine Pouches](https://www.wholesalenicotinepouches.co.uk/): free trade account (ZYN, Velo, Pablo, Killa). info@wholesalenicotinepouches.co.uk, 0121 751 3353 (Mon–Fri 9–5), or the site's sign-up page
 - [SnusBlast Wholesale](https://snusblast.co.uk/wholesale/): next day if ordered by 1pm. info@snusblast.co.uk, WhatsApp +44 7459 481933
 - [Nico Distribution](https://nicodistribution.com/): takes newer retailers. info@nicodistribution.com, 07904 858 487
 - [Vape UK Wholesale](https://vapeukwholesale.co.uk/collections/wholesale-nicotine-pouches): next day, £200 minimum (also sells compliant vapes)
