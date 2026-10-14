@@ -79,6 +79,7 @@
     <label>Price<select name="max"><option value="">Any price</option><option value="200">Under &pound;200</option><option value="300">Under &pound;300</option><option value="400">Under &pound;400</option><option value="500">Under &pound;500</option><option value="700">Under &pound;700</option></select></label>
     <label>Sort<select name="sort"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="price-asc">Lowest price</option><option value="price-desc">Highest price</option></select></label>
     <label class="check"><input type="checkbox" name="usbc" value="1"> USB-C only</label>
+    <label class="check" hidden><input type="checkbox" name="stock" value="1"> In stock only</label>
   </form>
   <div class="result-line js-only"><span id="resultCount" aria-live="polite">19 phones</span><button type="button" class="btn btn-line btn-sm" id="resetFilters">Clear filters</button></div>
   <p class="small shop-note">Prices shown are the lowest for each model; choose storage, grade and colour on the next page. Preview prices: we&rsquo;re not taking orders yet. These are the prices we expect to charge when we open. The warranty and our 30-day guarantee are on top of your Consumer Rights Act 2015 rights (<a href="warranty.html">how it works</a>). Not sure which to choose? <a href="guides/which-used-iphone-to-buy-2026.html#compare">Compare every model side by side</a>.</p>
@@ -162,7 +163,7 @@
   <div class="card-body"><h3>iPhone 12</h3><div class="card-meta">6.1&Prime; &middot; A14 Bionic &middot; Lightning</div><div class="card-meta">64GB&ndash;256GB &middot; 6 colours</div><div class="card-price">from <b class="tnum">&pound;139</b></div></div>
 </a></article>
   </div>
-  <div class="empty" id="emptyMsg"><p><b>No phones match those filters.</b></p><p class="small">Try a higher price or a different range, or clear the filters to see every phone.</p><p><button type="button" class="btn btn-line btn-sm" data-reset-filters>Clear filters</button></p></div>
+  <div class="empty" id="emptyMsg"><p><b>No phones match those filters.</b></p><p class="small">Try a higher price or a different range, <span id="emptyStock" hidden>untick &ldquo;In stock only&rdquo;, </span>or clear the filters to see every phone.</p><p><button type="button" class="btn btn-line btn-sm" data-reset-filters>Clear filters</button></p></div>
   <div class="prose" style="margin-top:44px">
     <h2>Buying a refurbished phone from Full Bars</h2>
     <p>Every phone we sell has been through the same checks: an IMEI check on CheckMEND, a full function test with the results logged, a battery health reading under load, a secure data wipe and removal of every account lock (Find My, Google&rsquo;s Factory Reset Protection and Samsung&rsquo;s Reactivation Lock). Grades describe looks only, so a Good-grade phone works exactly as well as an Excellent one.</p>

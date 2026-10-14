@@ -25,7 +25,15 @@ What they pin down:
     it) or no stock.js at all means nothing is held anywhere ("Not in stock — ask us", "None in stock right now", no
     Order or Buy now, a console error naming stock.js); a bad entry (wrong key, negative count, phone left out) does
     the same for that phone only; good stock sells as before; unmarked pages behave exactly as before; and go_live.py's
-    stock.js reader refuses every typo Chromium itself can't read.
+    stock.js reader refuses every typo Chromium itself can't read;
+  - R13, phones in stock first: with stock data, in every grid of cards (the shop in each sort, collections, the home
+    page's featured phones, guides, "Similar phones") and the home page's range tiles, the ones that say "None in stock
+    right now" go after the rest, each group in its own order, as the same elements (keyboard order = visual order);
+    the shop's "In stock only" box (?stock=1) shows only with stock data, works with the other filters, the count, the
+    address and both Clear filters buttons, and "No phones match" says to untick it when it's ticked; a stock.js
+    browsers can't read on the live static route moves nothing (every phone has none) and the box then shows "No phones
+    match"; without stock data nothing changes at all; a filter named twice in the address counts once (the first) and
+    the address drops the rest; and an empty stock note (go_live.py --rewrites deleted its sentences) is hidden.
 
 Pages are opened straight from a temporary copy of the site (file://), so no web server is needed. Skipped if Node
 or its playwright package isn't installed. Run from the repo root:  python3 launch/full-bars/tests/test_site_js.py
@@ -68,7 +76,26 @@ const cases = JSON.parse(process.argv[2]);
     caseErrors = []; caseConsole = [];
     await page.goto(c.url, { waitUntil: 'load' });
     if (c.click) { await page.click(c.click); }
+    for (const a of c.actions || []) {
+      if (a.click) await page.click(a.click);
+      if (a.select) await page.selectOption(a.select[0], a.select[1]);
+    }
+    // keyboard: focus an element, then Tab n times, noting each link reached
+    let tabbed = null;
+    if (c.tabs) {
+      tabbed = [];
+      await page.focus(c.tabs.from);
+      for (let i = 0; i < c.tabs.n; i++) {
+        await page.keyboard.press('Tab');
+        tabbed.push(await page.evaluate(() => document.activeElement.getAttribute('href')));
+      }
+    }
     const r = await page.evaluate(() => {
+      const handle = el => ((el.matches('a') ? el : el.querySelector('a')).getAttribute('href') || '').replace(/^.*\//, '').replace(/\.html.*$/, '');
+      const note = el => !!el.querySelector('.card-stock, .tile-stock');
+      const sb = document.querySelector('#filters input[name="stock"]'), fl = document.getElementById('filters');
+      const em = document.getElementById('emptyMsg');
+      const shownNote = id => { const el = document.getElementById(id); return el ? { hidden: el.hidden, shown: !!el.offsetParent, text: el.textContent } : null; };
       const b = document.getElementById('orderBtn');
       const topic = document.getElementById('cTopic'), msg = document.getElementById('cMsg');
       const h = document.getElementById('handoffNote');
@@ -91,8 +118,28 @@ const cases = JSON.parse(process.argv[2]);
         payLinks: Array.from(document.querySelectorAll('a[href^="https://buy.stripe.com"]')).map(a => a.getAttribute('href')),
         orderButtons: Array.from(document.querySelectorAll('a, button')).filter(a => /^(Order|Buy now)\b/.test(a.textContent.trim())).length,
         sel: (document.getElementById('selLine') || {}).textContent || null,
+        // R13: each grid of cards and row of tiles in page order: its phones (or ranges) in DOM order, "-" before one the
+        // filters hide, "*" after one that says "None in stock right now"; and whether the visible ones read left to
+        // right, top to bottom in that order (keyboard order = visual order)
+        grids: Array.from(document.querySelectorAll('.grid, .tiles')).map(g => Array.from(g.children).filter(e => e.matches('article.card, a.tile')))
+          .filter(items => items.length).map(items => {
+            const pos = items.filter(e => !e.hidden).map(e => { const b = e.getBoundingClientRect(); return [Math.round(b.top), Math.round(b.left)]; });
+            return { order: items.map(e => (e.hidden ? '-' : '') + handle(e) + (note(e) ? '*' : '')),
+                     visualOrder: pos.every((p, i) => !i || p[0] > pos[i - 1][0] || (p[0] === pos[i - 1][0] && p[1] > pos[i - 1][1])) };
+          }),
+        stockBox: sb ? { shown: !!sb.offsetParent, checked: sb.checked, label: sb.parentNode.textContent.trim() } : null,
+        hasStock: fl ? fl.classList.contains('has-stock') : null,
+        count: (document.getElementById('resultCount') || {}).textContent || null,
+        empty: em ? em.classList.contains('show') && !!em.offsetParent : null,
+        // the "No phones match" box's advice as shown (null while the box is hidden), and its "untick In stock only" part
+        emptyHint: em && em.offsetParent ? em.querySelector('.small').innerText : null,
+        emptyStockHidden: document.getElementById('emptyStock') ? document.getElementById('emptyStock').hidden : null,
+        stockNote: shownNote('stockNote'), emailNote: shownNote('emailNote'),
+        // every card as it was written (less the stock note site.js adds), sorted: moving cards must not change them
+        cardsHtml: Array.from(document.querySelectorAll('article.card')).map(e => { const k = e.cloneNode(true); k.querySelectorAll('.card-stock').forEach(n => n.remove()); k.removeAttribute('hidden'); return k.outerHTML; }).sort(),
       };
     });
+    r.tabbed = tabbed;
     r.consoleErrors = caseConsole; r.pageErrors = caseErrors;
     out.push(r);
   }
@@ -207,6 +254,23 @@ class SiteJsTest(unittest.TestCase):
                     fh.write(page)
         assert marks > 50, marks
         cls.stock_head = js[:js.rindex('window.FULLBARS_STOCK =')]
+        # R13: realistic sparse one-off stock (6 of the 19 phones hold something, 13 nothing) on the preview pages, unmarked
+        # (as the Shopify route's snapshot or a preview with stock.js filled in)
+        cls.site8 = os.path.join(cls.tmp, 'site8')
+        shutil.copytree(cls.site, cls.site8)
+        with open(os.path.join(cls.site8, 'stock.js'), 'w', encoding='utf-8') as fh:
+            fh.write(cls.stock_head + 'window.FULLBARS_STOCK = ' + json.dumps(
+                {h: cls.SPARSE.get(h, {}) for h in cls.PHONES}, indent=2) + ';\n')
+        # a product page whose stock note and email note go_live.py --rewrites emptied (each sentence set to ""): the
+        # markup test_go_live.py's test_filled_template_switches_cleanly shows it leaves
+        page = cls.read('products/iphone-13.html')
+        for note in (r'<p class="stock-note" id="stockNote">', r'<p class="small" id="emailNote">'):
+            page = re.sub('(' + re.escape(note) + ').*?(</p>)', r'\1\2', page, count=1, flags=re.S)
+        assert '<p class="stock-note" id="stockNote"></p>' in page and '<p class="small" id="emailNote"></p>' in page
+        ptag = re.search(r'<form class="picker" id="picker"[^>]*>', page).group(0)
+        for name, src_ in (('t-emptied.html', page), ('t-emptied-live.html', page.replace(ptag, ptag.replace(' data-preview="1"', '')))):
+            with open(os.path.join(cls.site, 'products', name), 'w', encoding='utf-8') as fh:
+                fh.write(src_)
         contact = cls.read('contact.html').replace(' data-preview="1"', '')
         with open(os.path.join(cls.site, 't-contact-shopify.html'), 'w', encoding='utf-8') as fh:
             fh.write(contact)
@@ -702,6 +766,258 @@ const srcs = JSON.parse(require('fs').readFileSync(process.argv[2], 'utf8'));
         for k in ('html comment line', 'hex count', 'second assignment', 'self.', 'single quotes', 'leading zero'):
             self.assertNotIn(k, unread)
             self.assertTrue(go_live.read_stock_js({'stock.js': srcs[k]})[1], k)
+
+    # ------------------------------------------------------------------ R13: phones in stock first, and "In stock only"
+    # realistic sparse one-off stock (site8): 6 phones hold something, 2 of them among the 9 Pro iPhones; the other 13 none
+    SPARSE = {'iphone-15-pro': {'128GB|Good': 1}, 'iphone-14': {'256GB|Excellent': 1}, 'iphone-13-pro': {'256GB|Very Good': 1},
+              'iphone-13': {'128GB|Good': 1, '256GB|Very Good': 2}, 'iphone-12': {'64GB|Good': 1}, 'pixel-8': {'128GB|Good': 1}}
+    STOCK_BOX = '#filters input[name="stock"]'
+
+    @staticmethod
+    def source_grids(rel):
+        """Each grid of cards and row of range tiles on a page, as written: [(name, phones)] in page order, name being the
+        card's phone (products/<name>.html) or the tile's range (collections/<name>.html), phones the ones the card or tile
+        stands for (a tile's data-handles; none for a tile without them, which never says "None in stock")."""
+        with open(os.path.join(SITE, rel), encoding='utf-8') as fh:
+            src = fh.read()
+        starts = [m.end() for m in re.finditer(r'<div class="(?:grid|tiles)"[^>]*>', src)] + [len(src)]
+        out = []
+        for a, b in zip(starts, starts[1:]):
+            part = src[a:b]
+            items = [(h, [h]) for h in re.findall(r'<article class="card"[^>]*>\s*<a href="(?:\.\./)?products/([a-z0-9-]+)\.html"', part)]
+            for c, attrs in re.findall(r'<a class="tile[^"]*" href="(?:\.\./)?collections/([a-z0-9-]+)\.html"([^>]*)>', part):
+                dh = re.search(r'data-handles="([^"]*)"', attrs)
+                items.append((c, dh.group(1).split() if dh else []))
+            if items:
+                out.append(items)
+        return out
+
+    @classmethod
+    def held_first(cls, items, held):
+        """The order site.js should show: those with stock (or no stock data) first, then those with none ("*"), each in
+        the order given. held(phone) says whether a phone holds anything."""
+        none = [n for n, phones in items if phones and not any(held(h) for h in phones)]
+        return [n for n, _ in items if n not in none] + [n + '*' for n, _ in items if n in none]
+
+    @classmethod
+    def shop_sorted(cls, sort):
+        """shop.html's cards as [(phone, [phone])] in the order a sort puts them (ties keep the page's order)."""
+        with open(os.path.join(SITE, 'shop.html'), encoding='utf-8') as fh:
+            cards = [(h, float(f), float(o)) for f, o, h in re.findall(
+                r'<article class="card"[^>]*data-from="(\d+)"[^>]*data-order="([\d.]+)"><a href="products/([a-z0-9-]+)\.html"', fh.read())]
+        assert len(cards) == 19, len(cards)
+        key = {'newest': lambda c: -c[2], 'oldest': lambda c: c[2], 'price-asc': lambda c: c[1], 'price-desc': lambda c: -c[1]}[sort]
+        return [(h, [h]) for h, _, _ in sorted(cards, key=key)]
+
+    def sparse_held(self, h):
+        return h in self.SPARSE
+
+    @staticmethod
+    def shown(grid):
+        return [n for n in grid['order'] if not n.startswith('-')]
+
+    def test_shop_puts_phones_in_stock_first_in_every_sort(self):
+        """With sparse stock, "Newest first" used to open on five phones you can't buy. Now the ones with stock come first
+        in every sort (in that sort's order), then the ones that say "None in stock right now" (in that order too). The
+        cards themselves are untouched, and the keyboard meets them in the order they're shown."""
+        sorts = ['newest', 'oldest', 'price-asc', 'price-desc']
+        res = self.browse([{'page': 'shop.html', 'query': '' if s == 'newest' else '?sort=' + s} for s in sorts]
+                          + [{'page': 'shop.html', 'actions': [{'select': ['#filters select[name="sort"]', 'price-asc']}]},
+                             {'page': 'shop.html', 'tabs': {'from': '#resetFilters', 'n': 8}}], site=self.site8)
+        for s, b in zip(sorts, res):
+            (g,) = b['grids']
+            self.assertEqual(g['order'], self.held_first(self.shop_sorted(s), self.sparse_held), s)
+            self.assertTrue(g['visualOrder'], s)
+            self.assertEqual((b['count'], b['search'], b['empty']), ('19 phones', '' if s == 'newest' else '?sort=' + s, False), s)
+        newest = res[0]['grids'][0]['order']
+        self.assertEqual(newest[:7], ['pixel-8', 'iphone-15-pro', 'iphone-14', 'iphone-13-pro', 'iphone-13', 'iphone-12',
+                                      'iphone-16-pro-max*'])
+        # sorting from the dropdown does the same, and the address follows as before
+        self.assertEqual((res[4]['grids'][0]['order'], res[4]['search']), (res[2]['grids'][0]['order'], '?sort=price-asc'))
+        # Tab from "Clear filters": past the two links in the note under it, the first six cards reached are the six
+        # phones in stock, in the order shown
+        self.assertEqual(res[5]['tabbed'], ['warranty.html', 'guides/which-used-iphone-to-buy-2026.html#compare']
+                         + [f'products/{h}.html' for h in newest[:6]])
+        # nothing about the cards changed but their place (and the note): links, data attributes and all
+        (preview,) = self.browse([{'page': 'shop.html'}])
+        self.assertEqual(res[0]['cardsHtml'], preview['cardsHtml'])
+
+    def test_collections_home_guides_and_similar_phones_put_stock_first(self):
+        """Every other grid of cards (collections, the home page's featured phones, guides, "Similar phones") and the home
+        page's range tiles: the ones with stock first, then the ones with none, each in page order."""
+        pages = ['collections/pro-models.html', 'collections/iphone-13-series.html', 'index.html',
+                 'guides/which-used-iphone-to-buy-2026.html', 'products/iphone-13.html', 'products/iphone-14.html']
+        res = self.browse([{'page': p} for p in pages]
+                          + [{'page': 'collections/pro-models.html', 'tabs': {'from': '.result-line .link-arrow', 'n': 9}}], site=self.site8)
+        for p, b in zip(pages, res):
+            self.assertEqual([g['order'] for g in b['grids']], [self.held_first(items, self.sparse_held) for items in self.source_grids(p)], p)
+            self.assertTrue(all(g['visualOrder'] for g in b['grids']), p)
+        pro = res[0]['grids'][0]['order']
+        self.assertEqual(pro, ['iphone-13-pro', 'iphone-15-pro', 'iphone-12-pro*', 'iphone-13-pro-max*', 'iphone-14-pro*',
+                               'iphone-14-pro-max*', 'iphone-15-pro-max*', 'iphone-16-pro*', 'iphone-16-pro-max*'])
+        self.assertEqual(res[6]['tabbed'], [f'../products/{h.rstrip("*")}.html' for h in pro])
+        featured, tiles = res[2]['grids']
+        self.assertEqual(featured['order'], ['iphone-13', 'iphone-14', 'pixel-8', 'iphone-15-pro', 'iphone-15*', 'galaxy-s23*',
+                                             'iphone-16*', 'iphone-13-mini*'])
+        # "Under £300" lists no phones (no data-handles), so it keeps its place at the front
+        self.assertEqual(tiles['order'], ['under-300', 'iphone-12-series', 'iphone-13-series', 'iphone-14-series',
+                                          'iphone-15-series', 'google-pixel', 'iphone-16-series*', 'samsung-galaxy*'])
+        self.assertEqual(res[4]['grids'][0]['order'], ['iphone-14', 'iphone-12', 'iphone-15*', 'iphone-13-mini*'])   # Similar phones
+        previews = self.browse([{'page': p} for p in pages])
+        for p, b, before in zip(pages, res, previews):
+            self.assertEqual(b['cardsHtml'], before['cardsHtml'], p)
+
+    def test_in_stock_only(self):
+        """The "In stock only" box: shown with stock data, kept in the address as ?stock=1 (gone when unticked, a value
+        other than 1 ignored and dropped), combined with the other filters, the count and the "No phones match" box, and
+        cleared by both Clear filters buttons."""
+        box = self.STOCK_BOX
+        (plain, on, ticked, unticked, combined, combined_ui, none_left, garbage, cleared, cleared_box) = self.browse([
+            {'page': 'shop.html'},
+            {'page': 'shop.html', 'query': '?stock=1'},
+            {'page': 'shop.html', 'actions': [{'click': box}]},
+            {'page': 'shop.html', 'query': '?stock=1', 'actions': [{'click': box}]},
+            {'page': 'shop.html', 'query': '?stock=1&type=pro&sort=price-asc'},
+            {'page': 'shop.html', 'query': '?type=pro', 'actions': [{'click': box}, {'select': ['#filters select[name="sort"]', 'price-desc']}]},
+            {'page': 'shop.html', 'query': '?stock=1&series=16'},
+            {'page': 'shop.html', 'query': '?stock=yes&usbc=1'},
+            {'page': 'shop.html', 'query': '?stock=1&usbc=1', 'actions': [{'click': '#resetFilters'}]},
+            {'page': 'shop.html', 'query': '?stock=1&series=16', 'actions': [{'click': '[data-reset-filters]'}]},
+        ], site=self.site8)
+        held = ['pixel-8', 'iphone-15-pro', 'iphone-14', 'iphone-13-pro', 'iphone-13', 'iphone-12']
+        self.assertEqual((plain['stockBox'], plain['hasStock']), ({'shown': True, 'checked': False, 'label': 'In stock only'}, True))
+        for b in (on, ticked):
+            self.assertEqual((b['stockBox']['checked'], b['count'], b['search'], b['empty']), (True, '6 phones', '?stock=1', False))
+            self.assertEqual(self.shown(b['grids'][0]), held)
+            self.assertTrue(b['grids'][0]['visualOrder'])
+        self.assertEqual((unticked['stockBox']['checked'], unticked['count'], unticked['search']), (False, '19 phones', ''))
+        self.assertEqual(len(self.shown(unticked['grids'][0])), 19)
+        self.assertEqual((self.shown(combined['grids'][0]), combined['count'], combined['search']),
+                         (['iphone-13-pro', 'iphone-15-pro'], '2 phones', '?stock=1&type=pro&sort=price-asc'))
+        self.assertEqual((self.shown(combined_ui['grids'][0]), combined_ui['search']),
+                         (['iphone-15-pro', 'iphone-13-pro'], '?type=pro&sort=price-desc&stock=1'))
+        self.assertEqual((none_left['count'], none_left['empty'], self.shown(none_left['grids'][0])), ('0 phones', True, []))
+        self.assertEqual((garbage['stockBox']['checked'], garbage['search'], garbage['count']), (False, '?usbc=1', '9 phones'))
+        for b in (cleared, cleared_box):
+            self.assertEqual((b['stockBox']['checked'], b['search'], b['count'], b['empty']), (False, '', '19 phones', False))
+        # every card's "from" price is still there: the box hides cards only while it is ticked
+        self.assertEqual(sorted(on['cardsHtml']), sorted(plain['cardsHtml']))
+
+    def test_in_stock_only_needs_stock_data(self):
+        """No stock data (the preview, no stock.js, the Shopify route without a snapshot): the box stays hidden as shipped
+        and ?stock=1 changes nothing, not even the address. A Shopify snapshot shows it; a phone the snapshot doesn't
+        list says nothing on its card, so it stays (its page offers every option and Shopify decides)."""
+        preview, preview_q = self.browse([{'page': 'shop.html'}, {'page': 'shop.html', 'query': '?stock=1&sort=oldest'}])
+        (missing,) = self.browse([{'page': 'shop.html', 'query': '?stock=1'}], site=self.site3)
+        (snap,) = self.browse([{'page': 'shop.html', 'query': '?stock=1'}], site=self.site4)
+        for b in (preview, preview_q, missing):
+            self.assertEqual((b['stockBox']['shown'], b['stockBox']['checked'], b['hasStock'], b['count']), (False, False, False, '19 phones'))
+        self.assertEqual(preview_q['search'], '?stock=1&sort=oldest')
+        self.assertEqual(preview_q['grids'][0]['order'], [n for n, _ in self.shop_sorted('oldest')])
+        self.assertEqual(missing['search'], '?stock=1')
+        self.assertEqual((snap['stockBox']['shown'], snap['stockBox']['checked'], snap['count']), (True, True, '18 phones'))
+        self.assertEqual([n for n in snap['grids'][0]['order'] if n.startswith('-')], ['-iphone-12*'])
+
+    HINT = 'Try a higher price or a different range, or clear the filters to see every phone.'
+    HINT_STOCK = 'Try a higher price or a different range, untick “In stock only”, or clear the filters to see every phone.'
+
+    def test_no_match_box_says_to_untick_in_stock_only(self):
+        """"No phones match" with "In stock only" ticked: a higher price or another range may not help, so it also says to
+        untick the box; with the box unticked (or not shown, without stock data) it reads as before."""
+        box = self.STOCK_BOX
+        (ticked, plain, ticked_ui, unticked_ui, cleared) = self.browse([
+            {'page': 'shop.html', 'query': '?stock=1&series=16'},
+            {'page': 'shop.html', 'query': '?series=16&max=200'},
+            {'page': 'shop.html', 'query': '?series=16&max=200', 'actions': [{'click': box}]},
+            {'page': 'shop.html', 'query': '?stock=1&series=16', 'actions': [{'click': box}]},
+            {'page': 'shop.html', 'query': '?stock=1&series=16', 'actions': [{'click': '[data-reset-filters]'}]},
+        ], site=self.site8)
+        for b in (ticked, ticked_ui):
+            self.assertEqual((b['count'], b['empty'], b['emptyHint'], b['emptyStockHidden']), ('0 phones', True, self.HINT_STOCK, False))
+        self.assertEqual((plain['count'], plain['empty'], plain['emptyHint'], plain['emptyStockHidden']), ('0 phones', True, self.HINT, True))
+        self.assertEqual((unticked_ui['count'], unticked_ui['empty'], unticked_ui['emptyHint'], unticked_ui['emptyStockHidden']),
+                         ('3 phones', False, None, True))
+        self.assertEqual((cleared['count'], cleared['empty'], cleared['emptyStockHidden']), ('19 phones', False, True))
+        # no stock data: the box stays hidden, ?stock is ignored, and the advice is as before
+        for b in self.browse([{'page': 'shop.html', 'query': '?series=16&max=200'}, {'page': 'shop.html', 'query': '?stock=1&series=16&max=200'}]):
+            self.assertEqual((b['stockBox']['shown'], b['empty'], b['emptyHint'], b['emptyStockHidden']), (False, True, self.HINT, True))
+
+    def test_a_filter_named_twice_counts_once(self):
+        """A link with a filter named twice (?stock=1&stock=0): the first counts, as before, and the address drops the
+        rest when the page opens. Without stock data ?stock is still left alone."""
+        first_on, first_off, others = self.browse([
+            {'page': 'shop.html', 'query': '?stock=1&stock=0'},
+            {'page': 'shop.html', 'query': '?stock=0&stock=1'},
+            {'page': 'shop.html', 'query': '?usbc=1&usbc=0&sort=oldest&sort=price-asc&utm_source=x'},
+        ], site=self.site8)
+        self.assertEqual((first_on['stockBox']['checked'], first_on['count'], first_on['search']), (True, '6 phones', '?stock=1'))
+        self.assertEqual((first_off['stockBox']['checked'], first_off['count'], first_off['search']), (False, '19 phones', ''))
+        self.assertEqual((others['count'], others['search']), ('9 phones', '?utm_source=x&sort=oldest&usbc=1'))
+        # USB-C only, oldest first, the two held first
+        self.assertEqual(self.shown(others['grids'][0]), ['iphone-15-pro', 'pixel-8', 'galaxy-s23*', 'iphone-15*', 'iphone-15-plus*',
+                                                          'iphone-15-pro-max*', 'iphone-16*', 'iphone-16-pro*', 'iphone-16-pro-max*'])
+        stock_twice, both_twice = self.browse([{'page': 'shop.html', 'query': '?stock=1&stock=0'},
+                                               {'page': 'shop.html', 'query': '?stock=1&stock=0&usbc=1&usbc=1'}])
+        self.assertEqual((stock_twice['stockBox']['shown'], stock_twice['count'], stock_twice['search']), (False, '19 phones', '?stock=1&stock=0'))
+        self.assertEqual((both_twice['count'], both_twice['search']), ('9 phones', '?stock=1&stock=0&usbc=1'))
+
+    def test_marked_pages_put_stock_first_and_fail_closed_keeps_the_order(self):
+        """The live static route (data-stock-required): with good stock the two phones held lead the shop; with a stock.js
+        browsers can't read every phone has none, so nothing moves anywhere, and "In stock only" shows "No phones match"."""
+        self.write_stock6(self.GOOD)
+        shop, shop_q = self.browse([{'page': 'shop.html'}, {'page': 'shop.html', 'query': '?stock=1'}], site=self.site6)
+        self.assertEqual(shop['grids'][0]['order'], self.held_first(self.shop_sorted('newest'), lambda h: h in ('iphone-13', 'iphone-14')))
+        self.assertEqual(shop['grids'][0]['order'][:3], ['iphone-14', 'iphone-13', 'iphone-16-pro-max*'])
+        self.assertEqual((self.shown(shop_q['grids'][0]), shop_q['count']), (['iphone-14', 'iphone-13'], '2 phones'))
+        self.write_stock6(self.GOOD.replace('"128GB|Good": 1', '"128GB|Good": 1,,'))
+        pages = ['shop.html', 'shop.html?sort=price-asc', 'shop.html?stock=1', 'index.html', 'collections/pro-models.html',
+                 'products/iphone-13.html']
+        res = self.browse([{'page': p.split('?')[0], 'query': '?' + p.split('?')[1] if '?' in p else ''} for p in pages],
+                          site=self.site6, allow_errors=True)
+        nothing = lambda h: False   # noqa: E731
+        b = dict(zip(pages, res))
+        self.assertEqual(b['shop.html']['grids'][0]['order'], [n + '*' for n, _ in self.shop_sorted('newest')])
+        self.assertEqual(b['shop.html?sort=price-asc']['grids'][0]['order'], [n + '*' for n, _ in self.shop_sorted('price-asc')])
+        for p in ('index.html', 'collections/pro-models.html', 'products/iphone-13.html'):
+            self.assertEqual([g['order'] for g in b[p]['grids']], [self.held_first(items, nothing) for items in self.source_grids(p)], p)
+            # (held_first with nothing held is the page order, every card and listed tile marked)
+            self.assertEqual([[n.rstrip('*') for n in g['order']] for g in b[p]['grids']],
+                             [[n for n, _ in items] for items in self.source_grids(p)], p)
+        q = b['shop.html?stock=1']
+        self.assertEqual((q['stockBox']['shown'], q['stockBox']['checked'], q['count'], q['empty']), (True, True, '0 phones', True))
+        self.assertEqual(q['emptyHint'], self.HINT_STOCK)
+
+    def test_no_stock_data_keeps_todays_order(self):
+        """No stock data: every grid and row of tiles stays in page order, the shop in its plain sort, no card or tile
+        note, the box hidden, and the filters bar keeps its usual layout (no has-stock class)."""
+        pages = ['shop.html', 'shop.html?sort=oldest', 'shop.html?sort=price-asc', 'shop.html?sort=price-desc',
+                 'collections/pro-models.html', 'collections/under-300.html', 'index.html', 'products/iphone-13.html',
+                 'guides/which-used-iphone-to-buy-2026.html']
+        cases = [{'page': p.split('?')[0], 'query': '?' + p.split('?')[1] if '?' in p else ''} for p in pages]
+        for site in (self.site, self.site3):
+            for p, b in zip(pages, self.browse([dict(c) for c in cases], site=site)):
+                if p.startswith('shop.html'):
+                    sort = p.split('sort=')[1] if 'sort=' in p else 'newest'
+                    self.assertEqual(b['grids'][0]['order'], [n for n, _ in self.shop_sorted(sort)], p)
+                    self.assertEqual((b['stockBox']['shown'], b['hasStock']), (False, False), p)
+                else:
+                    self.assertEqual([g['order'] for g in b['grids']], [[n for n, _ in items] for items in self.source_grids(p)], p)
+                self.assertEqual((b['noneCards'], b['noneTiles']), ([], []), p)
+
+    def test_emptied_stock_note_is_hidden(self):
+        """go_live.py --rewrites can delete every sentence of the product page's stock note (and email note), leaving
+        <p class="stock-note" id="stockNote"></p>: site.js hides an empty one rather than leave an empty gap. With words
+        in it, it shows as before."""
+        emptied, emptied_live, emptied_buy, normal = self.browse([
+            {'page': 'products/t-emptied.html'}, {'page': 'products/t-emptied-live.html'},
+            {'page': 'products/t-emptied-live.html', 'query': '?grade=Good'}, {'page': 'products/iphone-13.html'}])
+        for b in (emptied, emptied_live, emptied_buy):
+            self.assertEqual(b['stockNote'], {'hidden': True, 'shown': False, 'text': ''})
+            self.assertEqual(b['emailNote'], {'hidden': True, 'shown': False, 'text': ''})
+        self.assertEqual((emptied_live['text'], emptied_buy['text']), ('Order — £230', 'Buy now — £209'))
+        self.assertEqual((normal['stockNote']['shown'], normal['stockNote']['hidden']), (True, False))
+        self.assertTrue(normal['stockNote']['text'].startswith('Preview prices: we’re not taking orders yet.'))
+        self.assertTrue(normal['emailNote']['shown'])
 
     def test_contact_form_takes_email_orders_only_with_the_topic(self):
         q = '?order=iPhone%2013%20128GB%2C%20Good%2C%20Blue&price=209'

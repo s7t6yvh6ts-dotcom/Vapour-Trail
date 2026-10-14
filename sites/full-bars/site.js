@@ -377,10 +377,12 @@
         orderBtn.removeAttribute('rel');
         orderBtn.textContent = 'Order — ' + gbp(price);
       }
-      /* Buy now takes payment straight away, so show what is confirmed afterwards (and the refund promise) above the button */
+      /* Buy now takes payment straight away, so show what is confirmed afterwards (and the refund promise) above the button.
+         The stock and email notes also stay hidden when they have no words (go_live.py --rewrites can delete their
+         sentences): an empty one would only leave a gap */
       if (buyNote) buyNote.hidden = !buyNow;
-      if (stockNote) stockNote.hidden = buyNow;
-      if (emailNote) emailNote.hidden = buyNow;
+      if (stockNote) stockNote.hidden = buyNow || !stockNote.textContent.trim();
+      if (emailNote) emailNote.hidden = buyNow || !emailNote.textContent.trim();
       if (handoffNote) handoffNote.hidden = !handoff;
       /* screen readers hear the note with the button it explains */
       if (handoff && handoffNote) orderBtn.setAttribute('aria-describedby', 'handoffNote'); else orderBtn.removeAttribute('aria-describedby');
@@ -403,8 +405,8 @@
 
   /* ---------- "None in stock right now" on cards and range tiles ----------
      Only for phones stock.js lists with no units at all. A phone it doesn't list says nothing (no stock data), except
-     on a marked card or tile (below), and the card stays in place either way, with its "from" price (the lowest price
-     of any option, held or not). */
+     on a marked card or tile (below). The card stays either way, with its "from" price (the lowest price of any option,
+     held or not); one that says "None in stock right now" moves after the ones in stock in its grid (held first, below). */
   var NONE_IN_STOCK = 'None in stock right now';
   /* a card or tile in a grid or row marked data-stock-required (live static route): a phone whose stock.js entry is
      missing or can't be trusted, or a stock.js browsers couldn't read, counts as none in stock (above) */
@@ -412,9 +414,14 @@
     if (!stockRequired(el)) return stockFor(handle);
     return handle ? requiredStock(handle) || {} : null;
   }
+  /* cards and tiles that have stock data (cardStock isn't null), and those that say "None in stock right now" */
+  var stockKnown = [], stockNone = [];
   $all('article.card').forEach(function (card) {
     var a = $('a[href]', card), map = cardStock(card, handleOf(a && a.getAttribute('href'))), body = $('.card-body', card);
-    if (!map || anyHeld(map) || !body || $('.card-stock', body)) return;
+    if (map) stockKnown.push(card);
+    if (!map || anyHeld(map)) return;
+    stockNone.push(card);
+    if (!body || $('.card-stock', body)) return;
     var p = document.createElement('p');
     p.className = 'card-stock';
     p.textContent = NONE_IN_STOCK;
@@ -424,37 +431,76 @@
      them, with no units */
   $all('a.tile[data-handles]').forEach(function (tile) {
     var hs = tile.getAttribute('data-handles').split(/\s+/).filter(Boolean);
-    if (!hs.length || $('.tile-stock', tile) || !hs.every(function (h) { var m = cardStock(tile, h); return m && !anyHeld(m); })) return;
+    if (!hs.length || !hs.every(function (h) { var m = cardStock(tile, h); return m && !anyHeld(m); })) return;
+    stockNone.push(tile);
+    if ($('.tile-stock', tile)) return;
     var em = document.createElement('em');
     em.className = 'tile-stock';
     em.textContent = NONE_IN_STOCK;
     tile.appendChild(em);
   });
+  function noneHeld(el) { return stockNone.indexOf(el) > -1; }
+  /* Held first: with real one-off stock most phones have none, so in each grid of cards and row of tiles the ones that
+     say "None in stock right now" move after the rest, each group keeping its page order. The nodes themselves move
+     (the same elements, links and all), so the keyboard goes through them in the order they're shown. Nothing moves
+     without stock data, or when every one has none (a broken stock.js on a marked page). The shop's grid is sorted by
+     its filters below, held first too. */
+  var heldFirstDone = [];
+  stockNone.forEach(function (el) {
+    var box = el.parentNode;
+    if (!box || box.id === 'shopGrid' || heldFirstDone.indexOf(box) > -1) return;
+    heldFirstDone.push(box);
+    var kind = el.tagName === 'ARTICLE' ? 'article.card' : 'a.tile';
+    var items = Array.prototype.filter.call(box.children, function (c) { return c.matches(kind); });
+    var none = items.filter(noneHeld);
+    if (none.length === items.length) return;
+    /* put each one with none after the last of the group, in order: the held ones close up in front of them */
+    var after = items[items.length - 1].nextSibling;
+    none.forEach(function (c) { box.insertBefore(c, after); });
+  });
 
   /* ---------- shop filters ---------- */
   var filters = $('#filters'), grid = $('#shopGrid');
   if (filters && grid) {
-    var cards = $all('.card', grid), countEl = $('#resultCount'), empty = $('#emptyMsg');
+    var cards = $all('.card', grid), countEl = $('#resultCount'), empty = $('#emptyMsg'), emptyStock = $('#emptyStock');
     var params = new URLSearchParams(location.search), dropped = false;
+    /* a filter named twice in the address (?stock=1&stock=0): the first counts, and the address drops the rest */
+    function once(k) { if (params.getAll(k).length > 1) dropped = true; return params.get(k); }
+    /* "In stock only" (?stock=1): ships hidden, and is shown only when the phones here have stock data (stock.js, or
+       the live static route's fail-closed marks). Without any (an empty stock.js, or the Shopify route without a
+       snapshot) it stays hidden and ?stock is ignored. Ticked, it hides the cards that say "None in stock right now"; a
+       phone stock.js doesn't list says nothing on its card and stays, as its page offers every option (Shopify decides
+       there). When it's ticked and no phone is left, "No phones match" also says to untick it (#emptyStock). */
+    var stockBox = filters.elements.stock && cards.some(function (c) { return stockKnown.indexOf(c) > -1; }) ? filters.elements.stock : null;
+    if (stockBox) {
+      if (stockBox.parentNode.tagName === 'LABEL') stockBox.parentNode.hidden = false;
+      filters.classList.add('has-stock');
+    }
     /* only take a value the dropdown actually offers: an unknown one (a stale or hand-edited link) would blank it */
     ['series', 'type', 'max', 'sort'].forEach(function (k) {
-      var el = filters.elements[k], v = params.get(k);
+      var el = filters.elements[k], v = once(k);
       if (!el || !v) return;
       if ($all('option', el).some(function (o) { return o.value === v; })) el.value = v; else dropped = true;
     });
-    if (params.get('usbc') === '1') filters.elements.usbc.checked = true;
+    if (once('usbc') === '1') filters.elements.usbc.checked = true;
     else if (params.has('usbc')) dropped = true;
+    if (stockBox && once('stock') === '1') stockBox.checked = true;
+    else if (stockBox && params.has('stock')) dropped = true;
     function apply() {
       var f = filters.elements, series = f.series.value, type = f.type.value, max = Number(f.max.value || 0),
-          usbc = f.usbc.checked, sort = f.sort.value, shown = 0;
+          usbc = f.usbc.checked, stockOnly = !!stockBox && stockBox.checked, sort = f.sort.value, shown = 0;
       cards.forEach(function (c) {
         var ok = (!series || c.dataset.series === series) &&
                  (!type || (' ' + c.dataset.type + ' ').indexOf(' ' + type + ' ') > -1) &&
                  (!max || Number(c.dataset.from) <= max) &&
-                 (!usbc || c.dataset.usbc === '1');
+                 (!usbc || c.dataset.usbc === '1') &&
+                 (!stockOnly || !noneHeld(c));
         c.hidden = !ok; if (ok) shown++;
       });
+      /* held first (above), then the chosen sort; ties keep the page's order */
       var sorted = cards.slice().sort(function (a, b) {
+        var held = noneHeld(a) - noneHeld(b);
+        if (held) return held;
         if (sort === 'price-asc') return a.dataset.from - b.dataset.from;
         if (sort === 'price-desc') return b.dataset.from - a.dataset.from;
         if (sort === 'oldest') return a.dataset.order - b.dataset.order;
@@ -463,6 +509,7 @@
       sorted.forEach(function (c) { grid.appendChild(c); });
       countEl.textContent = shown + (shown === 1 ? ' phone' : ' phones');
       empty.classList.toggle('show', shown === 0);
+      if (emptyStock) emptyStock.hidden = !(stockOnly && shown === 0);
     }
     /* keep the filters in the address (same names as above), so Back, refresh and shared links show the same list */
     function rememberFilters() {
@@ -473,6 +520,8 @@
           var v = f[k].value; if (v && !(k === 'sort' && v === 'newest')) q.set(k, v);
         });
         if (f.usbc.checked) q.set('usbc', '1');
+        /* ?stock only where the box is shown; elsewhere the address keeps whatever it had, as before */
+        if (stockBox) { q.delete('stock'); if (stockBox.checked) q.set('stock', '1'); }
         var qs = q.toString();
         history.replaceState(history.state, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
       } catch (e) { /* the filters still work; the address just doesn't follow them */ }

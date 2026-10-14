@@ -8,7 +8,8 @@
      };
    - A storage and condition missing from a phone's list, or 0, is not in stock: its product page button reads
      "Not in stock — ask us".
-   - A phone listed with no units at all (like "pixel-8" above) also shows "None in stock right now" on its cards.
+   - A phone listed with no units at all (like "pixel-8" above) also shows "None in stock right now" on its cards,
+     which then go after the phones in stock in every list (and the shop's "In stock only" box hides them).
    - A phone that isn't listed has no stock data here. Its product page then uses that page's old data-stock
      attribute if it has one (stock.js wins when both are there). Otherwise, in the preview and on the Shopify route,
      it shows every option as available; on the live static route it shows the phone as not in stock (below), and
