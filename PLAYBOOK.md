@@ -76,6 +76,24 @@ Nicotine pouches are made in Europe, so there's no reason for them to be stuck b
 
 Unit cost is higher than buying direct from China. But you restock in 24 hours, the products are genuine branded and UK-legal, and you never sit on dead stock waiting for a holiday to end. Run both prices through `tools/margin.py` before deciding. Check any wholesaler (company number, reviews) before your first order.
 
+**Nico Distribution check (14 Oct 2026):** probably genuine. It's the trade arm of First Line Pods / Pouchline (Sheffield, trading since 2019, 4.5★ from 319 reviews on Trustpilot). The company named on the site has only filed dormant accounts and had a strike-off notice in January 2026 that was later withdrawn. **Pay by card at checkout**, which their own terms say they take. If they ask for a bank transfer, ring 07904 858 487 to confirm the details, and only pay if your bank's name check matches a company name rather than a person.
+
+### What pouches cost and sell for (UK, October 2026)
+
+Per can. Trade prices are ex VAT, from wholesale sites that show prices publicly. If you're not VAT-registered, add 20%: that's what you actually pay. Online prices are from Haypp, Northerner, Electric Tobacconist and others.
+
+| Brand | Trade price | Online, 1 can | Online, 10-pack | Shop / RRP |
+|---|---|---|---|---|
+| Killa (13 mg) | £1.60–1.88 | £3.99 | £3.49 | none found |
+| Pablo Silver (10 mg) | £1.90–2.34 | £3.89 | £3.39 | none found |
+| VELO (6/10 mg) | £2.20–2.94 | £4.99 | £3.29 | £6.50 |
+| ZYN (6/11 mg) | ~£2.84 | £4.49 | £2.99 | £6.50 |
+
+- **Best profit per can: VELO and Killa** (about £2 profit per can sold at the single price).
+- **ZYN is the weakest.** Haypp sells ZYN 10-packs for £2.99 a can, which is less than you pay for it. Stock only enough for regulars who ask for it.
+- **Selling single cans by post loses money** once postage comes off. Post a minimum of 3 cans, and keep single cans for local collection.
+- Wholesalers with lower minimum orders that show their prices: Vape UK Supplier (£150 ex VAT minimum; Killa £1.88, Pablo £1.90) and Vape Forest (£250 minimum). Check them out before ordering.
+
 ## 29 October 2026: the law changes
 
 The **Tobacco and Vapes Act 2026** got Royal Assent on 29 April 2026. From **29 October 2026**:
