@@ -71,7 +71,7 @@ Nicotine pouches are made in Europe, so there's no reason for them to be stuck b
 
 - [Wholesale Nicotine Pouches](https://www.wholesalenicotinepouches.co.uk/): free trade account (ZYN, Velo, Pablo, Killa). info@wholesalenicotinepouches.co.uk, 0121 751 3353 (Mon–Fri 9–5), or the site's sign-up page
 - [SnusBlast Wholesale](https://snusblast.co.uk/wholesale/): next day if ordered by 1pm. info@snusblast.co.uk, WhatsApp +44 7459 481933
-- [Nico Distribution](https://nicodistribution.com/): takes newer retailers. **£350 minimum order**, next day if ordered by 3pm, delivery about £10. Register on their website (no documents needed); trade prices show once the account is approved. info@nicodistribution.com, 07904 858 487
+- [Nico Distribution](https://nicodistribution.com/): takes newer retailers. **£350 minimum order, before VAT** (about £432 with VAT and delivery if you're not VAT-registered), next day if ordered by 3pm, delivery about £10. Register on their website. No VAT number or documents are needed, and they ring you once you've signed up. Trade prices show once the account is approved. info@nicodistribution.com, 07904 858 487
 - [Vape UK Wholesale](https://vapeukwholesale.co.uk/collections/wholesale-nicotine-pouches): next day, £200 minimum (also sells compliant vapes)
 
 Unit cost is higher than buying direct from China. But you restock in 24 hours, the products are genuine branded and UK-legal, and you never sit on dead stock waiting for a holiday to end. Run both prices through `tools/margin.py` before deciding. Check any wholesaler (company number, reviews) before your first order.
