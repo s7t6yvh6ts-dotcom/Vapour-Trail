@@ -5,7 +5,7 @@ Each folder is the source for one claude.ai artifact. To change a site, edit the
 | Site | Business | Artifact |
 |---|---|---|
 | `full-bars/` | Full Bars: refurbished phones, trade-ins, repairs (56 pages) | https://claude.ai/artifact/HEK3scAViRCuUpxaqYHggT |
-| `chainline/` | Chainline Cycles: refurbished bikes, e-bikes, workshop (one page) | https://claude.ai/artifact/XYbfVPYMWfnf7nN511v8iN |
+| `chainline/` | Chainline Cycles: refurbished bikes, e-bikes, workshop (one page). Launch pack: `launch/chainline/` (start with `GO-LIVE.md`) | https://claude.ai/artifact/XYbfVPYMWfnf7nN511v8iN |
 
 Both are dark only, on purpose. Stock, prices and contact details are placeholders in [square brackets]. Checkout and forms aren't connected to anything, and each page says so.
 
@@ -16,6 +16,10 @@ Full Bars is a multi-page site. `index.html` is the artifact's page; every other
 The site is set to `noindex` and `robots.txt` blocks crawlers while it's a preview. At launch, `launch/full-bars/go_live.py` switches both (and everything else) on a copy, and that switched copy goes on Full Bars' own web host at www.fullbars.co.uk (`launch/full-bars/GO-LIVE.md`, section 7). The artifact stays a preview copy: never publish the switched site to it.
 
 **After launch**, `sites/full-bars` holds the switched, live site (GO-LIVE section 7 copies it back), so changes to it go to the web host, not to the artifact. Republish the artifact only from a preview copy (for example the folder as it was before `go_live.py` ran), or stop updating it. Never republish it from `sites/full-bars` once that folder is the live site.
+
+## Publishing Chainline
+
+Chainline is one self-contained page: publish `chainline/index.html` alone, to the same artifact URL. Before you publish, run `python3 launch/chainline/check_site.py` (it must end with no FAIL). The bikes are typed once, in the page's bike data; after changing them run `launch/chainline/sync_bikes.py`. At launch the switched page goes on Chainline's own web host (`launch/chainline/GO-LIVE.md`, sections 9 and 10), and the artifact stays a preview copy.
 
 ## Other shops
 

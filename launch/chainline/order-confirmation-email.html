@@ -1,0 +1,125 @@
+{% comment %}
+==========================================================================================================
+CHAINLINE CYCLES ORDER CONFIRMATION, for Shopify: Settings > Notifications > Order confirmation > Edit code.
+Replace the whole template with this file, then use Preview and send yourself a test order before launch.
+
+1. BUSINESS DETAILS IN [SQUARE BRACKETS] must be filled in BEFORE you paste this in, with exactly the same values
+   as the site (GO-LIVE.md section 3): [Company name], [England and Wales], [Company number], [Registered office address],
+   [Workshop address], [VAT number, if registered], [Workshop email], [Phone number], [Opening hours], the timings
+   [one working day], [2], [3] and [2 to 3], [8], the e-bike prices [e-bike delivery price] and
+   [e-bike collection price], and the terms link [link to the current terms, e.g. a dated PDF].
+   In the cancellation form, LEAVE [bike, size, ticket number], [date], [your name] and [your address] as they are:
+   the customer fills those in.
+2. SHOPIFY LIQUID is everything in {{ }} and {% %}. These are Shopify's own notification variables: order_name,
+   created_at, customer.first_name, line_items (line.product.title, line.title, line.sku, line.product.type,
+   line.final_line_price), total_price, shipping_price, shipping_address, shipping_method.title, pickup_in_store?,
+   transactions (transaction.status, transaction.kind, transaction.gateway_display_name, transaction.payment_details).
+   Collection is tested with pickup_in_store?, which Shopify's local pickup help uses for this template (as
+   order.pickup_in_store?; community answers say the bare form works, so both are tested). Check each one shows correctly
+   in Shopify's Preview and in a test order: especially collection vs delivery, line.product.type (it must read
+   "Refurbished e-bike" for an e-bike, as the product CSV sets it), and that "Paid by" names the card once.
+3. Shopify sends this straight after checkout. Within [one working day] of payment send the email in
+   order-confirmation-email.md with the bike's frame number, ticket and (for an e-bike) battery details filled in: that
+   email accepts the order (terms clause 3), and this one gives the customer every right on a durable medium before
+   then (Consumer Contracts Regulations 2013, regs 13 and 16).
+4. The SKU is "CL-" plus the workshop ticket number (build_shopify_csv.py), so the ticket shows without extra set-up.
+5. Tax: no tax line on purpose. Under the VAT margin scheme VAT must not be shown separately (terms clause 4).
+==========================================================================================================
+{% endcomment %}<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<title>Your Chainline Cycles order {{ order_name }}</title>
+<style>
+  body { margin: 0; padding: 0; background: #0b1510; color: #ece7d9; }
+  a { color: #ddaa72; }
+  h2 { font-size: 18px; margin: 28px 0 8px; color: #ece7d9; }
+  p, li { font-size: 15px; line-height: 1.55; }
+  .muted { color: #9dab9f; }
+  .box { background: #111e17; border: 1px solid #35503f; border-radius: 4px; padding: 14px 16px; }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#0b1510;color:#ece7d9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b1510" style="background:#0b1510;">
+<tr><td align="center" style="padding:24px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
+<tr><td style="color:#ece7d9;">
+
+<p style="font-size:22px;font-weight:700;color:#ece7d9;margin:0 0 4px;letter-spacing:0.04em;">CHAINLINE CYCLES</p>
+<p class="muted" style="margin:0 0 20px;color:#9dab9f;">Used bikes, rebuilt and ready to ride</p>
+
+{% assign has_ebike = false %}{% for line in line_items %}{% if line.product.type == 'Refurbished e-bike' %}{% assign has_ebike = true %}{% endif %}{% endfor %}
+<p>{% if customer.first_name != blank %}Hi {{ customer.first_name }},{% else %}Hello,{% endif %}</p>
+<p>Thank you for your order. We&rsquo;ve received it and your payment. Within [one working day] we&rsquo;ll email to confirm we&rsquo;ve accepted it, with your bike&rsquo;s frame number and its workshop ticket; that email is when our contract is made. If the bike has already gone, we tell you and refund you in full.</p>
+<p>Please keep this email: it has your right to cancel and a cancellation form, your warranty, and how to reach us.</p>
+
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Your order</h2>
+<div class="box" style="background:#111e17;border:1px solid #35503f;border-radius:4px;padding:14px 16px;">
+<p style="margin:0 0 6px;"><strong>Order number:</strong> {{ order_name }}<br><strong>Order date:</strong> {{ created_at | date: "%-d %B %Y" }}</p>
+{% for line in line_items %}
+<p style="margin:10px 0 0;"><strong>{% if line.product.title != blank %}{{ line.product.title }}{% else %}{{ line.title }}{% endif %}</strong>{% if line.sku != blank %}<br>Workshop ticket {{ line.sku | remove_first: 'CL-' }}{% endif %}<br>{{ line.final_line_price | money }}</p>
+{% endfor %}
+<p style="margin:12px 0 0;">Every bike is used and refurbished in our workshop: it has passed our 30-point check, and its frame number wasn&rsquo;t listed as stolen on BikeRegister when we checked. The full workshop ticket comes with the bike.</p>
+{% if has_ebike %}<p style="margin:6px 0 0;"><strong>E-bike:</strong> motor rated at 250W or less, and assistance cuts out at 15.5 mph. Battery health is our capacity test result as a share of the battery&rsquo;s rated capacity; we email you the figure and the test date. The maker&rsquo;s own charger is included. Riders must be 14 or over.</p>{% endif %}
+</div>
+
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Price and payment</h2>
+<p><strong>Total paid: {{ total_price | money }}</strong>{% if shipping_price > 0 %} (including delivery of {{ shipping_price | money }}){% else %}, with free collection, so this is the total you pay{% endif %}. Prices are in pounds sterling and include VAT where applicable. Used bikes may be sold under the VAT margin scheme, in which case VAT isn&rsquo;t shown separately on your receipt.</p>
+{% comment %} Each payment method once: an authorisation and its capture are two transactions on the same card. {% endcomment %}{% assign paid_by = '' %}{% for transaction in transactions %}{% if transaction.status == 'success' %}{% unless transaction.kind == 'refund' or transaction.kind == 'void' %}{% capture method %}{% if transaction.payment_details.credit_card_company != blank %}{{ transaction.payment_details.credit_card_company }} card ending {{ transaction.payment_details.credit_card_last_four_digits }}{% else %}{{ transaction.gateway_display_name }}{% endif %}{% endcapture %}{% assign method = method | strip %}{% unless paid_by contains method %}{% if paid_by != '' %}{% assign paid_by = paid_by | append: ', ' %}{% endif %}{% assign paid_by = paid_by | append: method %}{% endunless %}{% endunless %}{% endif %}{% endfor %}
+<p><strong>Paid by:</strong> {{ paid_by }}. We never see or store your card details.</p>
+
+{% if pickup_in_store? or order.pickup_in_store? %}
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Collecting your bike</h2>
+<p>Your bike will be ready at [Workshop address], open [Opening hours]. We&rsquo;ll tell you when it&rsquo;s ready, usually within [2] working days. Bring this email, and we&rsquo;ll set the saddle height with you.</p>
+{% else %}
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Delivery</h2>
+<p>{% if shipping_method.title != blank %}{{ shipping_method.title }}: {% endif %}we send your bike within [3] working days of accepting your order, and it usually arrives [2 to 3] working days later; we always deliver within 30 days unless we agree otherwise with you.{% if has_ebike %} E-bikes go by a specialist courier, because Royal Mail and Parcelforce don&rsquo;t carry them.{% endif %} It goes to:</p>
+{% if shipping_address %}<p class="box" style="background:#111e17;border:1px solid #35503f;border-radius:4px;padding:14px 16px;">{{ shipping_address.name }}<br>{{ shipping_address.address1 }}<br>{% if shipping_address.address2 != blank %}{{ shipping_address.address2 }}<br>{% endif %}{{ shipping_address.city }}<br>{{ shipping_address.zip }}</p>{% endif %}
+<p>It&rsquo;s boxed 90% built: you fit the pedals and turn the bars straight, and the tools you need are in the box. The bike is our responsibility until it&rsquo;s delivered to you. If it arrives damaged, or hasn&rsquo;t arrived when expected, email <a href="mailto:[Workshop email]" style="color:#ddaa72;">[Workshop email]</a> or phone [Phone number] and we&rsquo;ll put it right.</p>
+{% endif %}
+<p><strong>Free check-up:</strong> new cables stretch as they bed in. Bring the bike back within [8] weeks and we&rsquo;ll re-adjust the gears and brakes, labour free.</p>
+
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Your right to cancel: 14 days, any reason</h2>
+<p>Under the Consumer Contracts Regulations 2013 you can cancel for any reason within 14 days, starting the day after you get the bike, whether we delivered it or you collected it.</p>
+<ul>
+  <li><strong>How to cancel:</strong> tell us clearly by email to <a href="mailto:[Workshop email]" style="color:#ddaa72;">[Workshop email]</a>, by phone on [Phone number], or by post to [Company name], [Workshop address]. You can use the cancellation form below, but you don&rsquo;t have to; any clear statement is fine.</li>
+  <li><strong>Returning the bike:</strong> a bike is too big to post, so returning it is at your cost. Bring it back to the workshop, or we&rsquo;ll collect it for &pound;39 (e-bikes &pound;[e-bike collection price]), or use your own courier. Please do it within 14 days of telling us.</li>
+  <li><strong>Your refund:</strong> we refund the price of the bike and the delivery charge you paid, to your original payment method, within 14 days of getting the bike back, or of you showing us you&rsquo;ve sent it, if that&rsquo;s sooner.</li>
+  <li><strong>Handling:</strong> treat it as you would in a shop: check it over, set the saddle and take it for a short test ride. If it comes back ridden more than that, or with damage that wasn&rsquo;t there when you got it, we may take the loss in value off your refund, as the law allows. We&rsquo;ll show you before we do.</li>
+</ul>
+
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Cancellation form</h2>
+<p>You don&rsquo;t have to use this form; any clear statement by email is fine. If you prefer, copy it into an email or letter:</p>
+<p class="box" style="background:#111e17;border:1px solid #35503f;border-radius:4px;padding:14px 16px;">To [Company name] trading as Chainline Cycles, [Workshop address], [Workshop email]:<br>I hereby give notice that I cancel my contract of sale of the following goods: [bike, size, ticket number]<br>Ordered on [date] / received on [date]<br>Name: [your name]<br>Address: [your address]<br>Signature (only if sent on paper):<br>Date: [date]</p>
+
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Your 3-month warranty</h2>
+<p>This warranty is given by [Company name], trading as Chainline Cycles, [Workshop address] ([Workshop email], [Phone number]). It covers bikes bought from us, applies in the UK, and lasts for 3 months from the day you collect the bike or it&rsquo;s delivered. It&rsquo;s on top of your Consumer Rights Act 2015 rights, not instead of them.</p>
+<ul>
+  <li><strong>Covered:</strong> the whole bike, parts and labour. If any part stops working properly with normal use within the 3 months, we put it right free. On an e-bike that includes the motor, display, wiring, battery and charger.</li>
+  <li><strong>Not covered:</strong> crash damage, punctures, and normal wear on tyres and brake pads; damage from misuse; loss or theft. We&rsquo;ll tell you straight if a problem is one of these, and quote before we do any paid work.</li>
+  <li><strong>How to claim:</strong> email or phone us with your workshop ticket number and what&rsquo;s wrong; photos help. Bring the bike to the workshop if you can. If you can&rsquo;t, tell us: for a fault we&rsquo;re responsible for under the Consumer Rights Act (any fault reported within six months of getting the bike is presumed to be), we pay to collect the bike and bring it back. For other warranty claims, [who pays to collect and return the bike, and what it costs]. We put a covered fault right free of charge.</li>
+  <li><strong>This warranty is extra</strong>, and it never limits your Consumer Rights Act rights: within 30 days of getting the bike you can reject it for a full refund, and after that you&rsquo;re entitled to a repair or replacement, and if that doesn&rsquo;t fix the problem, a price reduction or refund.</li>
+</ul>
+
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Your legal rights come first</h2>
+<p>This warranty doesn&rsquo;t reduce your Consumer Rights Act 2015 rights. A used bike must still be of satisfactory quality (taking into account its age, condition and price), fit for purpose and as described. Within 30 days of getting it, you can reject a faulty bike for a full refund. After 30 days, we get one chance to repair or replace it. If that doesn&rsquo;t fix it, you can reject it for a refund (which, after six months, may be reduced to reflect the use you&rsquo;ve had) or keep it with a price reduction. Within six months of getting it, a fault is assumed to have been there when you got it unless we can show otherwise. You can make a claim for up to six years after delivery (five years in Scotland).</p>
+
+{% if has_ebike %}<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">E-bike battery safety</h2>
+<p>Use only the maker&rsquo;s charger that came with the bike. Don&rsquo;t charge a battery that&rsquo;s damaged, swollen or has been under water: bring it to us instead. Charge it somewhere you&rsquo;d notice a problem, not while you&rsquo;re asleep or out.</p>{% endif %}
+
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">If you&rsquo;re unhappy</h2>
+<p>Please tell us first, by email to <a href="mailto:[Workshop email]" style="color:#ddaa72;">[Workshop email]</a> or phone on [Phone number], and we&rsquo;ll do our best to put it right. You can also get free advice from the Citizens Advice consumer helpline on 0808 223 1133.</p>
+
+<h2 style="font-size:18px;color:#ece7d9;margin:28px 0 8px;">Our terms and our details</h2>
+<p>Your order is under our terms of sale as they stood on {{ created_at | date: "%-d %B %Y" }}: <a href="[link to the current terms, e.g. a dated PDF]" style="color:#ddaa72;">our terms of sale</a>.</p>
+<p class="muted" style="color:#9dab9f;">Chainline Cycles is a trading name of [Company name], a company registered in [England and Wales], company number [Company number], registered office [Registered office address]. Workshop: [Workshop address]. VAT number: [VAT number, if registered]. Email [Workshop email], phone [Phone number].</p>
+
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
