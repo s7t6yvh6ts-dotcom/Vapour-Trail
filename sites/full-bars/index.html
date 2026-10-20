@@ -1,1083 +1,191 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Full Bars</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
-<style>
-/* Layout: left-weighted asymmetric grid. Section heads sit in a narrow left rail, content runs wide on the right; the hero pairs a big left headline with an offset diagnostics printout. */
-:root {
-  color-scheme: dark;
-  /* Ground: blue-black OLED */
-  --bg: #04070c;
-  --surface: #0a1019;
-  --surface-2: #0e1622;
-  --paper: #0c131e;
-  --line: #1a2432;
-  --line-strong: #2a3748;
-  /* Text: cool light, muted blue-grey */
-  --fg: #e3ebf4;
-  --muted: #8b9baf;
-  /* Accent: signal amber */
-  --accent: #ffb020;
-  --accent-strong: #ffc552;
-  --accent-ink: #171000;
-  --accent-soft: #221806;
-  --accent-glow: rgba(255, 176, 32, .4);
-  --bar-off: #233042;
-  /* Semantic: battery health only */
-  --ok: #4cd68f;
-  /* Overlays */
-  --overlay: rgba(1, 3, 7, .72);
-  --header-bg: rgba(4, 7, 12, .88);
-  --sheen: rgba(255, 255, 255, .08);
-  --shade: rgba(0, 0, 0, .3);
-  --glint: rgba(170, 200, 255, .42);
-  /* Drawn phones */
-  --lens: #050709;
-  --lens-ring: #3a4351;
-  --phone-rim: #46536a;
-  --visor: #1a1e24;
-  --flash: #d8d0bc;
-  --c-natural-titanium: #a39c90;
-  --c-black: #2b2d31;
-  --c-midnight: #1f2632;
-  --c-blue: #46729a;
-  --c-white: #e6e7e2;
-  --c-starlight: #e7ddcd;
-  --c-onyx: #1d1f22;
-  --c-phantom: #26282d;
-  --c-navy: #27345a;
-  --c-obsidian: #222428;
-  --c-charcoal: #3b3d42;
-  /* Type */
-  --font-display: "Archivo", "Arial Black", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --wdth: 120%;
-  --fs-xs: .78rem;
-  --fs-sm: .9rem;
-  --fs-base: 1rem;
-  --fs-md: 1.18rem;
-  --fs-lg: 1.55rem;
-  --fs-xl: clamp(1.9rem, 3.4vw, 2.7rem);
-  --fs-hero: clamp(2.4rem, 6.2vw, 4.9rem);
-  /* Space */
-  --gutter: clamp(16px, 4vw, 40px);
-  --max: 1180px;
-  --radius: 10px;
-}
-
-*, *::before, *::after { box-sizing: border-box; }
-[hidden] { display: none !important; }
-@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font: 400 var(--fs-base)/1.6 var(--font-body);
-  -webkit-font-smoothing: antialiased;
-}
-html.locked { overflow: hidden; }
-h1, h2, h3 { font-family: var(--font-display); font-stretch: var(--wdth); text-wrap: balance; margin: 0; line-height: 1.05; }
-p, ul, ol, dl, dd, figure { margin: 0; }
-ul, ol { padding: 0; }
-button, input, select { font: inherit; color: inherit; }
-a { color: var(--accent); }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-.num { font-variant-numeric: tabular-nums; }
-.nowrap { white-space: nowrap; }
-
-.page { padding-inline: var(--gutter); }
-.bleed { margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
-.inner { max-width: var(--max); margin-inline: auto; }
-
-/* Signal bars glyph */
-.bars { display: block; flex: none; }
-.bars rect { fill: var(--bar-off); }
-.bars rect.on { fill: var(--accent); }
-
-/* Banner + header */
-.banner { background: var(--accent-soft); color: var(--accent); font: 500 var(--fs-xs)/1.4 var(--font-mono); padding-block: 8px; }
-.site-header {
-  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 40;
-  background: var(--header-bg);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--line);
-}
-.header-row { display: flex; align-items: center; gap: clamp(12px, 3vw, 36px); min-height: 64px; }
-.logo { display: inline-flex; align-items: flex-end; gap: 10px; color: var(--fg); text-decoration: none; font: 850 1.25rem/1 var(--font-display); font-stretch: 125%; letter-spacing: -.01em; white-space: nowrap; }
-.logo .bars { width: 24px; height: 19px; }
-.site-nav { display: flex; gap: 2px; margin-right: auto; }
-.site-nav a { color: var(--muted); text-decoration: none; padding: 8px 12px; border-radius: 6px; font-weight: 500; }
-.site-nav a:hover { color: var(--fg); }
-.basket-btn, .menu-btn {
-  display: inline-flex; align-items: center; gap: 8px; background: transparent; cursor: pointer;
-  border: 1px solid var(--line-strong); color: var(--fg); border-radius: 8px; padding: 9px 12px; font: 600 var(--fs-sm)/1 var(--font-body);
-}
-.basket-btn:hover, .menu-btn:hover { border-color: var(--accent); }
-.basket-count { font: 700 var(--fs-xs)/1 var(--font-mono); background: var(--accent); color: var(--accent-ink); min-width: 1.7em; padding: 3px 5px; border-radius: 99px; text-align: center; font-variant-numeric: tabular-nums; }
-.basket-count[data-zero] { background: var(--bar-off); color: var(--muted); }
-.menu-btn { display: none; }
-.menu-icon { width: 16px; height: 2px; background: currentColor; box-shadow: 0 -5px 0 currentColor, 0 5px 0 currentColor; margin-block: 6px; }
-@media (max-width: 820px) {
-  .logo { margin-right: auto; }
-  .menu-btn { display: inline-flex; }
-  .site-nav {
-    display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column;
-    background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px;
-  }
-  .site-nav.open { display: flex; }
-  .site-nav a { padding: 12px 0; font-size: var(--fs-md); color: var(--fg); border-bottom: 1px solid var(--line); border-radius: 0; }
-}
-@media (max-width: 480px) { .menu-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .menu-btn { padding-inline: 11px; } }
-
-/* Buttons */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; text-decoration: none;
-  font: 600 var(--fs-base)/1 var(--font-body); padding: 14px 20px; border-radius: 8px; border: 1px solid transparent;
-  transition: background-color .15s, border-color .15s, color .15s;
-}
-.btn-primary { background: var(--accent); color: var(--accent-ink); }
-.btn-primary:hover { background: var(--accent-strong); }
-.btn-ghost { background: transparent; color: var(--fg); border-color: var(--line-strong); }
-.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-.btn-small { padding: 10px 14px; font-size: var(--fs-sm); }
-.btn-block { width: 100%; }
-.btn.is-in { background: transparent; color: var(--accent); border-color: var(--accent); }
-
-.label { font: 500 var(--fs-xs)/1.3 var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
-
-/* Hero */
-.hero {
-  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .85fr);
-  gap: clamp(32px, 6vw, 88px); align-items: center;
-  padding-block: clamp(40px, 7vw, 96px) clamp(48px, 6vw, 88px);
-}
-.hero-copy { min-width: 0; display: grid; gap: 22px; justify-items: start; }
-.hero h1 { font-size: var(--fs-hero); font-weight: 850; line-height: .98; letter-spacing: -.015em; max-width: 13ch; }
-.hero-sub { font-size: var(--fs-md); color: var(--muted); max-width: 44ch; }
-.cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
-.hero-note { font: 500 var(--fs-sm)/1.4 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
-
-.readout {
-  position: relative; min-width: 0; background: var(--paper); border-top: 3px solid var(--accent);
-  padding: 18px 20px 22px; font: 400 .84rem/1.5 var(--font-mono); transform: translateY(14px);
-}
-.ro-head { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line-strong); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; }
-.ro-head b { color: var(--fg); font-weight: 700; }
-.ro-row { display: flex; align-items: baseline; gap: 12px; padding-block: 8px; border-bottom: 1px dashed var(--line); }
-.ro-row dt { color: var(--muted); flex: 1 1 auto; min-width: 0; }
-.ro-row dd { text-align: right; font-variant-numeric: tabular-nums; }
-.ro-ok { color: var(--ok); font-weight: 700; }
-.ro-pass { flex: none; width: 3.4em; text-align: right; color: var(--accent); font-weight: 700; font-size: .72rem; letter-spacing: .08em; }
-.ro-grade { display: flex; align-items: center; gap: 12px; padding-top: 14px; }
-.ro-grade .bars { width: 30px; height: 24px; }
-.ro-grade strong { font: 800 1.15rem/1 var(--font-display); font-stretch: 118%; }
-.ro-grade span { color: var(--muted); }
-.ro-foot { margin-top: 12px; color: var(--muted); font-size: .72rem; }
-.tear { position: absolute; left: 0; bottom: -8px; width: 100%; height: 8px; display: block; }
-.tear path { fill: var(--paper); }
-
-@media (prefers-reduced-motion: no-preference) {
-  .readout::before {
-    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--accent);
-    box-shadow: 0 0 14px 2px var(--accent-glow); opacity: 0; pointer-events: none;
-    animation: scan 1.5s ease-in-out .15s 1 both;
-  }
-  .ro-row { animation: rowIn .4s ease-out both; animation-delay: calc(var(--i) * 170ms + 200ms); }
-  .ro-pass { animation: passIn .3s ease-out both; animation-delay: calc(var(--i) * 170ms + 420ms); }
-  .ro-grade .on { animation: barOn .25s ease-out both; animation-delay: calc(var(--b) * 120ms + 1300ms); }
-}
-@keyframes scan { 0% { top: 0; opacity: .9; } 85% { opacity: .7; } 100% { top: 100%; opacity: 0; } }
-@keyframes rowIn { from { opacity: .3; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
-@keyframes passIn { from { color: var(--bar-off); } to { color: var(--accent); } }
-@keyframes barOn { from { fill: var(--bar-off); } to { fill: var(--accent); } }
-
-/* Promise strip */
-.promise { background: var(--surface); border-block: 1px solid var(--line); padding-block: clamp(28px, 4vw, 44px); }
-.promise-grid { display: grid; grid-template-columns: minmax(0, .75fr) repeat(3, minmax(0, 1fr)); gap: 28px 32px; }
-.promise-title { grid-row: span 2; font-size: var(--fs-lg); font-weight: 800; max-width: 9ch; }
-.promise-item { min-width: 0; display: grid; gap: 4px; align-content: start; }
-.promise-item b { font: 800 var(--fs-lg)/1.05 var(--font-display); font-stretch: 118%; color: var(--accent); font-variant-numeric: tabular-nums; }
-.promise-item span { color: var(--muted); font-size: var(--fs-sm); }
-
-/* Sections */
-.section { padding-block: clamp(56px, 8vw, 112px); scroll-margin-top: 72px; }
-.section + .section { border-top: 1px solid var(--line); }
-.section h2 { font-size: var(--fs-xl); font-weight: 800; letter-spacing: -.01em; }
-.lede { color: var(--muted); max-width: 46ch; }
-.split { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
-.rail { min-width: 0; display: grid; gap: 16px; align-content: start; }
-.main-col { min-width: 0; }
-
-/* Shop */
-.shop-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 40px; margin-bottom: 24px; }
-.shop-head > div { display: grid; gap: 12px; min-width: 0; }
-.shop-count { font: 500 var(--fs-sm)/1.4 var(--font-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
-.filters { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: end; padding-block: 16px; border-block: 1px solid var(--line); margin-bottom: 24px; }
-.field { display: grid; gap: 6px; min-width: 0; }
-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-legend { padding: 0; margin-bottom: 6px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { position: relative; }
-.chip input, .cond-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
-.chip label { display: inline-block; padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: 99px; cursor: pointer; color: var(--muted); font-weight: 500; font-size: var(--fs-sm); }
-.chip label:hover { color: var(--fg); }
-.chip input:checked + label { background: var(--fg); color: var(--bg); border-color: var(--fg); }
-.chip input:focus-visible + label, .cond-opt input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: 2px; }
-select, input[type="text"], input[type="email"] {
-  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--fg);
-  padding: 9px 12px; min-height: 42px; font-size: var(--fs-sm); max-width: 100%;
-}
-select:hover, input:hover { border-color: var(--muted); }
-.shop-empty { padding: 32px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; color: var(--muted); }
-
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 16px; }
-.card { display: flex; flex-direction: column; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-.card-art { position: relative; aspect-ratio: 16 / 11; max-width: 100%; display: grid; place-items: center; background: var(--surface-2); border-bottom: 1px solid var(--line); }
-.card-art svg { height: 88%; width: auto; }
-.unit { position: absolute; top: 10px; left: 12px; font: 500 .68rem/1 var(--font-mono); color: var(--muted); letter-spacing: .06em; }
-.card-body { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 16px; min-width: 0; }
-.card h3 { font-size: 1.15rem; font-weight: 800; font-stretch: 112%; }
-.spec { font: 400 .8rem/1.4 var(--font-mono); color: var(--muted); margin-top: -4px; }
-.card-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; font-size: var(--fs-sm); }
-.grade { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
-.grade .bars { width: 20px; height: 16px; }
-.batt { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.batt b { color: var(--ok); font-weight: 600; }
-.batt-icon { position: relative; width: 20px; height: 10px; border: 1.5px solid var(--ok); border-radius: 2px; }
-.batt-icon::before { content: ""; position: absolute; left: 1px; top: 1px; bottom: 1px; width: calc((100% - 2px) * var(--lvl)); background: var(--ok); border-radius: 1px; }
-.batt-icon::after { content: ""; position: absolute; right: -4px; top: 2px; width: 2px; height: 3px; background: var(--ok); border-radius: 0 1px 1px 0; }
-.card-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
-.price { font: 800 1.45rem/1 var(--font-display); font-stretch: 112%; font-variant-numeric: tabular-nums; }
-
-/* Phone drawing */
-.ph-body { fill: var(--tint); stroke: var(--phone-rim); stroke-width: 1.2; }
-.ph-sheen { fill: var(--sheen); }
-.ph-btn { fill: var(--phone-rim); }
-.ph-bump { fill: var(--shade); stroke: var(--sheen); stroke-width: 1; }
-.ph-lens { fill: var(--lens); stroke: var(--lens-ring); stroke-width: 1.6; }
-.ph-glint { fill: var(--glint); }
-.ph-flash { fill: var(--flash); }
-.ph-visor { fill: var(--visor); stroke: var(--phone-rim); stroke-width: 1; }
-.ph-floor { fill: var(--shade); }
-
-/* Grading */
-.grades { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
-.grade-col { min-width: 0; display: grid; gap: 14px; align-content: start; padding: 24px 24px 8px; border-left: 1px solid var(--line); }
-.grade-col:first-child { border-left: 0; padding-left: 0; }
-.grade-col .bars { width: 46px; height: 37px; }
-.grade-col h3 { font-size: var(--fs-lg); font-weight: 800; }
-.grade-tag { color: var(--muted); }
-.grade-col dl { display: grid; gap: 12px; padding-top: 12px; border-top: 1px dashed var(--line-strong); }
-.grade-col dd { font-size: var(--fs-sm); }
-.same { font-size: var(--fs-md); font-weight: 600; max-width: 30ch; }
-.small { font-size: var(--fs-sm); color: var(--muted); }
-
-/* Trade-in */
-.steps { display: grid; gap: 10px; counter-reset: step; list-style: none; }
-.steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: baseline; counter-increment: step; }
-.steps li::before { content: counter(step); font: 700 var(--fs-sm)/1 var(--font-mono); color: var(--accent); }
-.estimator { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); overflow: hidden; }
-.est-form { padding: clamp(18px, 3vw, 28px); display: grid; gap: 18px; min-width: 0; align-content: start; }
-.est-pair { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
-.est-pair select { width: 100%; }
-.cond { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.cond-opt { position: relative; min-width: 0; }
-.cond-opt label {
-  display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 2px 10px; height: 100%; align-content: start;
-  padding: 11px 12px; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer;
-}
-.cond-opt label::before { content: ""; grid-row: span 2; width: 16px; height: 16px; margin-top: 3px; border-radius: 50%; border: 1.5px solid var(--muted); }
-.cond-opt label strong { font-weight: 600; }
-.cond-opt label span { font-size: var(--fs-xs); color: var(--muted); line-height: 1.4; }
-.cond-opt input:checked + label { border-color: var(--accent); background: var(--accent-soft); }
-.cond-opt input:checked + label::before { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--accent-soft); }
-.est-result { padding: clamp(18px, 3vw, 28px); background: var(--paper); border-left: 1px dashed var(--line-strong); display: grid; gap: 14px; align-content: start; min-width: 0; }
-.est-amount { font: 850 clamp(2.6rem, 5vw, 3.4rem)/1 var(--font-display); font-stretch: 118%; color: var(--accent); font-variant-numeric: tabular-nums; }
-.est-desc { font: 500 var(--fs-sm)/1.4 var(--font-mono); }
-.est-hold { font-size: var(--fs-sm); color: var(--muted); }
-.lock-form { display: grid; gap: 12px; padding-top: 14px; border-top: 1px dashed var(--line-strong); }
-.lock-form input { width: 100%; }
-.msg { font: 500 var(--fs-sm)/1.45 var(--font-mono); color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 10px 12px; }
-.warn { margin-top: 16px; font-size: var(--fs-sm); color: var(--muted); max-width: 70ch; }
-.warn strong { color: var(--fg); }
-
-/* Repairs */
-.facts { display: grid; gap: 14px; }
-.facts div { display: grid; gap: 2px; padding-top: 12px; border-top: 1px solid var(--line); }
-.facts dd { font-weight: 500; }
-.table-scroll { overflow-x: auto; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); }
-table { width: 100%; min-width: 560px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-caption { caption-side: bottom; text-align: left; padding: 12px 16px; font-size: var(--fs-xs); color: var(--muted); border-top: 1px solid var(--line); }
-th, td { padding: 12px 16px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
-thead th { font: 500 var(--fs-xs)/1.2 var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; background: var(--surface); }
-thead th:first-child, tbody th { text-align: left; }
-tbody th { font-weight: 600; }
-td { font: 500 .9rem/1.2 var(--font-mono); }
-tbody tr:last-child > * { border-bottom: 0; }
-tbody tr:hover { background: var(--surface); }
-tbody tr:has(+ .brand-break) > * { border-bottom-color: var(--line-strong); }
-
-/* FAQ */
-.faq details { border-bottom: 1px solid var(--line); }
-.faq details:first-child { border-top: 1px solid var(--line); }
-.faq summary { list-style: none; cursor: pointer; position: relative; padding: 18px 44px 18px 0; font-weight: 600; font-size: var(--fs-md); }
-.faq summary::-webkit-details-marker { display: none; }
-.faq summary::before, .faq summary::after { content: ""; position: absolute; right: 8px; top: 50%; width: 14px; height: 2px; margin-top: -1px; background: var(--accent); transition: transform .2s; }
-.faq summary::after { transform: rotate(90deg); }
-.faq details[open] summary::after { transform: rotate(0); }
-.faq summary:hover { color: var(--accent); }
-.answer { padding-bottom: 20px; color: var(--muted); max-width: 62ch; display: grid; gap: 10px; }
-.contact { font: 500 var(--fs-sm)/1.7 var(--font-mono); color: var(--fg); }
-
-/* Footer */
-.site-footer { background: var(--surface); border-top: 1px solid var(--line); padding-block: 40px 48px; }
-.footer-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: 28px 40px; }
-.footer-grid > div { min-width: 0; display: grid; gap: 10px; align-content: start; }
-.site-footer p { font-size: var(--fs-sm); color: var(--muted); max-width: 44ch; }
-
-/* Basket drawer */
-.scrim { position: fixed; inset: 0; z-index: 60; background: var(--overlay); opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
-.scrim.open { opacity: 1; visibility: visible; }
-.drawer {
-  position: fixed; top: 0; right: 0; bottom: 0; z-index: 70; width: min(420px, 100%);
-  display: flex; flex-direction: column; background: var(--surface); border-left: 1px solid var(--line-strong);
-  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
-  transform: translateX(100%); visibility: hidden; transition: transform .3s ease, visibility .3s;
-}
-.drawer.open { transform: none; visibility: visible; }
-.drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
-.drawer-head h2 { font-size: var(--fs-lg); font-weight: 800; }
-.icon-btn { width: 40px; height: 40px; display: grid; place-items: center; background: transparent; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; position: relative; }
-.icon-btn::before, .icon-btn::after { content: ""; position: absolute; width: 16px; height: 2px; background: var(--fg); transform: rotate(45deg); }
-.icon-btn::after { transform: rotate(-45deg); }
-.icon-btn:hover { border-color: var(--accent); }
-.drawer-list { flex: 1; overflow-y: auto; list-style: none; padding: 8px 20px; }
-.line-item { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding-block: 14px; border-bottom: 1px solid var(--line); }
-.line-item svg { width: 44px; height: auto; }
-.line-item h3 { font-size: 1rem; font-weight: 800; font-stretch: 110%; }
-.line-item .spec { margin-top: 2px; }
-.line-meta { display: grid; gap: 6px; justify-items: end; }
-.line-meta .price { font-size: 1.1rem; }
-.text-btn { background: none; border: 0; padding: 2px 0; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: var(--fs-xs); }
-.text-btn:hover { color: var(--accent); }
-.drawer-empty { flex: 1; padding: 28px 20px; display: grid; gap: 14px; align-content: start; color: var(--muted); }
-.drawer-foot { padding: 16px 20px 20px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
-.totals { display: grid; gap: 6px; font-variant-numeric: tabular-nums; }
-.totals div { display: flex; justify-content: space-between; gap: 12px; }
-.totals dt { color: var(--muted); }
-.totals .total { padding-top: 8px; border-top: 1px solid var(--line); font-weight: 700; font-size: var(--fs-md); }
-.totals .total dt { color: var(--fg); }
-
-/* Narrow layouts */
-@media (max-width: 980px) {
-  .promise-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .promise-title { grid-column: 1 / -1; grid-row: auto; max-width: none; }
-}
-@media (max-width: 900px) {
-  .hero { grid-template-columns: minmax(0, 1fr); }
-  .readout { transform: none; max-width: 520px; }
-  .split { grid-template-columns: minmax(0, 1fr); }
-  .grades { grid-template-columns: minmax(0, 1fr); }
-  .grade-col { border-left: 0; padding: 24px 0 8px; }
-  .grade-col + .grade-col { border-top: 1px solid var(--line); }
-  .footer-grid { grid-template-columns: minmax(0, 1fr); }
-}
-@media (max-width: 680px) {
-  .estimator { grid-template-columns: minmax(0, 1fr); }
-  .est-result { border-left: 0; border-top: 1px dashed var(--line-strong); }
-}
-@media (max-width: 480px) {
-  .cond { grid-template-columns: minmax(0, 1fr); }
-  .est-pair { grid-template-columns: minmax(0, 1fr); }
-  .filters .field, .filters fieldset { flex: 1 1 100%; }
-  .filters select { width: 100%; }
-}
-@media (max-width: 380px) { .promise-grid { grid-template-columns: minmax(0, 1fr); } }
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
-}
-</style>
-
-<div class="page">
-  <p class="banner bleed"><span class="inner" style="display:block">Prototype: placeholder stock and prices. Checkout isn't connected yet.</span></p>
-
-  <header class="site-header bleed">
-    <div class="inner header-row">
-      <a class="logo" href="#top" aria-label="Full Bars, home">
-        <svg class="bars" viewBox="0 0 20 16" aria-hidden="true"><rect class="on" x="0" y="11" width="3.5" height="5" rx=".8"/><rect class="on" x="5.5" y="8" width="3.5" height="8" rx=".8"/><rect class="on" x="11" y="5" width="3.5" height="11" rx=".8"/><rect class="on" x="16.5" y="2" width="3.5" height="14" rx=".8"/></svg>
-        <span>Full Bars</span>
-      </a>
-      <nav class="site-nav" id="site-nav" aria-label="Main">
-        <a href="#shop">Shop</a>
-        <a href="#trade-in">Trade in</a>
-        <a href="#repairs">Repairs</a>
-        <a href="#grading">Grading</a>
-        <a href="#help">Help</a>
-      </nav>
-      <button class="basket-btn" id="basket-btn" type="button" aria-controls="drawer" aria-expanded="false">
-        Basket <span class="basket-count" id="basket-count" data-zero>0</span><span class="sr-only"> items</span>
-      </button>
-      <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">
-        <span class="menu-icon" aria-hidden="true"></span><span class="menu-text">Menu</span>
-      </button>
+<meta name="description" content="Refurbished iPhone, Galaxy &amp; Pixel phones: unlocked, IMEI-checked, battery 85%+, 12-month warranty, free tracked UK delivery and a 30-day guarantee.">
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://www.fullbars.co.uk/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Full Bars">
+<meta property="og:locale" content="en_GB">
+<meta property="og:title" content="Refurbished iPhone, Galaxy &amp; Pixel Phones | Full Bars">
+<meta property="og:description" content="Refurbished iPhone, Galaxy &amp; Pixel phones: unlocked, IMEI-checked, battery 85%+, 12-month warranty, free tracked UK delivery and a 30-day guarantee.">
+<meta property="og:url" content="https://www.fullbars.co.uk/">
+<meta property="og:image" content="https://www.fullbars.co.uk/og/fullbars.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Full Bars: refurbished iPhone, Galaxy and Pixel phones, properly checked">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#070B14">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'" data-fonts>
+<link rel="stylesheet" href="styles.css">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"><style>.menu-btn{display:none!important}.nav-right .btn{display:inline-flex!important}.js-only{display:none!important}#qtFallback{visibility:visible!important;animation:none!important}[data-needs-quote][hidden]{display:none!important}</style></noscript>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","@id":"https://www.fullbars.co.uk/#org","name":"Full Bars","url":"https://www.fullbars.co.uk/","email":"hello@fullbars.co.uk","logo":"https://www.fullbars.co.uk/og/logo.png","description":"Refurbished iPhone, Samsung Galaxy and Google Pixel phones: IMEI-checked, data-wiped, unlocked and graded to a published standard, with a 12-month warranty. Based in the United Kingdom.","hasMerchantReturnPolicy":{"@type":"MerchantReturnPolicy","applicableCountry":"GB","returnPolicyCategory":"https://schema.org/MerchantReturnFiniteReturnWindow","merchantReturnDays":30,"returnMethod":"https://schema.org/ReturnByMail","returnFees":"https://schema.org/FreeReturn"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Full Bars","url":"https://www.fullbars.co.uk/"}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<section class="notices" aria-label="Shop notices">
+<div class="preview-bar" role="note"><div class="wrap"><b>Preview:</b> Full Bars isn&rsquo;t trading yet. Browse the phones and try the quote tool; orders and trade-ins open soon.</div></div>
+<div class="topbar"><div class="wrap"><span>Free tracked, signed-for UK delivery</span><span>12-month warranty</span><span>30-day satisfaction guarantee</span><span>Battery 85%+ on every phone</span></div></div>
+</section>
+<header class="site">
+  <div class="nav wrap">
+    <a href="index.html" class="logo" aria-label="Full Bars home"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect class="mark-bg" width="32" height="32" rx="9" fill="#16223B"/><rect class="mark-edge" x=".5" y=".5" width="31" height="31" rx="8.5" fill="none" stroke="#2B3A5B"/><rect class="mark-bar" x="6.5" y="19" width="3.6" height="6" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="11.7" y="15" width="3.6" height="10" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="16.9" y="11" width="3.6" height="14" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="22.1" y="7" width="3.6" height="18" rx="1.2" fill="#FFB020"/></svg><span>Full Bars</span></a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="shop.html">Shop</a>
+      <a href="grading.html">Grading</a>
+      <a href="sell.html">Sell your phone</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="faq.html">Help</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="nav-right">
+      <a class="btn btn-solid btn-sm" href="shop.html">Shop phones</a>
+      <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="drawer" aria-label="Menu"><span></span><span></span><span></span></button>
     </div>
-  </header>
-
-  <main id="top">
-    <section class="hero inner" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="label">Refurbished iPhone, Galaxy and Pixel · Trade-ins · Repairs</p>
-        <h1 id="hero-title">Refurbished phones, graded honestly.</h1>
-        <p class="hero-sub">Every phone is tested, wiped and graded by how it looks. Whatever the grade, it works like new. You get a 12-month warranty and 30 days to change your mind.</p>
-        <div class="cta-row">
-          <a class="btn btn-primary" href="#shop">Shop phones</a>
-          <a class="btn btn-ghost" href="#trade-in">Get a trade-in price</a>
-        </div>
-        <p class="hero-note">From £159 · Free tracked UK delivery</p>
-      </div>
-
-      <figure class="readout" aria-label="Sample phone check report">
-        <div class="ro-head"><b>Full Bars phone check</b><span>Sample</span></div>
-        <dl>
-          <div class="ro-row" style="--i:0"><dt>Device</dt><dd>iPhone 14 · 128GB · Midnight</dd></div>
-          <div class="ro-row" style="--i:1"><dt>Battery health</dt><dd class="ro-ok">91%</dd><dd class="ro-pass">PASS</dd></div>
-          <div class="ro-row" style="--i:2"><dt>IMEI</dt><dd>Clean on CheckMEND</dd><dd class="ro-pass">PASS</dd></div>
-          <div class="ro-row" style="--i:3"><dt>Activation lock</dt><dd>Removed</dd><dd class="ro-pass">PASS</dd></div>
-          <div class="ro-row" style="--i:4"><dt>Data wipe</dt><dd>Certified</dd><dd class="ro-pass">PASS</dd></div>
-          <div class="ro-row" style="--i:5"><dt>64-point test</dt><dd>Passed</dd><dd class="ro-pass">PASS</dd></div>
-        </dl>
-        <div class="ro-grade">
-          <svg class="bars" viewBox="0 0 20 16" aria-hidden="true"><rect class="on" style="--b:0" x="0" y="11" width="3.5" height="5" rx=".8"/><rect class="on" style="--b:1" x="5.5" y="8" width="3.5" height="8" rx=".8"/><rect class="on" style="--b:2" x="11" y="5" width="3.5" height="11" rx=".8"/><rect x="16.5" y="2" width="3.5" height="14" rx=".8"/></svg>
-          <strong>Excellent</strong><span>Grade · 3 bars</span>
-        </div>
-        <p class="ro-foot">Report FB-24117 · Checked 29/09/2026</p>
-        <svg class="tear" aria-hidden="true" preserveAspectRatio="none"><defs><pattern id="tear-zz" width="12" height="8" patternUnits="userSpaceOnUse"><path d="M0 0H12L6 8Z"/></pattern></defs><rect width="100%" height="8" fill="url(#tear-zz)"/></svg>
-      </figure>
-    </section>
-
-    <section class="promise bleed" aria-labelledby="promise-title">
-      <div class="inner promise-grid">
-        <h2 class="promise-title" id="promise-title">What every phone gets</h2>
-        <p class="promise-item"><b>12 months</b><span>Warranty. If a fault shows up, we repair it, replace it or refund you.</span></p>
-        <p class="promise-item"><b class="num">85%+</b><span>Battery health, or we fit a new battery before it ships.</span></p>
-        <p class="promise-item"><b>IMEI checked</b><span>Against CheckMEND's lost, stolen and blocked register.</span></p>
-        <p class="promise-item"><b>Wiped</b><span>Certified data wipe. Nothing left from the last owner.</span></p>
-        <p class="promise-item"><b>Unlocked</b><span>Works on every UK network.</span></p>
-        <p class="promise-item"><b>30 days</b><span>To return it for any reason. The law asks for 14 days on online orders.</span></p>
-      </div>
-    </section>
-
-    <section class="section inner" id="shop" aria-labelledby="shop-title">
-      <div class="shop-head">
-        <div>
-          <h2 id="shop-title">Shop phones</h2>
-          <p class="lede">Each listing is one phone. The grade and battery health you see belong to that exact handset.</p>
-        </div>
-        <p class="shop-count" id="shop-count" aria-live="polite">11 phones in stock</p>
-      </div>
-
-      <form class="filters" id="filters" aria-label="Filter and sort phones">
-        <fieldset>
-          <legend class="label">Brand</legend>
-          <div class="chips">
-            <span class="chip"><input type="radio" name="brand" id="f-brand-all" value="all" checked><label for="f-brand-all">All</label></span>
-            <span class="chip"><input type="radio" name="brand" id="f-brand-apple" value="Apple"><label for="f-brand-apple">Apple</label></span>
-            <span class="chip"><input type="radio" name="brand" id="f-brand-samsung" value="Samsung"><label for="f-brand-samsung">Samsung</label></span>
-            <span class="chip"><input type="radio" name="brand" id="f-brand-google" value="Google"><label for="f-brand-google">Google</label></span>
-          </div>
-        </fieldset>
-        <div class="field">
-          <label class="label" for="f-grade">Grade</label>
-          <select id="f-grade" name="grade">
-            <option value="all">All grades</option>
-            <option value="4">Pristine</option>
-            <option value="3">Excellent</option>
-            <option value="2">Good</option>
-          </select>
-        </div>
-        <div class="field">
-          <label class="label" for="f-storage">Storage</label>
-          <select id="f-storage" name="storage">
-            <option value="all">Any storage</option>
-            <option value="64">64GB</option>
-            <option value="128">128GB</option>
-            <option value="256">256GB</option>
-          </select>
-        </div>
-        <div class="field">
-          <label class="label" for="f-sort">Sort</label>
-          <select id="f-sort" name="sort">
-            <option value="asc">Price: low to high</option>
-            <option value="desc">Price: high to low</option>
-          </select>
-        </div>
-      </form>
-
-      <div class="grid" id="grid"></div>
-      <div class="shop-empty" id="shop-empty" hidden>
-        <p>No phones match those filters right now.</p>
-        <button class="btn btn-ghost btn-small" id="f-clear" type="button">Clear filters</button>
-      </div>
-    </section>
-
-    <section class="section inner" id="grading" aria-labelledby="grading-title">
-      <div class="split">
-        <div class="rail">
-          <h2 id="grading-title">What the bars mean</h2>
-          <p class="lede">More bars, fewer marks. The grade describes how a phone looks and nothing else.</p>
-          <p class="same">Every grade works 100% the same. Same tests, same warranty, same 30-day returns.</p>
-          <p class="small">We don't sell anything below Good. Phones that don't make it are used for parts or recycled.</p>
-        </div>
-        <div class="main-col grades">
-          <article class="grade-col">
-            <svg class="bars" viewBox="0 0 20 16" aria-hidden="true"><rect class="on" x="0" y="11" width="3.5" height="5" rx=".8"/><rect class="on" x="5.5" y="8" width="3.5" height="8" rx=".8"/><rect class="on" x="11" y="5" width="3.5" height="11" rx=".8"/><rect class="on" x="16.5" y="2" width="3.5" height="14" rx=".8"/></svg>
-            <h3>Pristine</h3>
-            <p class="grade-tag">4 bars. Looks unused.</p>
-            <dl>
-              <div><dt class="label">Screen</dt><dd>Flawless. No marks at any angle.</dd></div>
-              <div><dt class="label">Body</dt><dd>No visible marks at arm's length or close up.</dd></div>
-              <div><dt class="label">Battery</dt><dd>90% health or higher.</dd></div>
-            </dl>
-          </article>
-          <article class="grade-col">
-            <svg class="bars" viewBox="0 0 20 16" aria-hidden="true"><rect class="on" x="0" y="11" width="3.5" height="5" rx=".8"/><rect class="on" x="5.5" y="8" width="3.5" height="8" rx=".8"/><rect class="on" x="11" y="5" width="3.5" height="11" rx=".8"/><rect x="16.5" y="2" width="3.5" height="14" rx=".8"/></svg>
-            <h3>Excellent</h3>
-            <p class="grade-tag">3 bars. Light signs of use.</p>
-            <dl>
-              <div><dt class="label">Screen</dt><dd>Flawless.</dd></div>
-              <div><dt class="label">Body</dt><dd>Light marks on the body only, easiest to spot close up.</dd></div>
-              <div><dt class="label">Battery</dt><dd>85% health or higher, or a new battery.</dd></div>
-            </dl>
-          </article>
-          <article class="grade-col">
-            <svg class="bars" viewBox="0 0 20 16" aria-hidden="true"><rect class="on" x="0" y="11" width="3.5" height="5" rx=".8"/><rect class="on" x="5.5" y="8" width="3.5" height="8" rx=".8"/><rect x="11" y="5" width="3.5" height="11" rx=".8"/><rect x="16.5" y="2" width="3.5" height="14" rx=".8"/></svg>
-            <h3>Good</h3>
-            <p class="grade-tag">2 bars. Visible wear.</p>
-            <dl>
-              <div><dt class="label">Screen</dt><dd>Light marks you can't see when the screen is on.</dd></div>
-              <div><dt class="label">Body</dt><dd>Visible scuffs and scratches.</dd></div>
-              <div><dt class="label">Battery</dt><dd>85% health or higher, or a new battery.</dd></div>
-            </dl>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section inner" id="trade-in" aria-labelledby="trade-title">
-      <div class="split">
-        <div class="rail">
-          <h2 id="trade-title">Get a <span class="nowrap">trade-in</span> price</h2>
-          <p class="lede">Pick your phone and its condition for an instant estimate.</p>
-          <ol class="steps">
-            <li>Lock in your quote. We hold it for 14 days.</li>
-            <li>Post the phone with the free tracked label we send you.</li>
-            <li>We check it and pay you by bank transfer.</li>
-          </ol>
-        </div>
-        <div class="main-col">
-          <div class="estimator">
-            <form class="est-form" id="ti-form" aria-label="Trade-in estimate">
-              <div class="est-pair">
-                <div class="field">
-                  <label class="label" for="ti-model">Your phone</label>
-                  <select id="ti-model" name="model">
-                    <option value="ip15p">iPhone 15 Pro</option>
-                    <option value="ip15">iPhone 15</option>
-                    <option value="ip14p">iPhone 14 Pro</option>
-                    <option value="ip14" selected>iPhone 14</option>
-                    <option value="ip13">iPhone 13</option>
-                    <option value="ip12">iPhone 12</option>
-                    <option value="s24">Galaxy S24</option>
-                    <option value="s23">Galaxy S23</option>
-                    <option value="a55">Galaxy A55</option>
-                    <option value="px8">Pixel 8</option>
-                    <option value="px7a">Pixel 7a</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label class="label" for="ti-storage">Storage</label>
-                  <select id="ti-storage" name="storage">
-                    <option value="0" selected>128GB</option>
-                    <option value="1">256GB</option>
-                    <option value="2">512GB</option>
-                  </select>
-                </div>
-              </div>
-              <fieldset>
-                <legend class="label">Condition</legend>
-                <div class="cond">
-                  <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-new" value="new"><label for="ti-cond-new"><strong>Like new</strong><span>No scratches or marks. Everything works.</span></label></div>
-                  <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-good" value="good" checked><label for="ti-cond-good"><strong>Good</strong><span>Normal scratches or scuffs. Everything works.</span></label></div>
-                  <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-cracked" value="cracked"><label for="ti-cond-cracked"><strong>Cracked screen</strong><span>Cracked front or back glass. Otherwise works.</span></label></div>
-                  <div class="cond-opt"><input type="radio" name="cond" id="ti-cond-dead" value="dead"><label for="ti-cond-dead"><strong>Won't power on</strong><span>Doesn't turn on or charge.</span></label></div>
-                </div>
-              </fieldset>
-            </form>
-
-            <div class="est-result">
-              <p class="label">Estimated offer</p>
-              <output class="est-amount" id="ti-out" for="ti-model ti-storage" aria-live="polite">£205</output>
-              <p class="est-desc" id="ti-desc">iPhone 14 · 128GB · Good</p>
-              <p class="est-hold">Quote held for 14 days. Final price confirmed once we've checked the phone.</p>
-              <button class="btn btn-primary" id="ti-lock" type="button" aria-expanded="false" aria-controls="ti-lock-form">Lock in this quote</button>
-              <form class="lock-form" id="ti-lock-form" hidden>
-                <div class="field">
-                  <label class="label" for="lock-name">Name</label>
-                  <input type="text" id="lock-name" name="name" autocomplete="name" required>
-                </div>
-                <div class="field">
-                  <label class="label" for="lock-email">Email</label>
-                  <input type="email" id="lock-email" name="email" autocomplete="email" required>
-                </div>
-                <button class="btn btn-ghost" type="submit">Hold my quote</button>
-                <p class="msg" id="ti-lock-msg" role="status" hidden>Prototype: quotes aren't sent anywhere yet.</p>
-              </form>
-            </div>
-          </div>
-          <p class="warn"><strong>Before you send it.</strong> We don't buy phones reported lost or stolen, or phones still signed in to iCloud or a Google account (activation lock). Sign out and remove the account first.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section inner" id="repairs" aria-labelledby="repairs-title">
-      <div class="split">
-        <div class="rail">
-          <h2 id="repairs-title">Repairs</h2>
-          <p class="lede">Screens, batteries, charging ports and back glass. Drop it off or post it in.</p>
-          <dl class="facts">
-            <div><dt class="label">Drop-off</dt><dd>Most screens and batteries fixed the same day.</dd></div>
-            <div><dt class="label">Post-in</dt><dd>Back with you in 3–5 working days.</dd></div>
-            <div><dt class="label">Warranty</dt><dd>6 months on every repair.</dd></div>
-          </dl>
-        </div>
-        <div class="main-col">
-          <div class="table-scroll" tabindex="0" role="region" aria-label="Repair prices">
-            <table>
-              <caption>Prices include parts and labour. Placeholder prices for the prototype.</caption>
-              <thead>
-                <tr><th scope="col">Model</th><th scope="col">Screen</th><th scope="col">Battery</th><th scope="col">Charging port</th><th scope="col">Back glass</th></tr>
-              </thead>
-              <tbody>
-                <tr><th scope="row">iPhone 15</th><td>£229</td><td>£89</td><td>£99</td><td>£149</td></tr>
-                <tr><th scope="row">iPhone 14</th><td>£199</td><td>£85</td><td>£89</td><td>£129</td></tr>
-                <tr><th scope="row">iPhone 13</th><td>£169</td><td>£79</td><td>£79</td><td>£99</td></tr>
-                <tr><th scope="row">iPhone 12</th><td>£139</td><td>£69</td><td>£75</td><td>£89</td></tr>
-                <tr><th scope="row">iPhone 11</th><td>£99</td><td>£59</td><td>£65</td><td>£79</td></tr>
-                <tr class="brand-break"><th scope="row">Galaxy S24</th><td>£219</td><td>£89</td><td>£89</td><td>£109</td></tr>
-                <tr><th scope="row">Galaxy S23</th><td>£189</td><td>£79</td><td>£79</td><td>£99</td></tr>
-                <tr class="brand-break"><th scope="row">Pixel 8</th><td>£179</td><td>£79</td><td>£85</td><td>£89</td></tr>
-                <tr><th scope="row">Pixel 7a</th><td>£129</td><td>£69</td><td>£69</td><td>£79</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="warn">Different model or fault? Send us the model and what's wrong and we'll give you a price: <span class="contact">hello@fullbars.example</span> or <span class="contact">0191 000 0002</span>.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section inner" id="help" aria-labelledby="help-title">
-      <div class="split">
-        <div class="rail">
-          <h2 id="help-title">Help</h2>
-          <p class="lede">Common questions before you buy. Anything else, get in touch.</p>
-          <p class="contact">hello@fullbars.example<br>0191 000 0002</p>
-        </div>
-        <div class="main-col faq">
-          <details>
-            <summary>What's the difference between refurbished and used?</summary>
-            <div class="answer">
-              <p>A used phone is sold as it comes. A refurbished phone from us has passed a 64-point test, had any faulty parts replaced, had its battery checked and its data wiped, and then been graded.</p>
-              <p>It also comes with a 12-month warranty, which a private sale won't.</p>
-            </div>
-          </details>
-          <details>
-            <summary>How healthy will the battery be?</summary>
-            <div class="answer">
-              <p>Every phone has at least 85% of its original battery capacity. If a phone tests lower, we fit a new battery before it goes on sale.</p>
-              <p>Each listing shows the battery health of that exact phone.</p>
-            </div>
-          </details>
-          <details>
-            <summary>What does the 12-month warranty cover?</summary>
-            <div class="answer">
-              <p>Any fault that shows up through normal use in the first 12 months. We'll repair it, replace it or refund you.</p>
-              <p>It doesn't cover accidental damage, such as a cracked screen from a drop or water damage.</p>
-              <p>The warranty is on top of your legal rights under the Consumer Rights Act, and doesn't affect them.</p>
-            </div>
-          </details>
-          <details>
-            <summary>Is it unlocked? Can I use an eSIM?</summary>
-            <div class="answer">
-              <p>Yes. Every phone is unlocked and works on any UK network, including EE, O2, Vodafone, Three and the smaller networks that run on them.</p>
-              <p>All the phones we sell take a nano-SIM and also support eSIM. Your network can move your number to an eSIM if you prefer.</p>
-            </div>
-          </details>
-          <details>
-            <summary>What if I change my mind?</summary>
-            <div class="answer">
-              <p>You have 30 days from delivery to send it back for a full refund, for any reason. The law only requires 14 days for online orders.</p>
-              <p>Get in touch and we'll send you a free returns label. We refund you within 5 working days of the phone reaching us.</p>
-            </div>
-          </details>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="site-footer bleed">
-    <div class="inner footer-grid">
-      <div>
-        <span class="logo">
-          <svg class="bars" viewBox="0 0 20 16" aria-hidden="true"><rect class="on" x="0" y="11" width="3.5" height="5" rx=".8"/><rect class="on" x="5.5" y="8" width="3.5" height="8" rx=".8"/><rect class="on" x="11" y="5" width="3.5" height="11" rx=".8"/><rect class="on" x="16.5" y="2" width="3.5" height="14" rx=".8"/></svg>
-          <span>Full Bars</span>
-        </span>
-        <p>A small UK business selling refurbished phones graded by what you can see. We also buy phones and fix screens, batteries, ports and back glass.</p>
-      </div>
-      <div>
-        <p class="label">Contact</p>
-        <p class="contact">hello@fullbars.example<br>0191 000 0002</p>
-      </div>
-      <div>
-        <p class="label">Company</p>
-        <p>Company number and address go here before launch.</p>
-        <p>© 2026 Full Bars</p>
-      </div>
+  </div>
+  <div class="drawer" id="drawer">
+    <nav class="drawer-inner wrap" aria-label="Mobile">
+      <a href="shop.html">Shop all phones</a>
+      <a href="shop.html?type=iphone">All iPhones</a>
+      <a href="collections/pro-models.html">Pro iPhones</a>
+      <a href="collections/samsung-galaxy.html">Samsung Galaxy</a>
+      <a href="collections/google-pixel.html">Google Pixel</a>
+      <a href="collections/under-300.html">Under &pound;300</a>
+      <a href="grading.html">How we grade</a>
+      <a href="warranty.html">Warranty</a>
+      <a href="delivery-returns.html">Delivery &amp; returns</a>
+      <a href="sell.html">Sell your phone</a>
+      <a href="guides/index.html">Guides</a>
+      <a href="faq.html">Help &amp; FAQ</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+  </div>
+</header>
+<main id="main">
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Refurbished iPhone &middot; Galaxy &middot; Pixel &middot; UK</div>
+      <h1>Phones tested by someone who can <em>actually fix them.</em></h1>
+      <p class="lead">We buy phones from people, repair what needs repairing, test every function and sell them with a 12-month warranty and the real battery figure. Refurbished iPhones, Samsung Galaxy and Google Pixel phones: unlocked, IMEI-checked, at least 85% battery health, and graded to a standard we publish.</p>
+      <div class="hero-cta"><a class="btn btn-solid" href="shop.html">Shop phones</a><a class="btn btn-line" href="sell.html">Sell your phone</a></div>
+      <ul class="chips hero-quick" aria-label="Popular ranges"><li><a href="collections/under-300.html">Under &pound;300</a></li><li><a href="shop.html?type=iphone">All iPhones</a></li><li><a href="collections/samsung-galaxy.html">Samsung Galaxy</a></li><li><a href="collections/google-pixel.html">Google Pixel</a></li></ul>
+      <ul class="hero-points"><li>Free tracked, signed-for delivery</li><li>30-day satisfaction guarantee</li><li>No finance, no catches</li></ul>
     </div>
-  </footer>
-</div>
-
-<div class="scrim" id="scrim"></div>
-<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
-  <div class="drawer-head">
-    <h2 id="drawer-title">Your basket</h2>
-    <button class="icon-btn" id="drawer-close" type="button" aria-label="Close basket"></button>
+    <div class="hero-art"><svg viewBox='0 0 520 480' xmlns='http://www.w3.org/2000/svg' role='img' aria-label='Illustration of three refurbished phones with battery, IMEI and warranty badges'><defs><filter id='hsh' x='-20%' y='-30%' width='140%' height='180%'><feDropShadow dx='0' dy='6' stdDeviation='8' flood-color='#000000' flood-opacity='.55'/></filter></defs><circle cx='300' cy='200' r='170' fill='#0F1A30'/><circle cx='300' cy='200' r='169.5' fill='none' stroke='#22314F'/><circle cx='110' cy='390' r='86' fill='#FFB020' opacity='.09'/><ellipse cx='270' cy='420' rx='190' ry='14' fill='#000000' opacity='.5'/><g transform='rotate(-13 148 262)'><defs><linearGradient id='bodyh1' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#E4DCEE'/><stop offset='.55' stop-color='#D8CDE6'/><stop offset='1' stop-color='#BEB4CA'/></linearGradient><linearGradient id='sheenh1' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensh1' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='207.76' y='200' width='3' height='32.24' rx='1.5' fill='#BEB4CA'/><rect x='87.24' y='138' width='121.52' height='248' rx='20.66' fill='#BEB4CA'/><rect x='89.24' y='140' width='117.52' height='244' rx='18.66' fill='url(#bodyh1)'/><rect x='89.24' y='140' width='117.52' height='244' rx='18.66' fill='url(#sheenh1)'/><circle cx='111.54' cy='162.3' r='14.1' fill='#C9BFD6' stroke='#A29AAC' stroke-opacity='.45'/><circle cx='111.54' cy='162.3' r='12.15' fill='#2B3036'/><circle cx='111.54' cy='162.3' r='9.72' fill='#0B0E13'/><circle cx='111.54' cy='162.3' r='6.81' fill='url(#lensh1)'/><circle cx='109.11' cy='159.63' r='1.58' fill='#FFFFFF' opacity='.55'/><circle cx='111.54' cy='192.08' r='14.1' fill='#C9BFD6' stroke='#A29AAC' stroke-opacity='.45'/><circle cx='111.54' cy='192.08' r='12.15' fill='#2B3036'/><circle cx='111.54' cy='192.08' r='9.72' fill='#0B0E13'/><circle cx='111.54' cy='192.08' r='6.81' fill='url(#lensh1)'/><circle cx='109.11' cy='189.4' r='1.58' fill='#FFFFFF' opacity='.55'/><circle cx='111.54' cy='221.85' r='14.1' fill='#C9BFD6' stroke='#A29AAC' stroke-opacity='.45'/><circle cx='111.54' cy='221.85' r='12.15' fill='#2B3036'/><circle cx='111.54' cy='221.85' r='9.72' fill='#0B0E13'/><circle cx='111.54' cy='221.85' r='6.81' fill='url(#lensh1)'/><circle cx='109.11' cy='219.18' r='1.58' fill='#FFFFFF' opacity='.55'/><circle cx='135.85' cy='162.3' r='4.25' fill='#F4EBD0' stroke='#A29AAC' stroke-opacity='.4'/></g><g transform='rotate(12 392 268)'><defs><linearGradient id='bodyh3' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#B0B6AD'/><stop offset='.55' stop-color='#8E978A'/><stop offset='1' stop-color='#7D8579'/></linearGradient><linearGradient id='sheenh3' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensh3' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='451.76' y='206' width='3' height='32.24' rx='1.5' fill='#7D8579'/><rect x='331.24' y='144' width='121.52' height='248' rx='20.66' fill='#7D8579'/><rect x='333.24' y='146' width='117.52' height='244' rx='18.66' fill='url(#bodyh3)'/><rect x='333.24' y='146' width='117.52' height='244' rx='18.66' fill='url(#sheenh3)'/><rect x='330.24' y='176.24' width='123.52' height='29.16' rx='14.58' fill='#939B97' stroke='#6A7168' stroke-opacity='.3'/><rect x='342.18' y='180.61' width='70.48' height='20.42' rx='10.21' fill='#15171B'/><circle cx='357.97' cy='190.82' r='7.76' fill='#2B3036'/><circle cx='357.97' cy='190.82' r='6.21' fill='#0B0E13'/><circle cx='357.97' cy='190.82' r='4.34' fill='url(#lensh3)'/><circle cx='356.42' cy='189.12' r='1.01' fill='#FFFFFF' opacity='.55'/><circle cx='385.92' cy='190.82' r='7.76' fill='#2B3036'/><circle cx='385.92' cy='190.82' r='6.21' fill='#0B0E13'/><circle cx='385.92' cy='190.82' r='4.34' fill='url(#lensh3)'/><circle cx='384.37' cy='189.12' r='1.01' fill='#FFFFFF' opacity='.55'/><circle cx='428.46' cy='190.82' r='4.25' fill='#F4EBD0'/></g><g transform='rotate(2 270 240)'><defs><linearGradient id='scrh2' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#6F7580'/><stop offset='1' stop-color='#1E2A3C'/></linearGradient><clipPath id='cliph2'><rect x='210.33' y='112.5' width='119.34' height='255' rx='18.16'/></clipPath></defs><rect x='203.83' y='160.2' width='3' height='21.28' rx='1.5' fill='#2C323C'/><rect x='204.83' y='107' width='130.34' height='266' rx='22.16' fill='#2C323C'/><rect x='206.63' y='108.8' width='126.74' height='262.4' rx='20.36' fill='#0A0C0E'/><g clip-path='url(#cliph2)'><rect x='210.33' y='112.5' width='119.34' height='255' fill='url(#scrh2)'/><circle cx='317.74' cy='158.4' r='71.6' fill='#FFB020' opacity='.26'/><circle cx='216.3' cy='354.75' r='89.51' fill='#E1E9F4' opacity='.18'/><rect x='218.33' y='140.5' width='103.34' height='51' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='218.33' y='205.7' width='21.34' height='21.34' rx='5.55' fill='#FFFFFF' opacity='.5'/><rect x='245.67' y='205.7' width='21.34' height='21.34' rx='5.55' fill='#FFFFFF' opacity='.28'/><rect x='273' y='205.7' width='21.34' height='21.34' rx='5.55' fill='#FFFFFF' opacity='.28'/><rect x='300.34' y='205.7' width='21.34' height='21.34' rx='5.55' fill='#FFFFFF' opacity='.5'/><rect x='218.33' y='233.04' width='21.34' height='21.34' rx='5.55' fill='#FFFFFF' opacity='.28'/><rect x='245.67' y='233.04' width='21.34' height='21.34' rx='5.55' fill='#FFFFFF' opacity='.28'/><rect x='273' y='233.04' width='21.34' height='21.34' rx='5.55' fill='#FFFFFF' opacity='.5'/><rect x='300.34' y='233.04' width='21.34' height='21.34' rx='5.55' fill='#FFFFFF' opacity='.28'/><rect x='218.33' y='327.5' width='103.34' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><rect x='250.45' y='118.5' width='39.1' height='9' rx='4.5' fill='#000'/></g><g transform='translate(6 74)'><rect width='178' height='60' rx='18' fill='#131D33' stroke='#2B3A5B' filter='url(#hsh)'/><circle cx='30' cy='30' r='17' fill='#FFB020'/><g transform='translate(19 19) scale(.92)' fill='none' stroke='#1A1103' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M5.5 10v4M8.5 10v4M11.5 10v4"/></g><text x='56' y='26' font-family='Inter, Segoe UI, sans-serif' font-size='12' fill='#9AA7BF'>Battery health</text><text x='56' y='44' font-family='Bricolage Grotesque, Segoe UI, sans-serif' font-size='16' font-weight='700' fill='#EEF3FB'>85% or more</text></g><g transform='translate(286 18)'><rect width='228' height='60' rx='18' fill='#131D33' stroke='#2B3A5B' filter='url(#hsh)'/><circle cx='30' cy='30' r='17' fill='#FFB020'/><g transform='translate(19 19) scale(.92)' fill='none' stroke='#1A1103' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5l-4.6-4.6"/><path d="M8.3 11l1.9 1.9 3.3-3.4"/></g><text x='56' y='26' font-family='Inter, Segoe UI, sans-serif' font-size='12' fill='#9AA7BF'>Checked on CheckMEND</text><text x='56' y='44' font-family='Bricolage Grotesque, Segoe UI, sans-serif' font-size='16' font-weight='700' fill='#EEF3FB'>Not reported stolen</text></g><g transform='translate(330 392)'><rect width='172' height='60' rx='18' fill='#131D33' stroke='#2B3A5B' filter='url(#hsh)'/><circle cx='30' cy='30' r='17' fill='#FFB020'/><g transform='translate(19 19) scale(.92)' fill='none' stroke='#1A1103' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></g><text x='56' y='26' font-family='Inter, Segoe UI, sans-serif' font-size='12' fill='#9AA7BF'>Warranty</text><text x='56' y='44' font-family='Bricolage Grotesque, Segoe UI, sans-serif' font-size='16' font-weight='700' fill='#EEF3FB'>12 months</text></g></svg></div>
   </div>
-  <ul class="drawer-list" id="drawer-list"></ul>
-  <div class="drawer-empty" id="drawer-empty">
-    <p>Your basket is empty.</p>
-    <p class="small">Every phone comes with a 12-month warranty and free tracked UK delivery.</p>
-    <button class="btn btn-ghost btn-small" id="drawer-browse" type="button">Browse phones</button>
+</section>
+<section class="trust" aria-label="Our promises"><div class="wrap trust-grid"><div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg><div><b>12-month warranty</b>On top of your Consumer Rights Act 2015 rights</div></div><div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/><path d="M5.5 10v4M8.5 10v4M11.5 10v4"/></svg><div><b>Battery 85%+</b>90%+ on Excellent phones</div></div><div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5l-4.6-4.6"/><path d="M8.3 11l1.9 1.9 3.3-3.4"/></svg><div><b>IMEI-checked</b>On CheckMEND, before we buy and sell</div></div><div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.7-1.5"/></svg><div><b>Unlocked</b>Works on any UK network</div></div><div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h11v10H2z"/><path d="M13 9h4l3 3v4h-7z"/><circle cx="6" cy="17.5" r="1.8"/><circle cx="16.5" cy="17.5" r="1.8"/></svg><div><b>Free delivery</b>Tracked and signed for</div></div><div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><div><b>30-day guarantee</b>On top of your 14-day right to cancel</div></div></div></section>
+
+<section class="section wrap">
+  <div class="section-head"><div><h2>Featured phones</h2><p>From the compact iPhone 13 mini to the iPhone 16, plus the Samsung Galaxy S23 and Google Pixel 8. Prices shown are for our Good grade; every grade is fully working. Preview prices: we&rsquo;re not taking orders yet. These are the prices we expect to charge when we open.</p></div><a class="link-arrow" href="shop.html">All 19 models &rarr;</a></div>
+  <p class="small oneoff-note">Every phone is a one-off, so not every storage, condition and colour is in stock at every price, including the &ldquo;from&rdquo; price.</p>
+  <div class="grid">
+<article class="card" data-series="15" data-type="standard iphone" data-from="369" data-usbc="1" data-order="11"><a href="products/iphone-15.html">
+  <div class="card-art"><svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><ellipse cx='205' cy='366' rx='130' ry='11' fill='#000000' opacity='.42'/><g transform='rotate(-9 150 206)'><defs><linearGradient id='scrfp0' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#F7E5E8'/><stop offset='1' stop-color='#5E5E6C'/></linearGradient><clipPath id='clipfp0'><rect x='99.44' y='97.1' width='101.11' height='217.8' rx='15.06'/></clipPath></defs><rect x='92.94' y='137.36' width='3' height='18.3' rx='1.5' fill='#877C80'/><rect x='93.94' y='91.6' width='112.11' height='228.8' rx='19.06' fill='#877C80'/><rect x='95.74' y='93.4' width='108.51' height='225.2' rx='17.26' fill='#0A0C0E'/><g clip-path='url(#clipfp0)'><rect x='99.44' y='97.1' width='101.11' height='217.8' fill='url(#scrfp0)'/><circle cx='190.44' cy='136.3' r='60.67' fill='#FFB020' opacity='.26'/><circle cx='104.5' cy='304.01' r='75.83' fill='#E1E9F4' opacity='.18'/><rect x='107.44' y='125.1' width='85.11' height='43.56' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='107.44' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='130.22' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='175.78' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='107.44' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='130.22' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='175.78' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='107.44' y='274.9' width='85.11' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><rect x='133.18' y='103.1' width='33.63' height='9' rx='4.5' fill='#000'/></g><g transform='rotate(7 247 197)'><defs><linearGradient id='bodybp0' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#F7E6E9'/><stop offset='.55' stop-color='#F4DCE0'/><stop offset='1' stop-color='#D7C2C5'/></linearGradient><linearGradient id='sheenbp0' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensbp0' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='302.06' y='139.8' width='3' height='29.74' rx='1.5' fill='#D7C2C5'/><rect x='190.94' y='82.6' width='112.11' height='228.8' rx='19.06' fill='#D7C2C5'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#bodybp0)'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#sheenbp0)'/><rect x='199.35' y='91.01' width='45.97' height='45.97' rx='12.41' fill='#E3CDD0' stroke='#B7A5A8' stroke-opacity='.35'/><circle cx='213.14' cy='104.8' r='9.19' fill='#2B3036'/><circle cx='213.14' cy='104.8' r='7.35' fill='#0B0E13'/><circle cx='213.14' cy='104.8' r='5.15' fill='url(#lensbp0)'/><circle cx='211.3' cy='102.78' r='1.2' fill='#FFFFFF' opacity='.55'/><circle cx='231.53' cy='123.18' r='9.19' fill='#2B3036'/><circle cx='231.53' cy='123.18' r='7.35' fill='#0B0E13'/><circle cx='231.53' cy='123.18' r='5.15' fill='url(#lensbp0)'/><circle cx='229.69' cy='121.16' r='1.2' fill='#FFFFFF' opacity='.55'/><circle cx='232.91' cy='103.42' r='3.45' fill='#F4EBD0'/><circle cx='211.76' cy='125.02' r='1.38' fill='#222'/></g></svg><span class="card-badge hot">Our pick</span></div>
+  <div class="card-body"><h3>iPhone 15</h3><div class="card-meta">6.1&Prime; &middot; A16 Bionic &middot; <span class="nw">USB-C</span></div><div class="card-meta">128GB&ndash;512GB &middot; 5 colours</div><div class="card-price">from <b class="tnum">&pound;369</b></div></div>
+</a></article>
+<article class="card" data-series="13" data-type="standard iphone" data-from="209" data-usbc="0" data-order="4"><a href="products/iphone-13.html">
+  <div class="card-art"><svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><ellipse cx='205' cy='366' rx='130' ry='11' fill='#000000' opacity='.42'/><g transform='rotate(-9 150 206)'><defs><linearGradient id='scrfp1' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#6287A5'/><stop offset='1' stop-color='#19324D'/></linearGradient><clipPath id='clipfp1'><rect x='99.44' y='97.1' width='101.11' height='217.8' rx='15.06'/></clipPath></defs><rect x='92.94' y='137.36' width='3' height='18.3' rx='1.5' fill='#243E54'/><rect x='93.94' y='91.6' width='112.11' height='228.8' rx='19.06' fill='#243E54'/><rect x='95.74' y='93.4' width='108.51' height='225.2' rx='17.26' fill='#0A0C0E'/><g clip-path='url(#clipfp1)'><rect x='99.44' y='97.1' width='101.11' height='217.8' fill='url(#scrfp1)'/><circle cx='190.44' cy='136.3' r='60.67' fill='#FFB020' opacity='.26'/><circle cx='104.5' cy='304.01' r='75.83' fill='#E1E9F4' opacity='.18'/><rect x='107.44' y='125.1' width='85.11' height='43.56' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='107.44' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='130.22' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='175.78' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='107.44' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='130.22' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='175.78' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='107.44' y='274.9' width='85.11' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><rect x='129.82' y='96.1' width='40.36' height='10' rx='5' fill='#0A0C0E'/></g><g transform='rotate(7 247 197)'><defs><linearGradient id='bodybp1' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#6D8FAB'/><stop offset='.55' stop-color='#2E5F87'/><stop offset='1' stop-color='#285477'/></linearGradient><linearGradient id='sheenbp1' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensbp1' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='302.06' y='139.8' width='3' height='29.74' rx='1.5' fill='#285477'/><rect x='190.94' y='82.6' width='112.11' height='228.8' rx='19.06' fill='#285477'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#bodybp1)'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#sheenbp1)'/><rect x='199.35' y='91.01' width='45.97' height='45.97' rx='12.41' fill='#477295' stroke='#224765' stroke-opacity='.35'/><circle cx='213.14' cy='104.8' r='9.19' fill='#2B3036'/><circle cx='213.14' cy='104.8' r='7.35' fill='#0B0E13'/><circle cx='213.14' cy='104.8' r='5.15' fill='url(#lensbp1)'/><circle cx='211.3' cy='102.78' r='1.2' fill='#FFFFFF' opacity='.55'/><circle cx='231.53' cy='123.18' r='9.19' fill='#2B3036'/><circle cx='231.53' cy='123.18' r='7.35' fill='#0B0E13'/><circle cx='231.53' cy='123.18' r='5.15' fill='url(#lensbp1)'/><circle cx='229.69' cy='121.16' r='1.2' fill='#FFFFFF' opacity='.55'/><circle cx='232.91' cy='103.42' r='3.45' fill='#F4EBD0'/><circle cx='211.76' cy='125.02' r='1.38' fill='#222'/></g></svg><span class="card-badge">Budget pick</span></div>
+  <div class="card-body"><h3>iPhone 13</h3><div class="card-meta">6.1&Prime; &middot; A15 Bionic &middot; Lightning</div><div class="card-meta">128GB&ndash;512GB &middot; 6 colours</div><div class="card-price">from <b class="tnum">&pound;209</b></div></div>
+</a></article>
+<article class="card" data-series="galaxy" data-type="standard android" data-from="249" data-usbc="1" data-order="10.5"><a href="products/galaxy-s23.html">
+  <div class="card-art"><svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><ellipse cx='205' cy='366' rx='130' ry='11' fill='#000000' opacity='.42'/><g transform='rotate(-9 150 206)'><defs><linearGradient id='scrfp2' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#606064'/><stop offset='1' stop-color='#18202F'/></linearGradient><clipPath id='clipfp2'><rect x='99.44' y='97.1' width='101.11' height='217.8' rx='15.06'/></clipPath></defs><rect x='92.94' y='137.36' width='3' height='18.3' rx='1.5' fill='#222428'/><rect x='93.94' y='91.6' width='112.11' height='228.8' rx='19.06' fill='#222428'/><rect x='95.74' y='93.4' width='108.51' height='225.2' rx='17.26' fill='#0A0C0E'/><g clip-path='url(#clipfp2)'><rect x='99.44' y='97.1' width='101.11' height='217.8' fill='url(#scrfp2)'/><circle cx='190.44' cy='136.3' r='60.67' fill='#FFB020' opacity='.26'/><circle cx='104.5' cy='304.01' r='75.83' fill='#E1E9F4' opacity='.18'/><rect x='107.44' y='125.1' width='85.11' height='43.56' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='107.44' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='130.22' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='175.78' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='107.44' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='130.22' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='175.78' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='107.44' y='274.9' width='85.11' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><circle cx='150' cy='107.1' r='4' fill='#000'/></g><g transform='rotate(7 247 197)'><defs><linearGradient id='bodybp2' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#6B6B6E'/><stop offset='.55' stop-color='#2B2B30'/><stop offset='1' stop-color='#26262A'/></linearGradient><linearGradient id='sheenbp2' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensbp2' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='302.06' y='139.8' width='3' height='29.74' rx='1.5' fill='#26262A'/><rect x='190.94' y='82.6' width='112.11' height='228.8' rx='19.06' fill='#26262A'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#bodybp2)'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#sheenbp2)'/><circle cx='213.37' cy='105.02' r='13' fill='#444449' stroke='#202024' stroke-opacity='.45'/><circle cx='213.37' cy='105.02' r='11.21' fill='#2B3036'/><circle cx='213.37' cy='105.02' r='8.97' fill='#0B0E13'/><circle cx='213.37' cy='105.02' r='6.28' fill='url(#lensbp2)'/><circle cx='211.12' cy='102.56' r='1.46' fill='#FFFFFF' opacity='.55'/><circle cx='213.37' cy='132.49' r='13' fill='#444449' stroke='#202024' stroke-opacity='.45'/><circle cx='213.37' cy='132.49' r='11.21' fill='#2B3036'/><circle cx='213.37' cy='132.49' r='8.97' fill='#0B0E13'/><circle cx='213.37' cy='132.49' r='6.28' fill='url(#lensbp2)'/><circle cx='211.12' cy='130.02' r='1.46' fill='#FFFFFF' opacity='.55'/><circle cx='213.37' cy='159.96' r='13' fill='#444449' stroke='#202024' stroke-opacity='.45'/><circle cx='213.37' cy='159.96' r='11.21' fill='#2B3036'/><circle cx='213.37' cy='159.96' r='8.97' fill='#0B0E13'/><circle cx='213.37' cy='159.96' r='6.28' fill='url(#lensbp2)'/><circle cx='211.12' cy='157.49' r='1.46' fill='#FFFFFF' opacity='.55'/><circle cx='235.79' cy='105.02' r='3.92' fill='#F4EBD0' stroke='#202024' stroke-opacity='.4'/></g></svg></div>
+  <div class="card-body"><h3>Samsung Galaxy S23</h3><div class="card-meta">6.1&Prime; &middot; Snapdragon 8 Gen 2 &middot; <span class="nw">USB-C</span></div><div class="card-meta">128GB&ndash;256GB &middot; 4 colours</div><div class="card-price">from <b class="tnum">&pound;249</b></div></div>
+</a></article>
+<article class="card" data-series="14" data-type="standard iphone" data-from="309" data-usbc="0" data-order="7"><a href="products/iphone-14.html">
+  <div class="card-art"><svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><ellipse cx='205' cy='366' rx='130' ry='11' fill='#000000' opacity='.42'/><g transform='rotate(-9 150 206)'><defs><linearGradient id='scrfp3' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#E9E2F2'/><stop offset='1' stop-color='#585D71'/></linearGradient><clipPath id='clipfp3'><rect x='99.44' y='97.1' width='101.11' height='217.8' rx='15.06'/></clipPath></defs><rect x='92.94' y='137.36' width='3' height='18.3' rx='1.5' fill='#7E7B88'/><rect x='93.94' y='91.6' width='112.11' height='228.8' rx='19.06' fill='#7E7B88'/><rect x='95.74' y='93.4' width='108.51' height='225.2' rx='17.26' fill='#0A0C0E'/><g clip-path='url(#clipfp3)'><rect x='99.44' y='97.1' width='101.11' height='217.8' fill='url(#scrfp3)'/><circle cx='190.44' cy='136.3' r='60.67' fill='#FFB020' opacity='.26'/><circle cx='104.5' cy='304.01' r='75.83' fill='#E1E9F4' opacity='.18'/><rect x='107.44' y='125.1' width='85.11' height='43.56' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='107.44' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='130.22' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='175.78' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='107.44' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='130.22' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='175.78' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='107.44' y='274.9' width='85.11' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><rect x='129.82' y='96.1' width='40.36' height='10' rx='5' fill='#0A0C0E'/></g><g transform='rotate(7 247 197)'><defs><linearGradient id='bodybp3' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#EBE4F3'/><stop offset='.55' stop-color='#E2D9EE'/><stop offset='1' stop-color='#C7BFD1'/></linearGradient><linearGradient id='sheenbp3' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensbp3' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='302.06' y='139.8' width='3' height='29.74' rx='1.5' fill='#C7BFD1'/><rect x='190.94' y='82.6' width='112.11' height='228.8' rx='19.06' fill='#C7BFD1'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#bodybp3)'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#sheenbp3)'/><rect x='199.35' y='91.01' width='45.97' height='45.97' rx='12.41' fill='#D2CADD' stroke='#AAA3B2' stroke-opacity='.35'/><circle cx='213.14' cy='104.8' r='9.19' fill='#2B3036'/><circle cx='213.14' cy='104.8' r='7.35' fill='#0B0E13'/><circle cx='213.14' cy='104.8' r='5.15' fill='url(#lensbp3)'/><circle cx='211.3' cy='102.78' r='1.2' fill='#FFFFFF' opacity='.55'/><circle cx='231.53' cy='123.18' r='9.19' fill='#2B3036'/><circle cx='231.53' cy='123.18' r='7.35' fill='#0B0E13'/><circle cx='231.53' cy='123.18' r='5.15' fill='url(#lensbp3)'/><circle cx='229.69' cy='121.16' r='1.2' fill='#FFFFFF' opacity='.55'/><circle cx='232.91' cy='103.42' r='3.45' fill='#F4EBD0'/><circle cx='211.76' cy='125.02' r='1.38' fill='#222'/></g></svg></div>
+  <div class="card-body"><h3>iPhone 14</h3><div class="card-meta">6.1&Prime; &middot; A15 Bionic &middot; Lightning</div><div class="card-meta">128GB&ndash;512GB &middot; 6 colours</div><div class="card-price">from <b class="tnum">&pound;309</b></div></div>
+</a></article>
+<article class="card" data-series="pixel" data-type="standard android" data-from="229" data-usbc="1" data-order="14.5"><a href="products/pixel-8.html">
+  <div class="card-art"><svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><ellipse cx='205' cy='366' rx='130' ry='11' fill='#000000' opacity='.42'/><g transform='rotate(-9 150 206)'><defs><linearGradient id='scrfp4' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#626366'/><stop offset='1' stop-color='#182130'/></linearGradient><clipPath id='clipfp4'><rect x='98.61' y='95.4' width='102.78' height='221.2' rx='15.34'/></clipPath></defs><rect x='92.11' y='136.34' width='3' height='18.58' rx='1.5' fill='#24262A'/><rect x='93.11' y='89.9' width='113.78' height='232.2' rx='19.34' fill='#24262A'/><rect x='94.91' y='91.7' width='110.18' height='228.6' rx='17.54' fill='#0A0C0E'/><g clip-path='url(#clipfp4)'><rect x='98.61' y='95.4' width='102.78' height='221.2' fill='url(#scrfp4)'/><circle cx='191.11' cy='135.22' r='61.67' fill='#FFB020' opacity='.26'/><circle cx='103.75' cy='305.54' r='77.08' fill='#E1E9F4' opacity='.18'/><rect x='106.61' y='123.4' width='86.78' height='44.24' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='106.61' y='180.49' width='17.19' height='17.19' rx='4.47' fill='#FFFFFF' opacity='.5'/><rect x='129.81' y='180.49' width='17.19' height='17.19' rx='4.47' fill='#FFFFFF' opacity='.28'/><rect x='153' y='180.49' width='17.19' height='17.19' rx='4.47' fill='#FFFFFF' opacity='.28'/><rect x='176.19' y='180.49' width='17.19' height='17.19' rx='4.47' fill='#FFFFFF' opacity='.5'/><rect x='106.61' y='203.68' width='17.19' height='17.19' rx='4.47' fill='#FFFFFF' opacity='.28'/><rect x='129.81' y='203.68' width='17.19' height='17.19' rx='4.47' fill='#FFFFFF' opacity='.28'/><rect x='153' y='203.68' width='17.19' height='17.19' rx='4.47' fill='#FFFFFF' opacity='.5'/><rect x='176.19' y='203.68' width='17.19' height='17.19' rx='4.47' fill='#FFFFFF' opacity='.28'/><rect x='106.61' y='276.6' width='86.78' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><circle cx='150' cy='105.4' r='4' fill='#000'/></g><g transform='rotate(7 247 197)'><defs><linearGradient id='bodybp4' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#6C6D70'/><stop offset='.55' stop-color='#2D2F33'/><stop offset='1' stop-color='#28292D'/></linearGradient><linearGradient id='sheenbp4' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensbp4' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='302.89' y='138.95' width='3' height='30.19' rx='1.5' fill='#28292D'/><rect x='190.11' y='80.9' width='113.78' height='232.2' rx='19.34' fill='#28292D'/><rect x='192.11' y='82.9' width='109.78' height='228.2' rx='17.34' fill='url(#bodybp4)'/><rect x='192.11' y='82.9' width='109.78' height='228.2' rx='17.34' fill='url(#sheenbp4)'/><rect x='189.11' y='111.09' width='115.78' height='27.31' rx='13.65' fill='#5E6267' stroke='#222326' stroke-opacity='.3'/><rect x='200.35' y='115.18' width='65.99' height='19.11' rx='9.56' fill='#15171B'/><circle cx='215.14' cy='124.74' r='7.26' fill='#2B3036'/><circle cx='215.14' cy='124.74' r='5.81' fill='#0B0E13'/><circle cx='215.14' cy='124.74' r='4.07' fill='url(#lensbp4)'/><circle cx='213.69' cy='123.14' r='0.94' fill='#FFFFFF' opacity='.55'/><circle cx='241.31' cy='124.74' r='7.26' fill='#2B3036'/><circle cx='241.31' cy='124.74' r='5.81' fill='#0B0E13'/><circle cx='241.31' cy='124.74' r='4.07' fill='url(#lensbp4)'/><circle cx='239.86' cy='123.14' r='0.94' fill='#FFFFFF' opacity='.55'/><circle cx='281.13' cy='124.74' r='3.98' fill='#F4EBD0'/></g></svg><span class="card-badge">Updates to 2030</span></div>
+  <div class="card-body"><h3>Google Pixel 8</h3><div class="card-meta">6.2&Prime; &middot; Tensor G3 &middot; <span class="nw">USB-C</span></div><div class="card-meta">128GB&ndash;256GB &middot; 4 colours</div><div class="card-price">from <b class="tnum">&pound;229</b></div></div>
+</a></article>
+<article class="card" data-series="16" data-type="standard iphone" data-from="479" data-usbc="1" data-order="15"><a href="products/iphone-16.html">
+  <div class="card-art"><svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><ellipse cx='205' cy='366' rx='130' ry='11' fill='#000000' opacity='.42'/><g transform='rotate(-9 150 206)'><defs><linearGradient id='scrfp5' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#8393E8'/><stop offset='1' stop-color='#28386C'/></linearGradient><clipPath id='clipfp5'><rect x='99.44' y='97.1' width='101.11' height='217.8' rx='15.06'/></clipPath></defs><rect x='92.94' y='137.36' width='3' height='18.3' rx='1.5' fill='#3A4680'/><rect x='93.94' y='91.6' width='112.11' height='228.8' rx='19.06' fill='#3A4680'/><rect x='95.74' y='93.4' width='108.51' height='225.2' rx='17.26' fill='#0A0C0E'/><g clip-path='url(#clipfp5)'><rect x='99.44' y='97.1' width='101.11' height='217.8' fill='url(#scrfp5)'/><circle cx='190.44' cy='136.3' r='60.67' fill='#FFB020' opacity='.26'/><circle cx='104.5' cy='304.01' r='75.83' fill='#E1E9F4' opacity='.18'/><rect x='107.44' y='125.1' width='85.11' height='43.56' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='107.44' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='130.22' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='175.78' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='107.44' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='130.22' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='175.78' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='107.44' y='274.9' width='85.11' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><rect x='133.18' y='103.1' width='33.63' height='9' rx='4.5' fill='#000'/></g><g transform='rotate(7 247 197)'><defs><linearGradient id='bodybp5' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#8C9AE9'/><stop offset='.55' stop-color='#5A6FE0'/><stop offset='1' stop-color='#4F62C5'/></linearGradient><linearGradient id='sheenbp5' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensbp5' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='302.06' y='139.8' width='3' height='29.74' rx='1.5' fill='#4F62C5'/><rect x='190.94' y='82.6' width='112.11' height='228.8' rx='19.06' fill='#4F62C5'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#bodybp5)'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#sheenbp5)'/><rect x='199.35' y='91.01' width='25.74' height='45.97' rx='12.87' fill='#6E80E4' stroke='#4453A8' stroke-opacity='.35'/><circle cx='212.22' cy='103.42' r='9.19' fill='#2B3036'/><circle cx='212.22' cy='103.42' r='7.35' fill='#0B0E13'/><circle cx='212.22' cy='103.42' r='5.15' fill='url(#lensbp5)'/><circle cx='210.38' cy='101.4' r='1.2' fill='#FFFFFF' opacity='.55'/><circle cx='212.22' cy='124.56' r='9.19' fill='#2B3036'/><circle cx='212.22' cy='124.56' r='7.35' fill='#0B0E13'/><circle cx='212.22' cy='124.56' r='5.15' fill='url(#lensbp5)'/><circle cx='210.38' cy='122.54' r='1.2' fill='#FFFFFF' opacity='.55'/><circle cx='237.04' cy='101.12' r='3.22' fill='#F4EBD0' stroke='#4453A8' stroke-opacity='.4'/></g></svg></div>
+  <div class="card-body"><h3>iPhone 16</h3><div class="card-meta">6.1&Prime; &middot; A18 &middot; <span class="nw">USB-C</span></div><div class="card-meta">128GB&ndash;512GB &middot; 5 colours</div><div class="card-price">from <b class="tnum">&pound;479</b></div></div>
+</a></article>
+<article class="card" data-series="15" data-type="pro iphone" data-from="459" data-usbc="1" data-order="13"><a href="products/iphone-15-pro.html">
+  <div class="card-art"><svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><ellipse cx='205' cy='366' rx='130' ry='11' fill='#000000' opacity='.42'/><g transform='rotate(-9 150 206)'><defs><linearGradient id='scrfp6' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#6F7580'/><stop offset='1' stop-color='#1E2A3C'/></linearGradient><clipPath id='clipfp6'><rect x='99.44' y='97.1' width='101.11' height='217.8' rx='15.06'/></clipPath></defs><rect x='92.94' y='137.36' width='3' height='18.3' rx='1.5' fill='#2C323C'/><rect x='93.94' y='91.6' width='112.11' height='228.8' rx='19.06' fill='#2C323C'/><rect x='95.74' y='93.4' width='108.51' height='225.2' rx='17.26' fill='#0A0C0E'/><g clip-path='url(#clipfp6)'><rect x='99.44' y='97.1' width='101.11' height='217.8' fill='url(#scrfp6)'/><circle cx='190.44' cy='136.3' r='60.67' fill='#FFB020' opacity='.26'/><circle cx='104.5' cy='304.01' r='75.83' fill='#E1E9F4' opacity='.18'/><rect x='107.44' y='125.1' width='85.11' height='43.56' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='107.44' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='130.22' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='175.78' y='181.37' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='107.44' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='130.22' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='153' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.5'/><rect x='175.78' y='204.15' width='16.78' height='16.78' rx='4.36' fill='#FFFFFF' opacity='.28'/><rect x='107.44' y='274.9' width='85.11' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><rect x='133.18' y='103.1' width='33.63' height='9' rx='4.5' fill='#000'/></g><g transform='rotate(7 247 197)'><defs><linearGradient id='bodybp6' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#797E89'/><stop offset='.55' stop-color='#3F4756'/><stop offset='1' stop-color='#373E4C'/></linearGradient><linearGradient id='sheenbp6' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensbp6' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='302.06' y='139.8' width='3' height='29.74' rx='1.5' fill='#59606C'/><rect x='190.94' y='82.6' width='112.11' height='228.8' rx='19.06' fill='#59606C'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#bodybp6)'/><rect x='192.94' y='84.6' width='108.11' height='224.8' rx='17.06' fill='url(#sheenbp6)'/><rect x='199.35' y='91.01' width='52.69' height='52.69' rx='13.17' fill='#565D6A' stroke='#2F3540' stroke-opacity='.35'/><circle cx='214.63' cy='105.24' r='10.01' fill='#2B3036'/><circle cx='214.63' cy='105.24' r='8.01' fill='#0B0E13'/><circle cx='214.63' cy='105.24' r='5.61' fill='url(#lensbp6)'/><circle cx='212.63' cy='103.03' r='1.3' fill='#FFFFFF' opacity='.55'/><circle cx='214.63' cy='129.47' r='10.01' fill='#2B3036'/><circle cx='214.63' cy='129.47' r='8.01' fill='#0B0E13'/><circle cx='214.63' cy='129.47' r='5.61' fill='url(#lensbp6)'/><circle cx='212.63' cy='127.27' r='1.3' fill='#FFFFFF' opacity='.55'/><circle cx='236.76' cy='117.35' r='10.01' fill='#2B3036'/><circle cx='236.76' cy='117.35' r='8.01' fill='#0B0E13'/><circle cx='236.76' cy='117.35' r='5.61' fill='url(#lensbp6)'/><circle cx='234.76' cy='115.15' r='1.3' fill='#FFFFFF' opacity='.55'/><circle cx='238.34' cy='100.49' r='3.43' fill='#F4EBD0'/><circle cx='238.34' cy='134.22' r='3.16' fill='#15181D'/></g></svg><span class="card-badge">Pro pick</span></div>
+  <div class="card-body"><h3>iPhone 15 Pro</h3><div class="card-meta">6.1&Prime; &middot; A17 Pro &middot; <span class="nw">USB-C</span></div><div class="card-meta">128GB&ndash;1TB &middot; 4 colours</div><div class="card-price">from <b class="tnum">&pound;459</b></div></div>
+</a></article>
+<article class="card" data-series="13" data-type="standard small iphone" data-from="199" data-usbc="0" data-order="3"><a href="products/iphone-13-mini.html">
+  <div class="card-art"><svg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg' aria-hidden='true' focusable='false'><ellipse cx='205' cy='366' rx='130' ry='11' fill='#000000' opacity='.42'/><g transform='rotate(-9 150 206)'><defs><linearGradient id='scrfp7' x1='0' y1='0' x2='.6' y2='1'><stop offset='0' stop-color='#F8E5E6'/><stop offset='1' stop-color='#5F5E6B'/></linearGradient><clipPath id='clipfp7'><rect x='105.28' y='109' width='89.45' height='194' rx='13.08'/></clipPath></defs><rect x='98.78' y='144.5' width='3' height='16.4' rx='1.5' fill='#887C7F'/><rect x='99.78' y='103.5' width='100.45' height='205' rx='17.08' fill='#887C7F'/><rect x='101.58' y='105.3' width='96.85' height='201.4' rx='15.28' fill='#0A0C0E'/><g clip-path='url(#clipfp7)'><rect x='105.28' y='109' width='89.45' height='194' fill='url(#scrfp7)'/><circle cx='185.78' cy='143.92' r='53.67' fill='#FFB020' opacity='.26'/><circle cx='109.75' cy='293.3' r='67.09' fill='#E1E9F4' opacity='.18'/><rect x='113.28' y='137' width='73.45' height='38.8' rx='12' fill='#FFFFFF' opacity='.22'/><rect x='113.28' y='187.56' width='13.86' height='13.86' rx='3.6' fill='#FFFFFF' opacity='.5'/><rect x='133.14' y='187.56' width='13.86' height='13.86' rx='3.6' fill='#FFFFFF' opacity='.28'/><rect x='153' y='187.56' width='13.86' height='13.86' rx='3.6' fill='#FFFFFF' opacity='.28'/><rect x='172.86' y='187.56' width='13.86' height='13.86' rx='3.6' fill='#FFFFFF' opacity='.5'/><rect x='113.28' y='207.42' width='13.86' height='13.86' rx='3.6' fill='#FFFFFF' opacity='.28'/><rect x='133.14' y='207.42' width='13.86' height='13.86' rx='3.6' fill='#FFFFFF' opacity='.28'/><rect x='153' y='207.42' width='13.86' height='13.86' rx='3.6' fill='#FFFFFF' opacity='.5'/><rect x='172.86' y='207.42' width='13.86' height='13.86' rx='3.6' fill='#FFFFFF' opacity='.28'/><rect x='113.28' y='263' width='73.45' height='30' rx='12' fill='#FFFFFF' opacity='.2'/></g><rect x='131.92' y='108' width='36.16' height='10' rx='5' fill='#0A0C0E'/></g><g transform='rotate(7 247 197)'><defs><linearGradient id='bodybp7' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#F9E6E7'/><stop offset='.55' stop-color='#F6DCDD'/><stop offset='1' stop-color='#D8C2C2'/></linearGradient><linearGradient id='sheenbp7' x1='0' y1='0' x2='1' y2='.6'><stop offset='.3' stop-color='#FFFFFF' stop-opacity='0'/><stop offset='.48' stop-color='#FFFFFF' stop-opacity='.22'/><stop offset='.62' stop-color='#FFFFFF' stop-opacity='0'/></linearGradient><radialGradient id='lensbp7' cx='.38' cy='.34' r='.75'><stop offset='0' stop-color='#56689A'/><stop offset='.55' stop-color='#1A2238'/><stop offset='1' stop-color='#05070C'/></radialGradient></defs><rect x='296.23' y='145.75' width='3' height='26.65' rx='1.5' fill='#D8C2C2'/><rect x='196.78' y='94.5' width='100.45' height='205' rx='17.08' fill='#D8C2C2'/><rect x='198.78' y='96.5' width='96.45' height='201' rx='15.08' fill='url(#bodybp7)'/><rect x='198.78' y='96.5' width='96.45' height='201' rx='15.08' fill='url(#sheenbp7)'/><rect x='204.31' y='102.03' width='41.18' height='41.18' rx='11.12' fill='#E5CDCE' stroke='#B8A5A6' stroke-opacity='.35'/><circle cx='216.66' cy='114.39' r='8.24' fill='#2B3036'/><circle cx='216.66' cy='114.39' r='6.59' fill='#0B0E13'/><circle cx='216.66' cy='114.39' r='4.61' fill='url(#lensbp7)'/><circle cx='215.02' cy='112.58' r='1.07' fill='#FFFFFF' opacity='.55'/><circle cx='233.14' cy='130.86' r='8.24' fill='#2B3036'/><circle cx='233.14' cy='130.86' r='6.59' fill='#0B0E13'/><circle cx='233.14' cy='130.86' r='4.61' fill='url(#lensbp7)'/><circle cx='231.49' cy='129.05' r='1.07' fill='#FFFFFF' opacity='.55'/><circle cx='234.37' cy='113.15' r='3.09' fill='#F4EBD0'/><circle cx='215.43' cy='132.51' r='1.24' fill='#222'/></g></svg><span class="card-badge">Compact</span></div>
+  <div class="card-body"><h3>iPhone 13 mini</h3><div class="card-meta">5.4&Prime; &middot; A15 Bionic &middot; Lightning</div><div class="card-meta">128GB&ndash;512GB &middot; 6 colours</div><div class="card-price">from <b class="tnum">&pound;199</b></div></div>
+</a></article>
   </div>
-  <div class="drawer-foot" id="drawer-foot" hidden>
-    <dl class="totals">
-      <div><dt>Subtotal</dt><dd id="subtotal">£0</dd></div>
-      <div><dt>Delivery</dt><dd>Free</dd></div>
-      <div class="total"><dt>Total</dt><dd id="total">£0</dd></div>
-    </dl>
-    <p class="small">Free UK delivery, tracked and signed for.</p>
-    <button class="btn btn-primary btn-block" id="checkout" type="button">Checkout</button>
-    <p class="msg" id="checkout-msg" role="status" hidden>Payments aren't connected yet. No order has been placed and you haven't been charged.</p>
+</section>
+
+<section class="section-tight wrap">
+  <div class="section-head"><h2>Shop by range</h2></div>
+  <p class="small oneoff-note">Every phone is a one-off, so not every storage, condition and colour is in stock at every price, including the &ldquo;from&rdquo; price.</p>
+  <div class="tiles"><a class="tile hot" href="collections/under-300.html"><b>Under &pound;300</b><span>Same checks, same warranty</span></a><a class="tile" href="collections/iphone-12-series.html" data-handles="iphone-12 iphone-12-pro"><b>iPhone 12</b><span>2 models &middot; from &pound;139</span></a><a class="tile" href="collections/iphone-13-series.html" data-handles="iphone-13-mini iphone-13 iphone-13-pro iphone-13-pro-max"><b>iPhone 13</b><span>4 models &middot; from &pound;199</span></a><a class="tile" href="collections/iphone-14-series.html" data-handles="iphone-14 iphone-14-plus iphone-14-pro iphone-14-pro-max"><b>iPhone 14</b><span>4 models &middot; from &pound;309</span></a><a class="tile" href="collections/iphone-15-series.html" data-handles="iphone-15 iphone-15-plus iphone-15-pro iphone-15-pro-max"><b>iPhone 15</b><span>4 models &middot; from &pound;369</span></a><a class="tile" href="collections/iphone-16-series.html" data-handles="iphone-16 iphone-16-pro iphone-16-pro-max"><b>iPhone 16</b><span>3 models &middot; from &pound;479</span></a><a class="tile dark" href="collections/samsung-galaxy.html" data-handles="galaxy-s23"><b>Samsung Galaxy</b><span>Galaxy S23 &middot; from &pound;249</span></a><a class="tile dark" href="collections/google-pixel.html" data-handles="pixel-8"><b>Google Pixel</b><span>Pixel 8 &middot; from &pound;229</span></a></div>
+</section>
+
+<section class="section band" id="checks">
+  <div class="wrap">
+    <div class="section-head"><div><h2>Every phone, checked properly</h2><p class="lead">Buying second-hand shouldn&rsquo;t feel like a gamble. This is what happens to every phone before it reaches you.</p></div></div>
+    <ol class="steps "><li><h3>IMEI-checked on CheckMEND</h3><p>Every phone&rsquo;s IMEI is checked on CheckMEND before we buy it, and again before we sell it. Activation-locked, blacklisted, reported-stolen or financed phones are refused, and we never alter an IMEI.</p></li><li><h3>Tested, function by function</h3><p>Screen, every camera, speakers, all microphones, every button, wired and wireless charging, Wi-Fi, Bluetooth, mobile data on a live SIM, GPS, NFC, Face ID or fingerprint, sensors and haptics. The results are logged and kept.</p></li><li><h3>Battery 85% or more</h3><p>We read the battery health on every phone and test it under load. Anything below 85% gets a new battery before it&rsquo;s listed, and we tell you before you pay if it&rsquo;s been replaced and whether it&rsquo;s a genuine part. Excellent phones have 90% or more.</p></li><li><h3>Wiped and unlinked</h3><p>The previous owner&rsquo;s data is erased, and every account lock is removed: Find My on iPhones, Google&rsquo;s Factory Reset Protection and Samsung&rsquo;s Reactivation Lock. The phone is factory reset after testing, ready for you.</p></li><li><h3>Unlocked and SIM-tested</h3><p>Every phone is tested with a UK SIM for calls and mobile data. It works with any UK network, SIM-only deal or eSIM.</p></li><li><h3>Graded to a published standard</h3><p>Excellent, Very Good or Good, with exact definitions for the screen, the body and the battery. If we&rsquo;re not sure between two grades, it gets the lower one. If any part has ever been replaced, we say so before you pay.</p></li></ol>
   </div>
-</aside>
-<p class="sr-only" id="announce" aria-live="polite"></p>
+</section>
 
-<script>
-(function () {
-  'use strict';
-  var $ = function (s, r) { return (r || document).querySelector(s); };
-  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  var money = function (n) { return '£' + n.toLocaleString('en-GB'); };
-  var GRADES = { 4: 'Pristine', 3: 'Excellent', 2: 'Good' };
+<section class="section wrap">
+  <div class="section-head"><div><h2>Honest grades, published</h2><p>Grades only describe how the phone looks. Every grade is 100% working, and we publish the minimum battery health for each. If we&rsquo;re not sure, it&rsquo;s the lower grade.</p></div><a class="link-arrow" href="grading.html">Our grading standard &rarr;</a></div>
+  <div class="grades"><div class="grade g1"><h3>Excellent <small>Cosmetic grade</small></h3><p>Screen flawless, with no marks visible at any angle. Body near-mint: at most one micro-mark, invisible at arm&rsquo;s length. Battery 90%+. All functions perfect, genuine parts.</p><ul><li>100% working: passes our full function test</li><li>Battery 90%+</li><li>12-month warranty</li></ul></div><div class="grade g2"><h3>Very Good <small>Cosmetic grade</small></h3><p>One or two light scratches on the screen, invisible when it&rsquo;s on. Light marks or minor edge wear on the body, no dents. Battery 88%+. All functions perfect.</p><ul><li>100% working: passes our full function test</li><li>Battery 88%+</li><li>12-month warranty</li></ul></div><div class="grade g3"><h3>Good <small>Cosmetic grade</small></h3><p>Visible light scratches on the screen, but no cracks or display defects. Noticeable scuffs on the body; small dents possible. Battery 85%+. All functions perfect.</p><ul><li>100% working: passes our full function test</li><li>Battery 85%+</li><li>12-month warranty</li></ul></div></div>
+</section>
 
-  var PRODUCTS = [
-    { id: 'fb-2417', brand: 'Apple', model: 'iPhone 15 Pro', gb: 128, colour: 'Natural Titanium', tint: 'natural-titanium', grade: 3, batt: 92, price: 649, shape: 'ip-pro' },
-    { id: 'fb-2422', brand: 'Apple', model: 'iPhone 15', gb: 128, colour: 'Black', tint: 'black', grade: 4, batt: 97, price: 529, shape: 'ip-diag' },
-    { id: 'fb-2398', brand: 'Apple', model: 'iPhone 14', gb: 128, colour: 'Midnight', tint: 'midnight', grade: 3, batt: 90, price: 389, shape: 'ip-diag' },
-    { id: 'fb-2376', brand: 'Apple', model: 'iPhone 13', gb: 128, colour: 'Blue', tint: 'blue', grade: 2, batt: 86, price: 279, shape: 'ip-diag' },
-    { id: 'fb-2351', brand: 'Apple', model: 'iPhone 12', gb: 64, colour: 'White', tint: 'white', grade: 2, batt: 85, price: 189, shape: 'ip-vert' },
-    { id: 'fb-2409', brand: 'Apple', model: 'iPhone SE (2022)', gb: 64, colour: 'Starlight', tint: 'starlight', grade: 3, batt: 89, price: 159, shape: 'ip-se' },
-    { id: 'fb-2430', brand: 'Samsung', model: 'Galaxy S24', gb: 256, colour: 'Onyx Black', tint: 'onyx', grade: 4, batt: 98, price: 499, shape: 'sam-s' },
-    { id: 'fb-2388', brand: 'Samsung', model: 'Galaxy S23', gb: 128, colour: 'Phantom Black', tint: 'phantom', grade: 3, batt: 91, price: 359, shape: 'sam-s' },
-    { id: 'fb-2414', brand: 'Samsung', model: 'Galaxy A55', gb: 128, colour: 'Awesome Navy', tint: 'navy', grade: 3, batt: 94, price: 229, shape: 'sam-a' },
-    { id: 'fb-2403', brand: 'Google', model: 'Pixel 8', gb: 128, colour: 'Obsidian', tint: 'obsidian', grade: 3, batt: 93, price: 319, shape: 'pix-8' },
-    { id: 'fb-2366', brand: 'Google', model: 'Pixel 7a', gb: 128, colour: 'Charcoal', tint: 'charcoal', grade: 2, batt: 88, price: 199, shape: 'pix-7a' }
-  ];
-  var byId = {};
-  PRODUCTS.forEach(function (p) { byId[p.id] = p; });
+<section class="wrap section-tight">
+  <div class="cta-band">
+    <div><h2>Got an old phone in a drawer?</h2><p>Get a guide price in under a minute. When trade-ins open: a free tracked label, payment by bank transfer the day your phone passes its checks, and if it matches your answers, the quote you&rsquo;re given is the price we pay.</p></div>
+    <a class="btn btn-hot" href="sell.html#quote">Get a guide price</a>
+  </div>
+</section>
 
-  /* ---------- Drawing ---------- */
-  function bars(n) {
-    var out = '<svg class="bars" viewBox="0 0 20 16" aria-hidden="true">';
-    for (var i = 0; i < 4; i++) {
-      out += '<rect' + (i < n ? ' class="on"' : '') + ' x="' + (i * 5.5) + '" y="' + (11 - i * 3) + '" width="3.5" height="' + (5 + i * 3) + '" rx=".8"/>';
-    }
-    return out + '</svg>';
-  }
+<section class="section wrap">
+  <div class="section-head"><div><h2>Guides</h2><p>Straight answers before you buy or sell.</p></div><a class="link-arrow" href="guides/index.html">All guides &rarr;</a></div>
+  <div class="guide-grid">
+<a class="guide-card" href="guides/which-used-iphone-to-buy-2026.html"><span class="eyebrow">Guide &middot; 6 min read</span><h3>Which used iPhone should you buy in 2026?</h3><p>The best used or refurbished iPhone for every budget in 2026, iPhone 12 to 16 Pro Max side by side, plus the Galaxy S23 and Pixel 8 for Android fans.</p></a>
+<a class="guide-card" href="guides/how-to-check-iphone-battery-health.html"><span class="eyebrow">Guide &middot; 5 min read</span><h3>How to check your iPhone&rsquo;s battery health</h3><p>Where to find iPhone battery health and cycle count, what Maximum Capacity really means, warning messages to look for and how to keep a battery healthy.</p></a>
+<a class="guide-card" href="guides/refurbished-iphone-grades-explained.html"><span class="eyebrow">Guide &middot; 4 min read</span><h3>Refurbished phone grades explained</h3><p>What Excellent, Very Good, Good and Fair (or A, B and C) mean on a refurbished iPhone or Android phone, why they&rsquo;re about looks and which to choose.</p></a>
+  </div>
+</section>
 
-  function phoneSVG(p, prefix) {
-    var s = p.shape, uid = (prefix || 'ph') + '-' + p.id;
-    var x = 35, y = 8, w = 70, h = 152, r = 13;
-    if (s === 'ip-se') { x = 39; y = 18; w = 62; h = 134; r = 10; }
-    else if (s === 'sam-s') { r = 8; }
-    else if (s === 'sam-a') { r = 11; }
-    else if (s.indexOf('pix') === 0) { r = 15; }
-    var apple = s.indexOf('ip') === 0;
-    function rect(cls, rx, ry, rw, rh, rr) { return '<rect class="' + cls + '" x="' + rx + '" y="' + ry + '" width="' + rw + '" height="' + rh + '" rx="' + rr + '"/>'; }
-    function lens(cx, cy, rr) { return '<circle class="ph-lens" cx="' + cx + '" cy="' + cy + '" r="' + rr + '"/><circle class="ph-glint" cx="' + (cx - rr * 0.3) + '" cy="' + (cy - rr * 0.3) + '" r="' + (rr * 0.28) + '"/>'; }
-    function flash(cx, cy) { return '<circle class="ph-flash" cx="' + cx + '" cy="' + cy + '" r="1.8"/>'; }
-    var btns = rect('ph-btn', x + w - 1, y + 36, 2.6, 24, 1);
-    if (apple) btns += rect('ph-btn', x - 1.6, y + 30, 2.6, 16, 1) + rect('ph-btn', x - 1.6, y + 50, 2.6, 16, 1);
-    else btns += rect('ph-btn', x + w - 1, y + 66, 2.6, 14, 1);
-    var cam = '';
-    switch (s) {
-      case 'ip-pro': cam = rect('ph-bump', x + 6, y + 6, 33, 33, 9) + lens(x + 15, y + 15, 6.2) + lens(x + 15, y + 30, 6.2) + lens(x + 29, y + 22.5, 6.2) + flash(x + 30, y + 11); break;
-      case 'ip-diag': cam = rect('ph-bump', x + 6, y + 6, 27, 27, 8) + lens(x + 14, y + 14, 5.4) + lens(x + 25, y + 25, 5.4) + flash(x + 26, y + 12); break;
-      case 'ip-vert': cam = rect('ph-bump', x + 6, y + 6, 24, 31, 8) + lens(x + 14, y + 14.5, 5) + lens(x + 14, y + 28.5, 5) + flash(x + 24, y + 14); break;
-      case 'ip-se': cam = lens(x + 11, y + 11, 4.4) + flash(x + 20, y + 11); break;
-      case 'sam-s': cam = lens(x + 12, y + 14, 5.2) + lens(x + 12, y + 28, 5.2) + lens(x + 12, y + 42, 5.2) + flash(x + 23, y + 14); break;
-      case 'sam-a': cam = rect('ph-bump', x + 5, y + 6, 14, 44, 7) + lens(x + 12, y + 14, 5) + lens(x + 12, y + 28, 5) + lens(x + 12, y + 42, 5) + flash(x + 25, y + 14); break;
-      case 'pix-8': cam = rect('ph-visor', x - 1.5, y + 24, w + 3, 17, 8.5) + lens(x + 16, y + 32.5, 4.6) + lens(x + 30, y + 32.5, 4.6) + flash(x + 43, y + 32.5); break;
-      case 'pix-7a': cam = rect('ph-visor', x - 1.5, y + 25, w + 3, 15, 7.5) + lens(x + 15, y + 32.5, 4.2) + lens(x + 28, y + 32.5, 4.2) + flash(x + 40, y + 32.5); break;
-    }
-    return '<svg viewBox="0 0 140 170" role="img" aria-label="' + p.model + ' in ' + p.colour + '" style="--tint:var(--c-' + p.tint + ')">' +
-      '<defs><clipPath id="' + uid + '">' + rect('', x, y, w, h, r) + '</clipPath></defs>' +
-      '<ellipse class="ph-floor" cx="70" cy="' + (y + h + 5) + '" rx="' + (w * 0.5) + '" ry="3.5"/>' +
-      btns + rect('ph-body', x, y, w, h, r) +
-      '<path class="ph-sheen" d="M' + x + ' ' + y + 'H' + (x + w * 0.62) + 'L' + x + ' ' + (y + h * 0.5) + 'Z" clip-path="url(#' + uid + ')"/>' +
-      cam + '</svg>';
-  }
-
-  /* ---------- Basket state ---------- */
-  var KEY = 'fullbars-basket-v1';
-  var basket = [];
-  try {
-    var raw = window.localStorage.getItem(KEY);
-    var parsed = raw ? JSON.parse(raw) : [];
-    if (Array.isArray(parsed)) basket = parsed.filter(function (id, i, a) { return byId[id] && a.indexOf(id) === i; });
-  } catch (e) { basket = []; }
-  function save() {
-    try { window.localStorage.setItem(KEY, JSON.stringify(basket)); } catch (e) { /* storage unavailable: basket lasts for this visit */ }
-  }
-
-  /* ---------- Shop ---------- */
-  var grid = $('#grid'), filters = $('#filters'), countEl = $('#shop-count'), emptyEl = $('#shop-empty');
-
-  function addLabel(p, inB) {
-    return inB ? p.model + ' is in your basket. Open basket' : 'Add ' + p.model + ', ' + p.gb + 'GB, ' + p.colour + ' to basket';
-  }
-
-  function cardHTML(p) {
-    var inB = basket.indexOf(p.id) > -1;
-    return '<article class="card" data-id="' + p.id + '">' +
-      '<div class="card-art">' + phoneSVG(p, 'card') + '<span class="unit">' + p.id.toUpperCase() + '</span></div>' +
-      '<div class="card-body">' +
-        '<h3>' + p.model + '</h3>' +
-        '<p class="spec">' + p.gb + 'GB · ' + p.colour + '</p>' +
-        '<div class="card-meta">' +
-          '<span class="grade">' + bars(p.grade) + GRADES[p.grade] + '</span>' +
-          '<span class="batt"><span class="batt-icon" style="--lvl:' + (p.batt / 100) + '" aria-hidden="true"></span>Battery <b>' + p.batt + '%</b></span>' +
-        '</div>' +
-        '<div class="card-foot">' +
-          '<span class="price">' + money(p.price) + '</span>' +
-          '<button class="btn btn-ghost btn-small' + (inB ? ' is-in' : '') + '" type="button" data-add="' + p.id + '" aria-label="' + addLabel(p, inB) + '">' + (inB ? 'In basket' : 'Add to basket') + '</button>' +
-        '</div>' +
-      '</div></article>';
-  }
-
-  function renderShop() {
-    var brand = (filters.querySelector('input[name="brand"]:checked') || {}).value || 'all';
-    var grade = $('#f-grade').value, storage = $('#f-storage').value, sort = $('#f-sort').value;
-    var list = PRODUCTS.filter(function (p) {
-      return (brand === 'all' || p.brand === brand) &&
-        (grade === 'all' || String(p.grade) === grade) &&
-        (storage === 'all' || String(p.gb) === storage);
-    }).sort(function (a, b) { return sort === 'desc' ? b.price - a.price : a.price - b.price; });
-    grid.innerHTML = list.map(cardHTML).join('');
-    emptyEl.hidden = list.length > 0;
-    countEl.textContent = list.length === PRODUCTS.length
-      ? PRODUCTS.length + ' phones in stock'
-      : 'Showing ' + list.length + ' of ' + PRODUCTS.length + ' phones';
-  }
-
-  function syncAddButtons() {
-    $$('[data-add]', grid).forEach(function (btn) {
-      var p = byId[btn.getAttribute('data-add')], inB = basket.indexOf(p.id) > -1;
-      btn.classList.toggle('is-in', inB);
-      btn.textContent = inB ? 'In basket' : 'Add to basket';
-      btn.setAttribute('aria-label', addLabel(p, inB));
-    });
-  }
-
-  filters.addEventListener('change', renderShop);
-  filters.addEventListener('submit', function (e) { e.preventDefault(); });
-  $('#f-clear').addEventListener('click', function () {
-    filters.reset();
-    renderShop();
-    $('#f-brand-all').focus();
-  });
-  grid.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-add]');
-    if (!btn) return;
-    var id = btn.getAttribute('data-add');
-    if (basket.indexOf(id) > -1) { openDrawer(btn); return; }
-    basket.push(id);
-    save();
-    syncAddButtons();
-    renderBasket();
-    announce(byId[id].model + ' added to your basket. ' + basket.length + (basket.length === 1 ? ' item' : ' items') + ' in basket.');
-  });
-
-  /* ---------- Basket drawer ---------- */
-  var drawer = $('#drawer'), scrim = $('#scrim'), basketBtn = $('#basket-btn');
-  var listEl = $('#drawer-list'), emptyBasket = $('#drawer-empty'), footEl = $('#drawer-foot'), checkoutMsg = $('#checkout-msg');
-  var returnFocus = null;
-
-  function renderBasket() {
-    var countBadge = $('#basket-count');
-    countBadge.textContent = basket.length;
-    if (basket.length) countBadge.removeAttribute('data-zero'); else countBadge.setAttribute('data-zero', '');
-    var sum = 0;
-    listEl.innerHTML = basket.map(function (id) {
-      var p = byId[id];
-      sum += p.price;
-      return '<li class="line-item">' + phoneSVG(p, 'line') +
-        '<div><h3>' + p.model + '</h3><p class="spec">' + p.gb + 'GB · ' + p.colour + ' · ' + GRADES[p.grade] + '</p></div>' +
-        '<div class="line-meta"><span class="price">' + money(p.price) + '</span>' +
-        '<button class="text-btn" type="button" data-remove="' + id + '" aria-label="Remove ' + p.model + ' from basket">Remove</button></div></li>';
-    }).join('');
-    listEl.hidden = basket.length === 0;
-    emptyBasket.hidden = basket.length > 0;
-    footEl.hidden = basket.length === 0;
-    $('#subtotal').textContent = money(sum);
-    $('#total').textContent = money(sum);
-    checkoutMsg.hidden = true;
-  }
-
-  function focusables() {
-    return $$('button, a[href], input, select', drawer).filter(function (el) { return !el.disabled && el.offsetParent !== null; });
-  }
-  function openDrawer(from) {
-    returnFocus = from || basketBtn;
-    drawer.classList.add('open');
-    scrim.classList.add('open');
-    basketBtn.setAttribute('aria-expanded', 'true');
-    document.documentElement.classList.add('locked');
-    setTimeout(function () { $('#drawer-close').focus(); }, 30);
-  }
-  function closeDrawer() {
-    drawer.classList.remove('open');
-    scrim.classList.remove('open');
-    basketBtn.setAttribute('aria-expanded', 'false');
-    document.documentElement.classList.remove('locked');
-    if (returnFocus && document.contains(returnFocus)) returnFocus.focus();
-  }
-
-  basketBtn.addEventListener('click', function () { openDrawer(basketBtn); });
-  $('#drawer-close').addEventListener('click', closeDrawer);
-  scrim.addEventListener('click', closeDrawer);
-  $('#drawer-browse').addEventListener('click', function () {
-    returnFocus = null;
-    closeDrawer();
-    location.hash = 'shop';
-  });
-  listEl.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-remove]');
-    if (!btn) return;
-    var id = btn.getAttribute('data-remove');
-    basket = basket.filter(function (x) { return x !== id; });
-    save();
-    renderBasket();
-    syncAddButtons();
-    announce(byId[id].model + ' removed from your basket.');
-    var next = focusables();
-    if (next.length) next[0].focus();
-  });
-  $('#checkout').addEventListener('click', function () { checkoutMsg.hidden = false; });
-  drawer.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { closeDrawer(); return; }
-    if (e.key !== 'Tab') return;
-    var f = focusables();
-    if (!f.length) return;
-    var first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-  });
-
-  var announcer = $('#announce');
-  function announce(text) { announcer.textContent = ''; setTimeout(function () { announcer.textContent = text; }, 40); }
-
-  /* ---------- Mobile menu ---------- */
-  var menuBtn = $('#menu-btn'), nav = $('#site-nav');
-  function setMenu(open) {
-    nav.classList.toggle('open', open);
-    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-  menuBtn.addEventListener('click', function () { setMenu(!nav.classList.contains('open')); });
-  nav.addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && nav.classList.contains('open')) { setMenu(false); menuBtn.focus(); }
-  });
-
-  /* ---------- Trade-in estimator ---------- */
-  // Placeholder like-new values for the smallest storage size.
-  var TRADE = {
-    ip15p: { name: 'iPhone 15 Pro', base: 430, sizes: [128, 256, 512, 1024] },
-    ip15: { name: 'iPhone 15', base: 330, sizes: [128, 256, 512] },
-    ip14p: { name: 'iPhone 14 Pro', base: 320, sizes: [128, 256, 512, 1024] },
-    ip14: { name: 'iPhone 14', base: 250, sizes: [128, 256, 512] },
-    ip13: { name: 'iPhone 13', base: 190, sizes: [128, 256, 512] },
-    ip12: { name: 'iPhone 12', base: 120, sizes: [64, 128, 256] },
-    s24: { name: 'Galaxy S24', base: 300, sizes: [128, 256, 512] },
-    s23: { name: 'Galaxy S23', base: 200, sizes: [128, 256] },
-    a55: { name: 'Galaxy A55', base: 120, sizes: [128, 256] },
-    px8: { name: 'Pixel 8', base: 190, sizes: [128, 256] },
-    px7a: { name: 'Pixel 7a', base: 95, sizes: [128] }
-  };
-  var STORAGE_STEP = [1, 1.1, 1.2, 1.28];
-  var GOOD = 0.82;
-  var CONDITION = {
-    'new': { label: 'Like new', factor: 1 },
-    good: { label: 'Good', factor: GOOD },
-    cracked: { label: 'Cracked screen', factor: GOOD * 0.55 },
-    dead: { label: "Won't power on", factor: 0.2 }
-  };
-  var tiForm = $('#ti-form'), tiModel = $('#ti-model'), tiStorage = $('#ti-storage');
-  var lockBtn = $('#ti-lock'), lockForm = $('#ti-lock-form'), lockMsg = $('#ti-lock-msg');
-
-  function gbLabel(gb) { return gb >= 1024 ? (gb / 1024) + 'TB' : gb + 'GB'; }
-
-  function fillStorage() {
-    var m = TRADE[tiModel.value];
-    var prev = tiStorage.options[tiStorage.selectedIndex] ? tiStorage.options[tiStorage.selectedIndex].text : '';
-    tiStorage.innerHTML = '';
-    m.sizes.forEach(function (gb, i) {
-      var opt = new Option(gbLabel(gb), String(i));
-      if (gbLabel(gb) === prev) opt.selected = true;
-      tiStorage.add(opt);
-    });
-  }
-
-  function estimate() {
-    var m = TRADE[tiModel.value];
-    var step = Number(tiStorage.value) || 0;
-    var condKey = (tiForm.querySelector('input[name="cond"]:checked') || {}).value || 'good';
-    var c = CONDITION[condKey];
-    var value = m.base * STORAGE_STEP[step] * c.factor;
-    value = Math.max(5, Math.round(value / 5) * 5);
-    $('#ti-out').textContent = money(value);
-    $('#ti-desc').textContent = m.name + ' · ' + gbLabel(m.sizes[step]) + ' · ' + c.label;
-    lockMsg.hidden = true;
-  }
-
-  tiModel.addEventListener('change', fillStorage);
-  tiForm.addEventListener('change', estimate);
-  tiForm.addEventListener('submit', function (e) { e.preventDefault(); });
-  lockBtn.addEventListener('click', function () {
-    var show = lockForm.hidden;
-    lockForm.hidden = !show;
-    lockBtn.setAttribute('aria-expanded', show ? 'true' : 'false');
-    if (show) $('#lock-name').focus();
-  });
-  lockForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    lockMsg.hidden = false;
-  });
-
-  /* ---------- Start ---------- */
-  fillStorage();
-  estimate();
-  renderShop();
-  renderBasket();
-})();
-</script>
+<section class="section-tight wrap">
+  <div class="section-head"><div><h2>Common questions</h2></div><a class="link-arrow" href="faq.html">All questions &rarr;</a></div>
+  <div class="faq">
+<details><summary>Are your phones unlocked?</summary><div class="ans"><p>Yes. Every phone we sell is unlocked and tested with a UK SIM. It will work with any UK network, including SIM-only and eSIM deals, and with local SIMs abroad.</p></div></details>
+<details><summary>What battery health will my phone have?</summary><div class="ans"><p>At least 85% of its original capacity: 90% or more for Excellent and 88% or more for Very Good. If a phone we buy in is below 85%, we fit a new battery before it&rsquo;s listed and tell you what kind. On an iPhone you can see the figure in Settings &gt; Battery &gt; Battery Health (Battery Health &amp; Charging on iPhone 14 and earlier); on a Galaxy or Pixel we measure it with diagnostic tools and give you the figure. A non-genuine iPhone battery shows as &lsquo;Unknown Part&rsquo; and its health reading may not be accurate, so we measure those ourselves too. Want the exact figure for any phone? Ask us before you order.</p></div></details>
+<details><summary>Can I return it if I change my mind?</summary><div class="ans"><p>Yes. You have 14 days, starting the day after delivery, to cancel for any reason (your legal right under the Consumer Contracts Regulations 2013), and our 30-day satisfaction guarantee means that if you&rsquo;re not happy with the phone within 30 days of delivery, you can send it back for a full refund or an exchange. We send a free returns label. Please sign out of your accounts and reset the phone before you send it.</p></div></details>
+<details><summary>Which phones do you buy?</summary><div class="ans"><p>The instant quote tool gives guide prices for the iPhone 13, iPhone 13 Pro, iPhone 14, iPhone 14 Pro, Samsung Galaxy S23 and Google Pixel 8, in most conditions, including cracked screens. When trade-ins open, we&rsquo;ll quote other iPhone, Galaxy and Pixel models by email. <a href="sell.html">Get a quote</a>.</p></div></details>
+<details><summary>Is the online quote what you&rsquo;ll pay?</summary><div class="ans"><p>Yes, if the phone matches your answers. When trade-ins open, the quote will be provisional until we&rsquo;ve inspected the phone, and it&rsquo;ll hold for 14 days. If something is genuinely different, we&rsquo;ll send you photos and a revised offer; if you&rsquo;d rather not accept it, we&rsquo;ll post the phone back free. We&rsquo;ll pay by bank transfer the day it passes its checks.</p></div></details>
+  </div>
+</section>
+</main>
+<footer class="site">
+  <div class="wrap">
+    <div class="f-grid">
+      <div class="f-brand"><a href="index.html" class="logo" aria-label="Full Bars home"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect class="mark-bg" width="32" height="32" rx="9" fill="#16223B"/><rect class="mark-edge" x=".5" y=".5" width="31" height="31" rx="8.5" fill="none" stroke="#2B3A5B"/><rect class="mark-bar" x="6.5" y="19" width="3.6" height="6" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="11.7" y="15" width="3.6" height="10" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="16.9" y="11" width="3.6" height="14" rx="1.2" fill="#FFB020"/><rect class="mark-bar" x="22.1" y="7" width="3.6" height="18" rx="1.2" fill="#FFB020"/></svg><span>Full Bars</span></a><p>Refurbished iPhone, Samsung Galaxy and Google Pixel phones, properly checked: IMEI-checked, data-wiped, unlocked and graded to a published standard, with a 12-month warranty.</p><p><a href="mailto:hello@fullbars.co.uk">hello@fullbars.co.uk</a></p></div>
+      <div><h2>Shop</h2><ul><li><a href="shop.html">All phones</a></li><li><a href="collections/iphone-12-series.html">iPhone 12</a></li><li><a href="collections/iphone-13-series.html">iPhone 13</a></li><li><a href="collections/iphone-14-series.html">iPhone 14</a></li><li><a href="collections/iphone-15-series.html">iPhone 15</a></li><li><a href="collections/iphone-16-series.html">iPhone 16</a></li><li><a href="collections/samsung-galaxy.html">Samsung Galaxy</a></li><li><a href="collections/google-pixel.html">Google Pixel</a></li><li><a href="collections/pro-models.html">Pro iPhones</a></li><li><a href="collections/under-300.html">Under &pound;300</a></li><li><a href="collections/big-screen.html">Big screen</a></li><li><a href="collections/usb-c-iphones.html">USB-C iPhones</a></li></ul></div>
+      <div><h2>Help</h2><ul><li><a href="grading.html">How we grade</a></li><li><a href="warranty.html">Warranty</a></li><li><a href="delivery-returns.html">Delivery &amp; returns</a></li><li><a href="faq.html">FAQ</a></li><li><a href="guides/index.html">Guides</a></li><li><a href="contact.html">Contact</a></li></ul></div>
+      <div><h2>Company</h2><ul><li><a href="about.html">About us</a></li><li><a href="sell.html">Sell your phone</a></li><li><a href="terms.html">Terms &amp; conditions</a></li><li><a href="privacy.html">Privacy policy</a></li><li><a href="cookies.html">Cookie policy</a></li></ul></div>
+    </div>
+    <div class="f-legal">
+      <p>Full Bars is a trading name of [Company name], [registered in England and Wales], company number [Company number], registered office [Registered business address]. VAT: [VAT number, if registered].</p>
+      <p>Full Bars is an independent reseller of pre-owned phones and is not affiliated with, authorised by or endorsed by Apple, Samsung or Google. iPhone, Face ID, iCloud, Find My, MagSafe and Apple Intelligence are trademarks of Apple Inc.; Samsung and Galaxy are trademarks of Samsung Electronics Co., Ltd.; Google, Pixel and Android are trademarks of Google LLC. We use these names only to describe the phones we sell and never use their logos. Product pictures are original illustrations, not photos of the actual phone.</p>
+      <p>&copy; 2026 Full Bars. We don&rsquo;t offer credit, finance or pay-monthly plans.</p>
+    </div>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="pay.js" defer></script>
+<script src="stock.js" defer></script>
+<script src="site.js" defer onerror="document.documentElement.classList.add('no-site-js')"></script>
+</body>
+</html>

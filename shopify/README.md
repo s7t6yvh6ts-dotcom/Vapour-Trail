@@ -1,5 +1,7 @@
 # Shopify launch: Full Bars or Chainline Cycles
 
+> **Superseded (20 Oct 2026).** These policies and this checklist were written before the sites were reviewed. Where they differ from the site pages or the launch packs, the launch packs win: `launch/full-bars/GO-LIVE.md` and `launch/chainline/GO-LIVE.md`. Known differences: e-bikes now go by specialist courier (not collection only), and Full Bars returns are 14 days to change your mind plus a 30-day satisfaction guarantee. Don't paste `*-policies.md` into Shopify without checking them against the site first.
+
 Phones and bikes only. Never put anything nicotine on Shopify (see `CLAUDE.md`).
 
 ## What only Ash can do

@@ -1,14 +1,22 @@
+<!doctype html>
+<html lang="en-GB" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="color-scheme" content="dark">
 <title>Chainline Cycles</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap">
+<script>(function (d) { d.classList.remove('no-js'); d.classList.add('js'); if (!d.lang) d.lang = 'en-GB'; })(document.documentElement);</script>
 <style>
 :root {
-  /* Layout: asymmetric 12-col. Hero 6/5 (headline | bike drawing + workshop ticket); sections alternate a narrow label column against wide content; card treatment only for bikes, the ticket and forms. */
+  /* Layout: asymmetric 12-col. Hero 6/5 (headline | bike drawing + workshop ticket); sections alternate a narrow label column against wide content; card treatment only for bikes, the ticket and forms. Dark only, on purpose. */
   color-scheme: dark;
   --bg: #0b1510;
   --bg-raised: #111e17;
   --bg-deep: #07100b;
   --line: #213228;
   --line-strong: #35503f;
+  --field-line: #5b7a66;
   --fg: #ece7d9;
   --muted: #9dab9f;
   --accent: #c68d52;
@@ -19,12 +27,13 @@
   --tag-rule: #a99670;
   --stamp: #1d5334;
   --pass: #9cc796;
+  --error: #ff9d8a;
   --focus: #f3cc98;
   --scrim: rgb(2 6 4 / 0.72);
   --shadow: rgb(0 0 0 / 0.45);
   --header-bg: rgb(11 21 16 / 0.94);
 
-  --font-display: "Barlow Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Barlow Condensed", "Roboto Condensed", "Arial Narrow", "Chainline Display Fallback", sans-serif;
   --font-body: "Barlow", "Helvetica Neue", Arial, system-ui, sans-serif;
   --font-data: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
@@ -33,10 +42,15 @@
   --radius: 3px;
   --section-pad: clamp(56px, 8vw, 112px);
 }
+/* If Barlow Condensed can't load, a wide fallback (Arial and the like) is scaled down to roughly its width,
+   so the logo and headings keep their shape instead of running out of room. */
+@font-face { font-family: "Chainline Display Fallback"; src: local("Arial"), local("ArialMT"), local("Helvetica Neue"), local("HelveticaNeue"), local("Helvetica"), local("Liberation Sans"), local("LiberationSans"), local("Roboto"), local("DejaVu Sans"), local("DejaVuSans"); font-weight: 400 600; size-adjust: 76%; }
+@font-face { font-family: "Chainline Display Fallback"; src: local("Arial Bold"), local("Arial-BoldMT"), local("Helvetica Neue Bold"), local("HelveticaNeue-Bold"), local("Helvetica Bold"), local("Helvetica-Bold"), local("Liberation Sans Bold"), local("LiberationSans-Bold"), local("Roboto Bold"), local("Roboto-Bold"), local("DejaVu Sans Bold"), local("DejaVuSans-Bold"); font-weight: 700; size-adjust: 72%; }
 
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { scroll-padding-top: 84px; -webkit-text-size-adjust: 100%; }
+html { background: var(--bg); scroll-padding-top: 84px; -webkit-text-size-adjust: 100%; }
+html.locked { overflow: hidden; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body {
   margin: 0;
@@ -53,9 +67,11 @@ button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 ::selection { background: var(--accent); color: var(--accent-ink); }
 
-.wrap { max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gutter); }
+.wrap { max-width: var(--maxw); margin-inline: auto; padding-left: max(var(--gutter), env(safe-area-inset-left, 0px)); padding-right: max(var(--gutter), env(safe-area-inset-right, 0px)); }
 .vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .mono, .price, .specs, .ticket, .svc-price, .totals, .chart, .count, .finder-detail { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.skip { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); top: -200px; z-index: 100; padding: 12px 16px; background: var(--accent); color: var(--accent-ink); font: 600 1rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; border-radius: var(--radius); }
+.skip:focus { top: calc(8px + env(safe-area-inset-top, 0px)); color: var(--accent-ink); }
 
 .eyebrow {
   font: 600 0.8125rem/1.2 var(--font-display);
@@ -66,6 +82,7 @@ button { font: inherit; color: inherit; }
 .section { padding-block: var(--section-pad); border-top: 1px solid var(--line); }
 .section h2 { font-size: clamp(2.25rem, 4.6vw, 3.5rem); line-height: 0.95; text-transform: uppercase; margin-top: 10px; }
 .lede { color: var(--muted); max-width: 44ch; margin-top: 16px; }
+.noscript-note { margin-top: 16px; border: 1px dashed var(--line-strong); padding: 12px 14px; color: var(--fg); font-size: 0.9375rem; max-width: 62ch; }
 
 /* Buttons */
 .btn {
@@ -106,17 +123,32 @@ button { font: inherit; color: inherit; }
 }
 .nav a:hover { color: var(--accent); }
 .menu-btn { display: none; }
-.basket-btn { display: inline-flex; align-items: center; gap: 10px; background: transparent; border: 1.5px solid var(--line-strong); color: var(--fg); border-radius: var(--radius); min-height: 42px; padding: 0 12px; cursor: pointer; font: 600 1rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; }
+.basket-btn { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1.5px solid var(--line-strong); color: var(--fg); border-radius: var(--radius); min-height: 42px; padding: 0 10px; cursor: pointer; font: 600 1rem/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; flex: none; }
 .basket-btn:hover { border-color: var(--accent); }
+.basket-btn svg { width: 20px; height: 20px; flex: none; color: var(--accent); }
 .count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); font-size: 0.8125rem; font-weight: 500; letter-spacing: 0; }
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .menu-btn { display: inline-flex; margin-left: auto; }
-  .nav { position: absolute; top: 100%; left: calc(var(--gutter) * -1); right: calc(var(--gutter) * -1); background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px var(--gutter) 16px; display: none; margin: 0; }
-  .nav.open { display: block; }
+  .nav { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px max(var(--gutter), env(safe-area-inset-right, 0px)) 16px max(var(--gutter), env(safe-area-inset-left, 0px)); display: none; margin: 0; }
+  .nav.open { display: block; max-height: calc(100vh - 65px); max-height: calc(100dvh - 65px); overflow-y: auto; overscroll-behavior: contain; }
   .nav ul { flex-direction: column; }
   .nav a { padding: 14px 0; font-size: 1.25rem; border-bottom: 1px solid var(--line); }
 }
-@media (max-width: 480px) { .header-row { gap: 10px; } .logo-word { font-size: 1.125rem; letter-spacing: 0.03em; } .menu-btn { flex: none; padding-inline: 0.7em; } .basket-btn .basket-word { display: none; } }
+@media (max-width: 480px) {
+  .header-row { gap: 10px; }
+  .logo-word { font-size: 1.125rem; letter-spacing: 0.03em; }
+  .menu-btn { flex: none; padding-inline: 0.7em; }
+  .basket-btn .basket-word { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+@media (max-width: 379px) { .header-row { gap: 6px; } .logo { gap: 8px; } .logo-word { font-size: 0.9375rem; letter-spacing: 0.02em; } .logo-mark { width: 26px; height: 26px; } .basket-btn { padding: 0 8px; gap: 6px; } }
+/* Short screens (a phone on its side, or 400% zoom): the header scrolls away instead of covering a third of the screen,
+   and the basket scrolls as one piece, so every line, the totals and the checkout note can be reached. */
+@media (max-height: 500px) {
+  html { scroll-padding-top: 16px; }
+  .site-header { position: relative; top: auto; }
+  .drawer { overflow-y: auto; }
+  .drawer-body { flex: none; overflow: visible; }
+}
 
 /* Hero */
 .hero { padding-block: clamp(40px, 6vw, 80px) clamp(56px, 7vw, 96px); }
@@ -157,8 +189,10 @@ button { font: inherit; color: inherit; }
 .ticket dt { font: 700 0.6875rem/1.3 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
 .ticket dd { margin: 0; min-width: 0; }
 .stamp { display: inline-block; border: 2px solid var(--stamp); color: var(--stamp); padding: 1px 8px 0; transform: rotate(-4deg); font: 700 0.9375rem/1.2 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase; }
-.ticket-foot { display: flex; justify-content: space-between; gap: 8px; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--tag-ink); }
+.ticket-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--tag-ink); }
 .ticket-foot a { color: var(--tag-ink); font-weight: 500; }
+.ticket-foot a:focus-visible { outline-color: var(--tag-ink); }
+@media (max-width: 480px) { .ticket-wrap { width: calc(100% - 24px); margin-inline: auto; } }
 
 /* Promise strip */
 .promise { background: var(--bg-deep); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding-block: clamp(40px, 5vw, 64px); }
@@ -175,7 +209,7 @@ button { font: inherit; color: inherit; }
 
 /* Shop */
 .shop-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px; align-items: end; }
-.shop-head .lede { margin-top: 0; }
+.shop-head .lede { margin-top: 0; display: grid; gap: 8px; }
 .filters { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-end; justify-content: space-between; margin-top: 36px; padding-block: 18px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .filter-group { display: grid; gap: 8px; min-width: 0; }
 .filter-label { font: 600 0.8125rem/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
@@ -188,15 +222,16 @@ button { font: inherit; color: inherit; }
 .results-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-block: 18px 22px; color: var(--muted); font-size: 0.9375rem; }
 .bike-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(262px, 1fr)); gap: 20px; }
 .card { display: flex; flex-direction: column; gap: 14px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; min-width: 0; }
+.card[tabindex="-1"]:focus { outline: 2px solid var(--focus); outline-offset: 3px; }
 .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.glyph { display: block; width: 112px; height: auto; color: var(--accent); flex: none; }
+.glyph { display: block; width: 112px; height: auto; aspect-ratio: 120 / 76; color: var(--accent); flex: none; }
 .card-no { font: 400 0.75rem/1.2 var(--font-data); color: var(--muted); white-space: nowrap; }
 .card h3 { font-size: 1.5rem; font-weight: 600; line-height: 1.05; }
 .card-meta { color: var(--muted); font-size: 0.9375rem; margin-top: 4px; }
 .specs { margin: 0; display: grid; gap: 4px; font-size: 0.875rem; }
-.specs div { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 10px; }
+.specs div { display: grid; grid-template-columns: 6.4em minmax(0, 1fr); gap: 10px; }
 .specs dt { color: var(--muted); }
-.specs dd { margin: 0; min-width: 0; }
+.specs dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .fit {
   position: relative; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline;
   background: var(--tag); color: var(--tag-ink); padding: 7px 12px 7px 26px;
@@ -206,28 +241,36 @@ button { font: inherit; color: inherit; }
 .fit::before { content: ""; position: absolute; left: 11px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--bg-raised); }
 .fit b { font: 700 0.6875rem/1.35 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; }
 .card-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.price-wrap { display: grid; gap: 2px; min-width: 0; }
+.price-wrap small { color: var(--muted); font: 400 0.8125rem/1.3 var(--font-body); }
 .price { font-size: 1.375rem; font-weight: 500; }
-.empty { border: 1px dashed var(--line-strong); padding: 24px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.empty { border: 1px dashed var(--line-strong); padding: 24px; color: var(--muted); display: grid; gap: 14px; }
+.empty-actions { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
 @media (max-width: 760px) { .shop-head { grid-template-columns: minmax(0, 1fr); } .filter-selects, .filter-selects .field { width: 100%; } .filter-selects select { width: 100%; } }
 
 /* Forms */
-.field { display: grid; gap: 6px; min-width: 0; }
+.field { display: grid; gap: 6px; min-width: 0; align-content: start; }
 .field label, .field-label, legend { font: 600 0.8125rem/1.2 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .field .opt { text-transform: none; letter-spacing: 0; font-family: var(--font-body); font-weight: 400; }
 input, select, textarea {
   font: 400 1rem/1.4 var(--font-body); color: var(--fg);
-  background: var(--bg); border: 1px solid var(--line-strong); border-radius: 2px;
+  background: var(--bg); border: 1px solid var(--field-line); border-radius: 2px;
   padding: 0.6em 0.75em; min-height: 46px; width: 100%; min-width: 0;
 }
+::placeholder { color: var(--muted); opacity: 1; }
 textarea { min-height: 96px; resize: vertical; }
 input:hover, select:hover, textarea:hover { border-color: var(--muted); }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--accent); }
+[aria-invalid="true"] { border-color: var(--error); box-shadow: inset 4px 0 0 var(--error); }
+.field-error { color: var(--error); font-size: 0.875rem; line-height: 1.4; font-weight: 500; }
+.field-hint, .form-note { color: var(--muted); font-size: 0.875rem; line-height: 1.45; }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 legend { padding: 0; margin-bottom: 8px; }
 .form-card { display: grid; gap: 16px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(18px, 3vw, 28px); min-width: 0; align-content: start; }
 .form-card h3 { font-size: 1.75rem; text-transform: uppercase; }
 .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .form-result { border: 1px dashed var(--accent); border-radius: 2px; padding: 14px 16px; font-size: 0.9375rem; }
+.form-result:empty { border: 0; padding: 0; }
 .form-result strong { color: var(--accent); font-weight: 600; display: block; margin-bottom: 4px; }
 @media (max-width: 480px) { .field-row { grid-template-columns: minmax(0, 1fr); } }
 
@@ -249,13 +292,17 @@ legend { padding: 0; margin-bottom: 8px; }
 .finder-answer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
 .finder-size { font: 700 clamp(4rem, 9vw, 6.5rem)/0.85 var(--font-display); color: var(--accent); text-transform: uppercase; }
 .finder-detail { font-size: 1.125rem; }
+.finder-live { display: grid; gap: 14px; }
 .finder-reason { max-width: 52ch; }
 .finder-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.finder-none { display: grid; gap: 10px; color: var(--muted); }
+.finder-none p { color: var(--fg); }
 .table-scroll { overflow-x: auto; margin-top: 8px; border-top: 1px solid var(--line); }
 .chart { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .chart caption { text-align: left; padding-block: 12px 6px; color: var(--muted); font: 600 0.8125rem/1.2 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; }
 .chart th, .chart td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .chart th { color: var(--muted); font-weight: 400; }
+.chart td:last-child { white-space: normal; }
 .chart tr.hit td { color: var(--accent); }
 .chart tr.hit td:first-child::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; background: var(--accent); border-radius: 50%; vertical-align: middle; }
 .finder-note { margin-top: 28px; font: 600 1.25rem/1.3 var(--font-display); letter-spacing: 0.02em; max-width: 40ch; }
@@ -273,7 +320,8 @@ legend { padding: 0; margin-bottom: 8px; }
 .svc-price { grid-area: price; text-align: right; font-size: 1.125rem; font-weight: 500; }
 .svc-price span { display: block; font-size: 0.75rem; font-weight: 400; color: var(--muted); }
 .svc-book { grid-area: book; }
-.svc-note { margin-top: 16px; color: var(--muted); font-size: 0.9375rem; }
+.booking { display: grid; min-width: 0; }
+.svc-note { margin-top: 16px; color: var(--muted); font-size: 0.9375rem; display: grid; gap: 6px; }
 @media (max-width: 960px) { .workshop-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 520px) { .svc { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main main" "price book"; } .svc-price { text-align: left; } }
 
@@ -301,7 +349,7 @@ legend { padding: 0; margin-bottom: 8px; }
 .sell-list { margin: 20px 0 0; padding-left: 1.1em; color: var(--muted); font-size: 0.9375rem; display: grid; gap: 6px; }
 @media (max-width: 880px) { .sell-grid { grid-template-columns: minmax(0, 1fr); } }
 
-/* FAQ */
+/* FAQ and the small print (both are lists of <details>) */
 .faq-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(28px, 5vw, 72px); align-items: start; }
 .faq details { border-bottom: 1px solid var(--line-strong); }
 .faq details:first-child { border-top: 1px solid var(--line-strong); }
@@ -311,6 +359,14 @@ legend { padding: 0; margin-bottom: 8px; }
 .faq details[open] summary::after { transform: rotate(45deg); }
 .faq summary:hover { color: var(--accent); }
 .faq .answer { padding-bottom: 20px; color: var(--muted); max-width: 62ch; display: grid; gap: 10px; }
+.legal { max-width: 68ch; font-size: 0.9375rem; line-height: 1.6; }
+.legal h3 { font: 600 1.0625rem/1.2 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg); margin-top: 8px; }
+.legal strong { color: var(--fg); font-weight: 600; }
+.legal ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+.legal .updated { font: 400 0.8125rem/1.4 var(--font-data); }
+.form-box { background: var(--bg-raised); border: 1px dashed var(--line-strong); border-radius: 2px; padding: 14px 16px; color: var(--fg); font: 400 0.875rem/1.7 var(--font-data); overflow-wrap: anywhere; }
+.notice { margin-top: 20px; max-width: 44ch; border: 1px dashed var(--accent); border-radius: 2px; padding: 12px 14px; font-size: 0.9375rem; color: var(--fg); }
+.notice strong { color: var(--accent); font-weight: 600; }
 @media (max-width: 880px) { .faq-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Footer */
@@ -319,10 +375,15 @@ legend { padding: 0; margin-bottom: 8px; }
 .footer-grid > div { min-width: 0; }
 .footer-h { font: 600 0.8125rem/1.2 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 .footer-about p { margin-top: 14px; color: var(--muted); max-width: 44ch; }
+.footer-grid .muted { color: var(--muted); }
 .contact-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; user-select: text; }
-.contact-line + .contact-line { margin-top: 6px; }
-.contact-line span { font-family: var(--font-data); overflow-wrap: anywhere; }
-.footer-base { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8125rem; }
+.contact-line + p, .contact-line + .contact-line { margin-top: 6px; }
+.contact-line a { font-family: var(--font-data); overflow-wrap: anywhere; color: var(--fg); }
+.contact-line a:hover { color: var(--accent-hi); }
+.footer-company { color: var(--muted); }
+.footer-links { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--line); }
+.footer-links a { color: var(--fg); font-size: 0.9375rem; }
+.footer-base { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8125rem; }
 @media (max-width: 820px) { .footer-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Basket drawer */
@@ -332,7 +393,7 @@ legend { padding: 0; margin-bottom: 8px; }
   width: min(420px, 100%); background: var(--bg-raised); border-left: 1px solid var(--line-strong);
   box-shadow: -24px 0 48px var(--shadow);
   display: flex; flex-direction: column;
-  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px);
   transform: translateX(100%); visibility: hidden;
   transition: transform 0.28s ease, visibility 0s linear 0.28s;
 }
@@ -358,25 +419,78 @@ legend { padding: 0; margin-bottom: 8px; }
 .del-opt input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--accent); }
 .del-opt small { display: block; color: var(--muted); font-size: 0.8125rem; }
 .del-opt .mono { font-size: 0.875rem; }
+.basket-note { color: var(--muted); font-size: 0.8125rem; line-height: 1.5; }
+.ebike-note { border-left: 2px solid var(--accent); padding-left: 10px; color: var(--fg); font-size: 0.8125rem; line-height: 1.5; }
 .totals { margin: 0; display: grid; gap: 6px; font-size: 0.9375rem; }
 .totals div { display: flex; justify-content: space-between; gap: 12px; }
 .totals dt { color: var(--muted); font-family: var(--font-body); }
-.totals dd { margin: 0; }
+.totals dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
 .totals .grand { padding-top: 10px; border-top: 1px solid var(--line-strong); font-size: 1.125rem; }
 .totals .grand dt { color: var(--fg); font: 600 1.125rem/1.2 var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; }
 .drawer-foot { padding: 16px 20px 20px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
 .drawer-foot .btn { width: 100%; }
+#basket-title:focus { outline: none; }
+
+/* Windows high contrast and other forced-colour modes: keep every "selected" state visible */
+@media (forced-colors: active) {
+  .chip[aria-pressed="true"], .seg-opts input:checked + label { forced-color-adjust: none; background: Highlight; color: HighlightText; border-color: Highlight; }
+  .chart tr.hit td { font-weight: 700; }
+  .chart tr.hit td:first-child::before { forced-color-adjust: none; background: CanvasText; }
+  .faq summary::after { forced-color-adjust: none; background: linear-gradient(CanvasText, CanvasText) center / 14px 2px no-repeat, linear-gradient(CanvasText, CanvasText) center / 2px 14px no-repeat; }
+  .del-opt:has(input:checked) { border: 2px solid Highlight; }
+  .count { border: 1px solid CanvasText; }
+  .fit, .ticket { border: 1px solid CanvasText; }
+  [aria-invalid="true"] { border: 2px solid CanvasText; }
+}
+
+/* With JavaScript off: the bikes, prices, charts, FAQ and small print all show; the controls that need a script hide,
+   and the navigation shows as plain links. */
+.no-js .js-only { display: none !important; }
+@media (max-width: 1000px) {
+  .no-js .site-header { position: relative; top: auto; }
+  .no-js .header-row { flex-wrap: wrap; }
+  .no-js .nav { display: block; position: static; flex-basis: 100%; padding: 0 0 10px; border: 0; background: none; }
+  .no-js .nav ul { flex-direction: row; flex-wrap: wrap; gap: 0 18px; }
+  .no-js .nav a { padding: 8px 0; font-size: 1rem; border: 0; }
+}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Barlow:ital,wght@0,400;0,500;0,600;1,400&amp;family=DM+Mono:wght@400;500&amp;display=swap" media="print" onload="this.media='all'" data-fonts>
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&amp;family=Barlow:ital,wght@0,400;0,500;0,600;1,400&amp;family=DM+Mono:wght@400;500&amp;display=swap"></noscript>
+<meta name="description" content="Used bikes rebuilt in our workshop, UK-legal e-bikes, servicing for any bike, and we buy bikes. Every frame number checked on BikeRegister. A 3-month warranty on top of your legal rights.">
+<!-- Preview: keep search engines out until launch (GO-LIVE.md, preview-to-live switches). -->
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Chainline Cycles">
+<meta property="og:locale" content="en_GB">
+<meta property="og:title" content="Chainline Cycles: refurbished bikes, UK-legal e-bikes and a workshop">
+<meta property="og:description" content="Used bikes rebuilt in our workshop, UK-legal e-bikes, servicing for any bike, and we buy bikes. Every frame number checked on BikeRegister.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#0b1510">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1510'/%3E%3Cg fill='none' stroke='%23c68d52'%3E%3Ccircle cx='16' cy='16' r='12.5' stroke-width='3.6' stroke-dasharray='2.45 2.46'/%3E%3Ccircle cx='16' cy='16' r='9.6' stroke-width='2'/%3E%3Cpath d='M16 16V7.6M16 16l8.1-2.6M16 16l5 6.9M16 16l-5 6.9M16 16l-8.1-2.6' stroke-width='1.6' stroke-linecap='round'/%3E%3C/g%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23c68d52'/%3E%3C/svg%3E">
+<script type="application/ld+json" id="ld-store">{"@context":"https://schema.org","@type":"BikeStore","@id":"#store","name":"Chainline Cycles","legalName":"[Company name]","description":"Refurbished bikes, UK-legal e-bikes and a workshop that services any bike. We also buy bikes.","url":"[Website address]","email":"[Workshop email]","telephone":"[Phone number]","vatID":"[VAT number, if registered]","address":{"@type":"PostalAddress","streetAddress":"[Workshop street address]","addressLocality":"[Town]","postalCode":"[Postcode]","addressCountry":"GB"},"openingHours":"[Opening hours]","currenciesAccepted":"GBP","hasMerchantReturnPolicy":{"@type":"MerchantReturnPolicy","applicableCountry":"GB","returnPolicyCategory":"https://schema.org/MerchantReturnFiniteReturnWindow","merchantReturnDays":14,"returnMethod":["https://schema.org/ReturnInStore","https://schema.org/ReturnByMail"],"returnFees":"https://schema.org/ReturnFeesCustomerResponsibility"}}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
  <defs>
   <symbol id="i-tick" viewBox="0 0 22 22"><rect x="1.5" y="1.5" width="19" height="19" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11.5l3.2 3.2L16 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-logo" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6" stroke-dasharray="2.45 2.46"/><circle cx="16" cy="16" r="9.6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 16V7.6M16 16l8.1-2.6M16 16l5 6.9M16 16l-5 6.9M16 16l-8.1-2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="16" cy="16" r="2.6" fill="currentColor"/></symbol>
   <symbol id="i-close" viewBox="0 0 18 18"><path d="M3 3l12 12M15 3L3 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-basket" viewBox="0 0 22 22"><path d="M3.5 8.5h15l-1.4 9.6a1.6 1.6 0 0 1-1.6 1.4h-9a1.6 1.6 0 0 1-1.6-1.4zM7.5 8.5V6.5a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <!-- Bike drawings for the cards and the basket, one per type. -->
+  <symbol id="g-road" viewBox="0 0 120 76"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="26" cy="52" r="20"/><circle cx="26" cy="52" r="1.8" fill="currentColor" stroke="none"/><circle cx="94" cy="52" r="20"/><circle cx="94" cy="52" r="1.8" fill="currentColor" stroke="none"/><path d="M54 54L46 24L82 22M54 54L84 31M82 22L84 31Q87 44 94 52M54 54L26 52L47 29M46 24L44 17M38 16.5H51M82 22L89 20Q96 20 96 26Q96 32 91 32"/></g></symbol>
+  <symbol id="g-gravel" viewBox="0 0 120 76"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="26" cy="52" r="19" stroke-width="4.2"/><circle cx="26" cy="52" r="1.8" fill="currentColor" stroke="none"/><circle cx="94" cy="52" r="19" stroke-width="4.2"/><circle cx="94" cy="52" r="1.8" fill="currentColor" stroke="none"/><path d="M54 54L46 26L82 24M54 54L84 33M82 24L84 33Q87 45 94 52M54 54L26 52L47 31M46 26L44 18M38 17.5H51M82 24L89 22Q97 22 97 28Q98 34 92 35"/></g></symbol>
+  <symbol id="g-hybrid" viewBox="0 0 120 76"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="26" cy="52" r="20"/><circle cx="26" cy="52" r="1.8" fill="currentColor" stroke="none"/><circle cx="94" cy="52" r="20"/><circle cx="94" cy="52" r="1.8" fill="currentColor" stroke="none"/><path d="M54 54L46 24L82 22M54 54L84 31M82 22L84 31Q87 44 94 52M54 54L26 52L47 29M46 24L44 17M38 16.5H51M82 22L86 15M81 14L92 16"/></g></symbol>
+  <symbol id="g-ebike" viewBox="0 0 120 76"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="26" cy="52" r="20"/><circle cx="26" cy="52" r="1.8" fill="currentColor" stroke="none"/><circle cx="94" cy="52" r="20"/><circle cx="94" cy="52" r="1.8" fill="currentColor" stroke="none"/><path d="M54 54L46 24L82 22M54 54L84 31M82 22L84 31Q87 44 94 52M54 54L26 52L47 29M46 24L44 17M38 16.5H51M82 22L86 15M81 14L92 16"/><rect x="-9" y="-3.2" width="18" height="6.4" rx="1.5" transform="translate(68 43) rotate(-37.5)" fill="currentColor" stroke="none"/><circle cx="54" cy="54" r="4.6" fill="currentColor" stroke="none"/></g></symbol>
+  <symbol id="g-folding" viewBox="0 0 120 76"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="34" cy="58" r="13"/><circle cx="34" cy="58" r="1.8" fill="currentColor" stroke="none"/><circle cx="90" cy="58" r="13"/><circle cx="90" cy="58" r="1.8" fill="currentColor" stroke="none"/><path d="M52 58L48 24M46 14L48 24M40 13H53M49 40L82 34L84 41L90 58M82 34L80 13M75 13H86M52 58L34 58L48 46"/><circle cx="66" cy="37" r="2.2" fill="currentColor" stroke="none"/></g></symbol>
+  <symbol id="g-kids" viewBox="0 0 120 76"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="30" cy="56" r="16"/><circle cx="30" cy="56" r="1.8" fill="currentColor" stroke="none"/><circle cx="90" cy="56" r="16"/><circle cx="90" cy="56" r="1.8" fill="currentColor" stroke="none"/><path d="M56 58L50 34L82 32M56 58L84 38M82 30L84 38Q86 48 90 56M56 58L30 56L51 38M50 34L49 28M43 27H55M82 30L84 22M79 21H90"/></g></symbol>
  </defs>
 </svg>
 
-<div class="banner"><div class="wrap"><strong>Prototype:</strong> placeholder stock and prices. Checkout and bookings aren't connected yet.</div></div>
+<section class="banner" id="top" aria-label="Preview notice"><div class="wrap"><strong>Prototype:</strong> placeholder stock, prices and contact details. Checkout, bookings and offers aren't connected yet.</div></section>
 
 <header class="site-header">
  <div class="wrap header-row">
@@ -384,7 +498,7 @@ legend { padding: 0; margin-bottom: 8px; }
    <svg class="logo-mark" aria-hidden="true" focusable="false"><use href="#i-logo"/></svg>
    <span class="logo-word">Chainline Cycles</span>
   </a>
-  <button type="button" class="btn btn-ghost btn-sm menu-btn" id="menu-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
+  <button type="button" class="btn btn-ghost btn-sm menu-btn js-only" id="menu-toggle" aria-expanded="false" aria-controls="site-nav">Menu</button>
   <nav class="nav" id="site-nav" aria-label="Main">
    <ul>
     <li><a href="#shop">Bikes</a></li>
@@ -394,11 +508,11 @@ legend { padding: 0; margin-bottom: 8px; }
     <li><a href="#sell">Sell your bike</a></li>
    </ul>
   </nav>
-  <button type="button" class="basket-btn" id="basket-open" aria-controls="basket" aria-label="Basket, 0 bikes"><span class="basket-word">Basket</span><span class="count" id="basket-count">0</span></button>
+  <button type="button" class="basket-btn js-only" id="basket-open" aria-controls="basket"><svg aria-hidden="true" focusable="false"><use href="#i-basket"/></svg><span class="basket-word">Basket</span> <span class="count" id="basket-count">0</span><span class="vh" id="basket-count-word"> bikes</span></button>
  </div>
 </header>
 
-<main id="top">
+<main id="main">
  <section class="hero" aria-labelledby="hero-title">
   <div class="wrap hero-grid">
    <div class="hero-copy">
@@ -407,14 +521,14 @@ legend { padding: 0; margin-bottom: 8px; }
     <p class="hero-sub">Every bike goes through our workshop before it goes on sale. We check it, replace what's worn and write it all on the ticket, so you know exactly what you're buying.</p>
     <div class="hero-ctas">
      <a class="btn btn-primary" href="#shop">Shop bikes</a>
-     <a class="btn btn-ghost" href="#book">Book a service</a>
+     <a class="btn btn-ghost" href="#booking">Request a service</a>
     </div>
     <p class="hero-note">The workshop services any bike, wherever you bought it.</p>
    </div>
 
    <figure class="hero-visual">
     <svg class="bike" viewBox="0 0 640 430" role="img" aria-labelledby="bike-title">
-     <title id="bike-title">Line drawing of a Trek FX 2 hybrid bike, medium frame</title>
+     <title id="bike-title">Line drawing of a Trek FX 2 Disc hybrid bike, medium frame</title>
      <defs>
       <g id="spoke-set" fill="none" stroke="currentColor" stroke-width="1.4">
        <line x1="-102" y1="0" x2="102" y2="0"/>
@@ -472,18 +586,20 @@ legend { padding: 0; margin-bottom: 8px; }
      </svg>
      <div class="ticket" role="group" aria-label="Example workshop ticket">
       <div class="ticket-head"><span>Chainline Cycles</span><span>Workshop ticket</span></div>
+      <!-- ticket: written by sync_bikes.py from the bike data ("heroTicket") -->
       <p class="ticket-no"><span>Ticket</span><b>0412</b></p>
       <dl>
-       <div><dt>Bike</dt><dd>Trek FX 2</dd></div>
+       <div><dt>Bike</dt><dd>Trek FX 2 Disc</dd></div>
        <div><dt>Year</dt><dd>2021</dd></div>
-       <div><dt>Size</dt><dd>Medium (17.5in)</dd></div>
+       <div><dt>Size</dt><dd>M (17.5in)</dd></div>
        <div><dt>30-point check</dt><dd><span class="stamp">Passed</span></dd></div>
-       <div><dt>Frame number</dt><dd>Checked on BikeRegister: not stolen</dd></div>
-       <div><dt>Fitted</dt><dd>New chain and cassette</dd></div>
-       <div><dt>Brakes</dt><dd>Bled</dd></div>
+       <div><dt>Frame number</dt><dd>Not listed as stolen on BikeRegister (checked [check date])</dd></div>
+       <div><dt>Fitted</dt><dd>New chain + cassette</dd></div>
+       <div><dt>Brakes</dt><dd>Hydraulic disc, bled</dd></div>
        <div><dt>Tyres</dt><dd>Schwalbe Marathon 700x35c</dd></div>
       </dl>
-      <p class="ticket-foot"><span>In the shop now</span><a href="#shop">£379</a></p>
+      <p class="ticket-foot"><span>In the shop now</span><a href="#bike-fx2-2021" id="ticket-link">See it, £379<span class="vh"> (Trek FX 2 Disc)</span></a></p>
+      <!-- /ticket -->
      </div>
     </div>
    </figure>
@@ -497,12 +613,12 @@ legend { padding: 0; margin-bottom: 8px; }
     <h2 id="promise-title">Every bike we sell</h2>
    </div>
    <ul>
-    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>30-point workshop check</h3><p>Frame, fork, wheels, brakes, gears and bearings. Every point is signed off on the bike's ticket.</p></li>
-    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Frame number checked</h3><p>We check every frame number on BikeRegister, so you're not buying a stolen bike.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>30-point workshop check</h3><p>Frame, fork, wheels, brakes, gears and bearings. Every point is signed off on the bike's ticket, and the full ticket comes with the bike.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Frame number checked</h3><p>We check every frame number on BikeRegister and only buy bikes with proof of ownership, so you know it isn't listed as stolen there.</p></li>
     <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Worn parts replaced</h3><p>If a chain, pad, tyre or cable is worn, we fit a new one. Cleaning alone isn't enough.</p></li>
-    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>3-month warranty</h3><p>Parts and labour, from the day you collect the bike or it's delivered.</p></li>
-    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Free 6-week check-up</h3><p>New cables stretch as they bed in. Bring the bike back and we'll re-adjust gears and brakes.</p></li>
-    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Collect or delivered</h3><p>Collect from the workshop, or we send it anywhere in the UK, boxed and 90% built.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>3-month warranty</h3><p>On the whole bike, parts and labour, from the day you collect it or it's delivered. On top of your legal rights. <a href="#warranty">Warranty in full</a></p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Free check-up</h3><p>New cables stretch as they bed in. Bring the bike back within [8] weeks and we'll re-adjust gears and brakes, labour free.</p></li>
+    <li><svg aria-hidden="true" focusable="false"><use href="#i-tick"/></svg><h3>Collection or delivery</h3><p>Collect from the workshop for free, or we deliver to UK addresses for £39, boxed and 90% built. E-bikes go by specialist courier.</p></li>
    </ul>
   </div>
  </section>
@@ -514,10 +630,13 @@ legend { padding: 0; margin-bottom: 8px; }
      <p class="eyebrow">Bikes</p>
      <h2 id="shop-title" tabindex="-1">Ready to ride</h2>
     </div>
-    <p class="lede">Each bike is a one-off. The tag on every card shows what our workshop fitted or tested.</p>
+    <div class="lede">
+     <p>Each bike is a one-off. The tag on every card shows what our workshop fitted or tested.</p>
+     <p>The drawings are illustrations, not photos of the actual bike: ask us for photos before you buy. Prices include VAT where applicable. Collection is free; UK delivery is £39 per bike, and e-bikes go by specialist courier.</p>
+    </div>
    </div>
 
-   <div class="filters">
+   <div class="filters js-only">
     <div class="filter-group">
      <span class="filter-label" id="type-label">Type</span>
      <div class="chips" role="group" aria-labelledby="type-label">
@@ -533,9 +652,9 @@ legend { padding: 0; margin-bottom: 8px; }
     <div class="filter-selects">
      <div class="field">
       <label for="filter-size">Size</label>
-      <select id="filter-size">
+      <select id="filter-size" autocomplete="off">
        <option value="all">All sizes</option>
-       <optgroup label="Adult frames">
+       <optgroup label="Adult frames" id="adult-sizes">
         <option value="XS">XS</option>
         <option value="S">S</option>
         <option value="M">M</option>
@@ -555,7 +674,7 @@ legend { padding: 0; margin-bottom: 8px; }
      </div>
      <div class="field">
       <label for="sort">Sort</label>
-      <select id="sort">
+      <select id="sort" autocomplete="off">
        <option value="featured">Newest in</option>
        <option value="low">Price: low to high</option>
        <option value="high">Price: high to low</option>
@@ -565,13 +684,18 @@ legend { padding: 0; margin-bottom: 8px; }
    </div>
 
    <div class="results-bar">
-    <p id="result-count" class="mono" aria-live="polite">10 bikes</p>
-    <button type="button" class="link-btn" id="clear-filters" hidden>Clear filters</button>
+    <p id="result-count" class="mono" aria-live="polite">10 bikes in stock</p>
+    <button type="button" class="link-btn js-only" id="clear-filters" hidden>Clear filters</button>
    </div>
-   <ul class="bike-grid" id="bike-grid"></ul>
+   <noscript><p class="noscript-note">With JavaScript off you can see every bike, but the filters and the basket need it. Phone or email us about any bike (contact details are at the bottom of the page).</p></noscript>
+   <ul class="bike-grid" id="bike-grid"><li class="card" id="bike-motus-2021"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-ebike"/></svg><span class="card-no">Ticket 0419</span></div><div><h3>Raleigh Motus Tour</h3><p class="card-meta">2021 · E-bike · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>M</dd></div><div><dt>Gears</dt><dd>8-speed hub</dd></div><div><dt>Wheels</dt><dd>[wheels]</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Motor</dt><dd>[motor maker and power]</dd></div><div><dt>Battery</dt><dd>[rated Wh], tested [test date]</dd></div><div><dt>Charger</dt><dd>Maker&#39;s own</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Tested</b><span>Battery health 88%</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£1,149</span><small>Free collection · e-bike courier £[e-bike delivery price]</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="motus-2021" aria-label="Add to basket: Raleigh Motus Tour">Add to basket</button></div></li><li class="card" id="bike-crossfire-2023"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-ebike"/></svg><span class="card-no">Ticket 0417</span></div><div><h3>Carrera Crossfire-E</h3><p class="card-meta">2023 · E-bike · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>M</dd></div><div><dt>Gears</dt><dd>1x9</dd></div><div><dt>Wheels</dt><dd>[wheels]</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Motor</dt><dd>[motor maker and power]</dd></div><div><dt>Battery</dt><dd>[rated Wh], tested [test date]</dd></div><div><dt>Charger</dt><dd>Maker&#39;s own</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Tested</b><span>Battery health 94%</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£749</span><small>Free collection · e-bike courier £[e-bike delivery price]</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="crossfire-2023" aria-label="Add to basket: Carrera Crossfire-E">Add to basket</button></div></li><li class="card" id="bike-nuroad-2021"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-gravel"/></svg><span class="card-no">Ticket 0415</span></div><div><h3>Cube Nuroad</h3><p class="card-meta">2021 · Gravel · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>56cm</dd></div><div><dt>Gears</dt><dd>2x9</dd></div><div><dt>Wheels</dt><dd>[wheels]</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Fitted</b><span>New tubeless tyres</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£649</span><small>Free collection · £39 UK delivery</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="nuroad-2021" aria-label="Add to basket: Cube Nuroad">Add to basket</button></div></li><li class="card" id="bike-beinn20-2020"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-kids"/></svg><span class="card-no">Ticket 0414</span></div><div><h3>Islabikes Beinn 20</h3><p class="card-meta">2020 · Kids · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>20in wheels</dd></div><div><dt>Gears</dt><dd>1x8</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Fitted</b><span>New brake pads</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£249</span><small>Free collection · £39 UK delivery</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="beinn20-2020" aria-label="Add to basket: Islabikes Beinn 20">Add to basket</button></div></li><li class="card" id="bike-fx2-2021"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-hybrid"/></svg><span class="card-no">Ticket 0412</span></div><div><h3>Trek FX 2 Disc</h3><p class="card-meta">2021 · Hybrid · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>M (17.5in)</dd></div><div><dt>Gears</dt><dd>2x9</dd></div><div><dt>Wheels</dt><dd>700c</dd></div><div><dt>Brakes</dt><dd>Hydraulic disc</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Fitted</b><span>New chain + cassette</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£379</span><small>Free collection · £39 UK delivery</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="fx2-2021" aria-label="Add to basket: Trek FX 2 Disc">Add to basket</button></div></li><li class="card" id="bike-frog55-2022"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-kids"/></svg><span class="card-no">Ticket 0411</span></div><div><h3>Frog 55</h3><p class="card-meta">2022 · Kids · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>20in wheels</dd></div><div><dt>Gears</dt><dd>1x8</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Fitted</b><span>New tyres</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£219</span><small>Free collection · £39 UK delivery</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="frog55-2022" aria-label="Add to basket: Frog 55">Add to basket</button></div></li><li class="card" id="bike-hyb86-2022"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-hybrid"/></svg><span class="card-no">Ticket 0409</span></div><div><h3>Boardman HYB 8.6</h3><p class="card-meta">2022 · Hybrid · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>L</dd></div><div><dt>Gears</dt><dd>1x10</dd></div><div><dt>Wheels</dt><dd>[wheels]</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Work done</b><span>Hubs serviced</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£349</span><small>Free collection · £39 UK delivery</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="hyb86-2022" aria-label="Add to basket: Boardman HYB 8.6">Add to basket</button></div></li><li class="card" id="bike-contend-2022"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-road"/></svg><span class="card-no">Ticket 0405</span></div><div><h3>Giant Contend AR 2</h3><p class="card-meta">2022 · Road · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>M</dd></div><div><dt>Gears</dt><dd>2x9</dd></div><div><dt>Wheels</dt><dd>[wheels]</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Fitted</b><span>New chain + brake pads</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£529</span><small>Free collection · £39 UK delivery</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="contend-2022" aria-label="Add to basket: Giant Contend AR 2">Add to basket</button></div></li><li class="card" id="bike-brompton-2022"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-folding"/></svg><span class="card-no">Ticket 0401</span></div><div><h3>Brompton C Line Explore</h3><p class="card-meta">2022 · Folding · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>One size</dd></div><div><dt>Gears</dt><dd>6-speed</dd></div><div><dt>Wheels</dt><dd>[wheels]</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Fitted</b><span>New chain + tyres</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£899</span><small>Free collection · £39 UK delivery</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="brompton-2022" aria-label="Add to basket: Brompton C Line Explore">Add to basket</button></div></li><li class="card" id="bike-allez-2020"><div class="card-top"><svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-road"/></svg><span class="card-no">Ticket 0398</span></div><div><h3>Specialized Allez</h3><p class="card-meta">2020 · Road · 3-month warranty</p></div><dl class="specs"><div><dt>Size</dt><dd>54cm</dd></div><div><dt>Gears</dt><dd>2x8</dd></div><div><dt>Wheels</dt><dd>[wheels]</dd></div><div><dt>Brakes</dt><dd>[brakes]</dd></div><div><dt>Condition</dt><dd>[condition notes]</dd></div></dl><p class="fit"><b>Fitted</b><span>New tyres + bar tape</span></p><div class="card-foot"><p class="price-wrap"><span class="price">£449</span><small>Free collection · £39 UK delivery</small></p><button type="button" class="btn btn-sm btn-primary js-only" data-add="allez-2020" aria-label="Add to basket: Specialized Allez">Add to basket</button></div></li></ul>
    <div class="empty" id="shop-empty" hidden>
-    <p>No bikes match that type and size right now. Try another size, or ask the workshop to keep an eye out.</p>
-    <button type="button" class="btn btn-ghost btn-sm" id="empty-clear">Show all bikes</button>
+    <p>No bikes match that type and size right now.</p>
+    <div class="empty-actions">
+     <button type="button" class="btn btn-ghost btn-sm" id="empty-any-size" hidden>Show any size</button>
+     <button type="button" class="btn btn-ghost btn-sm" id="empty-clear">Show all bikes</button>
+     <a href="#contact">Ask us to look out for one</a>
+    </div>
    </div>
   </div>
  </section>
@@ -581,49 +705,60 @@ legend { padding: 0; margin-bottom: 8px; }
    <div>
     <p class="eyebrow">Size finder</p>
     <h2 id="size-title">Find your frame size</h2>
-    <p class="lede">Pick a bike type and enter the rider's height. We'll suggest a size from standard charts.</p>
-    <form class="finder-form" id="finder-form" novalidate>
+    <p class="lede">Pick a bike type and enter the rider's height. We'll suggest a size from typical charts; sizes vary by brand.</p>
+    <form class="finder-form js-only" id="finder-form" novalidate>
      <fieldset>
       <legend>Bike type</legend>
       <div class="seg-opts">
-       <input class="vh" type="radio" name="sf-type" id="sf-type-road" value="road"><label for="sf-type-road">Road / gravel</label>
-       <input class="vh" type="radio" name="sf-type" id="sf-type-hybrid" value="hybrid" checked><label for="sf-type-hybrid">Hybrid / e-bike</label>
-       <input class="vh" type="radio" name="sf-type" id="sf-type-kids" value="kids"><label for="sf-type-kids">Kids</label>
+       <input class="vh" type="radio" name="sf-type" id="sf-type-road" value="road" autocomplete="off"><label for="sf-type-road">Road / gravel</label>
+       <input class="vh" type="radio" name="sf-type" id="sf-type-hybrid" value="hybrid" autocomplete="off" checked><label for="sf-type-hybrid">Hybrid / e-bike</label>
+       <input class="vh" type="radio" name="sf-type" id="sf-type-kids" value="kids" autocomplete="off"><label for="sf-type-kids">Kids</label>
       </div>
      </fieldset>
      <fieldset class="height-row">
       <legend>Rider height</legend>
       <div class="seg-opts seg-sm">
-       <input class="vh" type="radio" name="sf-unit" id="sf-unit-cm" value="cm" checked><label for="sf-unit-cm">cm</label>
-       <input class="vh" type="radio" name="sf-unit" id="sf-unit-ft" value="ft"><label for="sf-unit-ft">ft and in</label>
+       <input class="vh" type="radio" name="sf-unit" id="sf-unit-cm" value="cm" autocomplete="off" checked><label for="sf-unit-cm">cm</label>
+       <input class="vh" type="radio" name="sf-unit" id="sf-unit-ft" value="ft" autocomplete="off"><label for="sf-unit-ft">ft and in</label>
       </div>
       <div class="field height-cm" id="sf-cm-wrap">
        <label for="sf-cm">Height in cm</label>
-       <input type="number" id="sf-cm" inputmode="numeric" min="80" max="230" step="1" value="172">
+       <input type="number" id="sf-cm" inputmode="numeric" min="80" max="230" step="1" value="172" autocomplete="off">
       </div>
       <div class="height-ft" id="sf-ft-wrap" hidden>
-       <div class="field"><label for="sf-ft">Feet</label><input type="number" id="sf-ft" inputmode="numeric" min="2" max="7" step="1" value="5"></div>
-       <div class="field"><label for="sf-in">Inches</label><input type="number" id="sf-in" inputmode="numeric" min="0" max="11" step="1" value="8"></div>
+       <div class="field"><label for="sf-ft">Feet</label><input type="number" id="sf-ft" inputmode="numeric" min="2" max="7" step="1" value="5" autocomplete="off"></div>
+       <div class="field"><label for="sf-in">Inches</label><input type="number" id="sf-in" inputmode="numeric" min="0" max="11" step="1" value="8" autocomplete="off"></div>
       </div>
      </fieldset>
     </form>
    </div>
 
-   <div class="finder-result" aria-live="polite">
-    <p class="eyebrow">Suggested size</p>
-    <div class="finder-answer">
-     <span class="finder-size" id="sf-size">M</span>
-     <span class="finder-detail" id="sf-detail">17–18in frame</span>
+   <div class="finder-result">
+    <p class="eyebrow js-only">Suggested size</p>
+    <div class="finder-live js-only">
+     <div class="finder-answer">
+      <span class="finder-size" id="sf-size">M</span>
+      <span class="finder-detail" id="sf-detail">17–18in frame</span>
+     </div>
+     <p class="finder-reason" id="sf-reason">172cm falls in the 165–177cm band for hybrid and e-bike frames.</p>
     </div>
-    <p class="finder-reason" id="sf-reason">172cm falls in the 165–177cm band for hybrid and e-bike frames.</p>
-    <div class="finder-actions">
+    <p class="vh" id="sf-announce" aria-live="polite" aria-atomic="true"></p>
+    <div class="finder-actions js-only">
      <button type="button" class="btn btn-primary" id="sf-show">Show bikes in my size</button>
     </div>
+    <div class="finder-none js-only" id="sf-none" hidden>
+     <p id="sf-none-text">No bikes in that size in stock right now.</p>
+     <div class="empty-actions">
+      <button type="button" class="btn btn-ghost btn-sm" id="sf-none-all">Show all of this type</button>
+      <a href="#contact">Ask us to look out for one</a>
+     </div>
+    </div>
+    <noscript><p class="noscript-note">The size finder needs JavaScript. Here's our hybrid and e-bike chart; ask us about road, gravel and kids' sizes.</p></noscript>
     <div class="table-scroll">
      <table class="chart" id="sf-chart">
       <caption id="sf-caption">Hybrid and e-bike chart</caption>
       <thead><tr><th scope="col">Rider height</th><th scope="col">Size</th><th scope="col">Frame</th></tr></thead>
-      <tbody id="sf-rows"></tbody>
+      <tbody id="sf-rows"><tr><td>Under 165cm</td><td>S</td><td>15–16in frame</td></tr><tr class="hit"><td>165–177cm</td><td>M</td><td>17–18in frame</td></tr><tr><td>178–187cm</td><td>L</td><td>19–20in frame</td></tr><tr><td>188cm and over</td><td>XL</td><td>21in frame and up</td></tr></tbody>
      </table>
     </div>
     <p class="finder-note">A test ride beats any chart. Standover height matters more than the number.</p>
@@ -636,32 +771,36 @@ legend { padding: 0; margin-bottom: 8px; }
    <div>
     <p class="eyebrow">Workshop</p>
     <h2 id="workshop-title">Servicing and repairs for any bike</h2>
-    <p class="lede">It doesn't matter where you bought it. Book below and bring it in on the day.</p>
+    <p class="lede">It doesn't matter where you bought it. Send a booking request below, we'll phone to confirm a slot, and you bring the bike in on the day.</p>
     <p class="turnaround"><b>Usual turnaround: 2–3 working days.</b> <span>Safety checks while you wait.</span></p>
     <ul class="svc-list">
-     <li class="svc"><div class="svc-main"><h3>Puncture repair</h3><p>Puncture found and fixed, tyre checked for glass and thorns.</p></div><p class="svc-price">£12<span>plus tube if needed</span></p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="puncture" aria-label="Book a puncture repair">Book</button></li>
-     <li class="svc"><div class="svc-main"><h3>Safety check</h3><p>Brakes, tyres, wheels, headset and bolts checked and adjusted.</p></div><p class="svc-price">£25</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="safety" aria-label="Book a safety check">Book</button></li>
-     <li class="svc"><div class="svc-main"><h3>Standard service</h3><p>Gears and brakes adjusted, drivetrain cleaned and lubed, wheels trued, bolts torqued.</p></div><p class="svc-price">£65</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="standard" aria-label="Book a standard service">Book</button></li>
-     <li class="svc"><div class="svc-main"><h3>Full service</h3><p>A standard service, plus hubs, headset and bottom bracket stripped, cleaned and regreased.</p></div><p class="svc-price">£120</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="full" aria-label="Book a full service">Book</button></li>
-     <li class="svc"><div class="svc-main"><h3>Strip-down and rebuild</h3><p>Frame stripped bare, every part cleaned and inspected, rebuilt with fresh grease.</p></div><p class="svc-price">£180</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="rebuild" aria-label="Book a strip-down and rebuild">Book</button></li>
-     <li class="svc"><div class="svc-main"><h3>Wheel true</h3><p>Wheel trued and spoke tension evened out so it runs straight.</p></div><p class="svc-price">£20</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="wheel" aria-label="Book a wheel true">Book</button></li>
-     <li class="svc"><div class="svc-main"><h3>Brake bleed</h3><p>Old hydraulic fluid flushed out, fresh fluid in, air bled from the line.</p></div><p class="svc-price">£25<span>per brake</span></p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="bleed" aria-label="Book a brake bleed">Book</button></li>
-     <li class="svc"><div class="svc-main"><h3>E-bike diagnostic</h3><p>Error codes read, motor and wiring checked, battery capacity tested.</p></div><p class="svc-price">£45</p><button type="button" class="btn btn-ghost btn-sm svc-book" data-service="ebike" aria-label="Book an e-bike diagnostic">Book</button></li>
+     <li class="svc"><div class="svc-main"><h3>Puncture repair</h3><p>Puncture found and fixed, tyre checked for glass and thorns.</p></div><p class="svc-price">£12<span>+ £[tube price] if it needs a new tube</span></p><button type="button" class="btn btn-ghost btn-sm svc-book js-only" data-service="puncture" aria-label="Request a puncture repair">Request</button></li>
+     <li class="svc"><div class="svc-main"><h3>Safety check</h3><p>Brakes, tyres, wheels, headset and bolts checked and adjusted.</p></div><p class="svc-price">£25</p><button type="button" class="btn btn-ghost btn-sm svc-book js-only" data-service="safety" aria-label="Request a safety check">Request</button></li>
+     <li class="svc"><div class="svc-main"><h3>Standard service</h3><p>Gears and brakes adjusted, drivetrain cleaned and lubed, wheels trued, bolts torqued.</p></div><p class="svc-price">£65</p><button type="button" class="btn btn-ghost btn-sm svc-book js-only" data-service="standard" aria-label="Request a standard service">Request</button></li>
+     <li class="svc"><div class="svc-main"><h3>Full service</h3><p>A standard service, plus hubs, headset and bottom bracket serviced: cleaned and regreased, or sealed bearings replaced (parts quoted first).</p></div><p class="svc-price">£120</p><button type="button" class="btn btn-ghost btn-sm svc-book js-only" data-service="full" aria-label="Request a full service">Request</button></li>
+     <li class="svc"><div class="svc-main"><h3>Strip-down and rebuild</h3><p>Frame stripped bare, every part cleaned and inspected, rebuilt with fresh grease.</p></div><p class="svc-price">£180</p><button type="button" class="btn btn-ghost btn-sm svc-book js-only" data-service="rebuild" aria-label="Request a strip-down and rebuild">Request</button></li>
+     <li class="svc"><div class="svc-main"><h3>Wheel true</h3><p>Wheel trued and spoke tension evened out so it runs straight.</p></div><p class="svc-price">£20</p><button type="button" class="btn btn-ghost btn-sm svc-book js-only" data-service="wheel" aria-label="Request a wheel true">Request</button></li>
+     <li class="svc"><div class="svc-main"><h3>Brake bleed</h3><p>Old hydraulic fluid flushed out, fresh fluid in, air bled from the line.</p></div><p class="svc-price">£25<span>per brake</span></p><button type="button" class="btn btn-ghost btn-sm svc-book js-only" data-service="bleed" aria-label="Request a brake bleed">Request</button></li>
+     <li class="svc"><div class="svc-main"><h3>E-bike diagnostic</h3><p>Error codes read, motor and wiring checked, battery capacity tested (where the maker's system or our tester supports it).</p></div><p class="svc-price">£45</p><button type="button" class="btn btn-ghost btn-sm svc-book js-only" data-service="ebike" aria-label="Request an e-bike diagnostic">Request</button></li>
     </ul>
-    <p class="svc-note">Prices are for labour. We quote for parts before we fit them.</p>
+    <div class="svc-note">
+     <p>Prices are for labour and include VAT where applicable. [Workshop consumables, such as grease, lube, cleaning and brake fluid for a bleed, are included.]</p>
+     <p>Parts are extra: we tell you the price and wait for your OK before we fit anything.</p>
+    </div>
    </div>
 
-   <form class="form-card" id="book" aria-labelledby="book-title">
-    <h3 id="book-title">Book a service</h3>
-    <div class="field"><label for="bk-name">Name</label><input id="bk-name" name="name" type="text" autocomplete="name" required></div>
-    <div class="field"><label for="bk-phone">Phone</label><input id="bk-phone" name="phone" type="tel" autocomplete="tel" required></div>
-    <div class="field"><label for="bk-bike">Bike (make and model)</label><input id="bk-bike" name="bike" type="text" placeholder="e.g. Trek FX 2" required></div>
+   <div class="booking" id="booking">
+   <form class="form-card js-only" id="book" aria-labelledby="book-title" novalidate>
+    <h3 id="book-title">Request a booking</h3>
+    <div class="field"><label for="bk-name">Name</label><input id="bk-name" name="name" type="text" autocomplete="name" required data-check></div>
+    <div class="field"><label for="bk-phone">Phone</label><input id="bk-phone" name="phone" type="tel" autocomplete="tel" required data-check></div>
+    <div class="field"><label for="bk-bike">Bike (make and model)</label><input id="bk-bike" name="bike" type="text" placeholder="e.g. Trek FX 2" required data-check></div>
     <div class="field-row">
      <div class="field">
       <label for="bk-service">Service</label>
-      <select id="bk-service" name="service" required>
+      <select id="bk-service" name="service" required data-check>
        <option value="">Choose a service</option>
-       <option value="puncture">Puncture repair (£12)</option>
+       <option value="puncture">Puncture repair (£12, + £[tube price] for a new tube)</option>
        <option value="safety">Safety check (£25)</option>
        <option value="standard">Standard service (£65)</option>
        <option value="full">Full service (£120)</option>
@@ -671,12 +810,15 @@ legend { padding: 0; margin-bottom: 8px; }
        <option value="ebike">E-bike diagnostic (£45)</option>
       </select>
      </div>
-     <div class="field"><label for="bk-date">Preferred date</label><input id="bk-date" name="date" type="date" required></div>
+     <div class="field"><label for="bk-date">Preferred date</label><input id="bk-date" name="date" type="date" required aria-describedby="bk-date-hint" data-check><p class="field-hint" id="bk-date-hint">Up to 8 weeks ahead. We're open [Opening hours].</p></div>
     </div>
     <div class="field"><label for="bk-notes">Notes <span class="opt">(optional)</span></label><textarea id="bk-notes" name="notes" rows="3" placeholder="What's it doing? Noises, slipping gears, soft brakes..."></textarea></div>
-    <button type="submit" class="btn btn-primary">Request booking</button>
-    <div class="form-result" id="book-result" role="status" hidden></div>
+    <button type="submit" class="btn btn-primary" id="bk-submit">Request booking</button>
+    <p class="form-note">This is a request, not a booking: we'll phone to confirm a slot. You don't pay anything until you drop the bike off and we've agreed the work and the price with you. You can cancel a request at any time. We use these details only to deal with your request (<a href="#privacy">privacy</a>, <a href="#workshop-terms">workshop terms</a>).</p>
+    <div class="form-result" id="book-result" role="status"></div>
    </form>
+   <noscript><p class="form-card">Booking requests need JavaScript. Phone us on [Phone number] or email [Workshop email] instead, and we'll find you a slot.</p></noscript>
+   </div>
   </div>
  </section>
 
@@ -686,8 +828,8 @@ legend { padding: 0; margin-bottom: 8px; }
     <div>
      <p class="eyebrow">E-bike rules</p>
      <h2 id="ebike-title">What makes an e-bike legal</h2>
-     <p class="lede">These are the rules in England, Scotland and Wales. The law calls a legal e-bike an electrically assisted pedal cycle (EAPC). Every e-bike we sell meets them.</p>
-     <p class="rules-then">If the bike and rider meet all four, you don't need a licence, insurance, tax or registration.</p>
+     <p class="lede">These are the rules in England, Scotland and Wales; Northern Ireland uses the same limits. The law calls a legal e-bike an electrically assisted pedal cycle (EAPC). Every e-bike we sell meets the bike rules below.</p>
+     <p class="rules-then">If an e-bike meets these rules and has a plate showing its maker, its motor power, and either its battery voltage or its top assisted speed, the law treats it like an ordinary bicycle: no licence, insurance, tax or registration.</p>
     </div>
     <ul class="eapc">
      <li><span class="eapc-val">Pedals</span><span class="eapc-lab">that move it</span><p>It must have pedals that can propel the bike.</p></li>
@@ -699,17 +841,20 @@ legend { padding: 0; margin-bottom: 8px; }
    <div class="rules-notes">
     <div>
      <h3>Throttles</h3>
-     <p>A throttle that powers the bike above walking pace (about 4 mph / 6 km/h) without pedalling makes it a motor vehicle in law.</p>
+     <p>Without pedalling, a throttle can only power the bike up to 3.7 mph (6 km/h), as walk or start assist. Every e-bike we sell has no throttle, or one that stops at that speed.</p>
+     <p>A faster "twist-and-go" throttle is only legal on a type-approved bike or, in Great Britain, one first sold before 2016. Any other e-bike with one is treated as a moped: registration, tax, insurance, a licence and a helmet. We don't sell any e-bike with a faster throttle, whichever kind it is.</p>
     </div>
     <div>
      <h3>What we won't sell or fit</h3>
      <p>Derestriction kits, also sold as delimiters, that lift the 15.5 mph cut-out.</p>
      <p>Conversion kits above 250W.</p>
+     <p>E-bikes with a throttle that works above 3.7 mph (6 km/h) without pedalling.</p>
+     <p>E-bikes with an "off-road" or "unlimited" mode that lets the motor help above 15.5 mph.</p>
     </div>
     <div>
      <h3>Batteries</h3>
      <p>We only supply the manufacturer's own battery and charger for each bike.</p>
-     <p>Every used e-bike battery gets a capacity test. The result is shown as battery health: 94% means it holds 94% of the charge it held when new.</p>
+     <p>Every used e-bike battery gets a capacity test. We show the result as battery health: 94% means our test measured 94% of the battery's rated capacity, the watt-hours on its label. Range also depends on the rider, the route, the weather and the assist level, so it isn't a range promise.</p>
     </div>
    </div>
   </div>
@@ -721,25 +866,33 @@ legend { padding: 0; margin-bottom: 8px; }
     <p class="eyebrow">Sell your bike</p>
     <h2 id="sell-title">We buy bikes</h2>
     <p class="lede">Road, hybrid, gravel, folding, kids and e-bikes in any condition we can bring back. Tell us what you've got and we'll make you an offer.</p>
-    <p class="proof">Bring proof of ownership. We check every frame number on BikeRegister before we buy.</p>
+    <p class="proof">Bring proof of ownership and photo ID. We check every frame number on BikeRegister before we buy.</p>
     <ul class="sell-list">
-     <li>A receipt, a bank statement or the original box and paperwork all help.</li>
-     <li>The frame number is usually stamped under the bottom bracket.</li>
+     <li>A receipt, a bank or card statement, or the original paperwork all help. Photo ID: a passport or driving licence.</li>
+     <li>The frame number is usually stamped under the bottom bracket, sometimes on the head tube or rear dropout.</li>
+     <li>You must be 18 or over and own the bike outright: no finance left to pay, and not still on a Cycle to Work hire.</li>
+     <li>We won't buy a bike that's listed as stolen, whose frame number has been removed or altered, or that you can't show is yours. If a bike is listed as stolen, we tell the police.</li>
+     <li>We pay by bank transfer, never in cash. <a href="#selling-terms">Selling us your bike: the terms</a></li>
     </ul>
    </div>
-   <form class="form-card" id="sell-form" aria-labelledby="sell-form-title">
+   <form class="form-card js-only" id="sell-form" aria-labelledby="sell-form-title" novalidate>
     <h3 id="sell-form-title">Get an offer</h3>
     <div class="field-row">
-     <div class="field"><label for="sl-make">Make</label><input id="sl-make" name="make" type="text" placeholder="e.g. Giant" required></div>
-     <div class="field"><label for="sl-model">Model</label><input id="sl-model" name="model" type="text" placeholder="e.g. Contend AR 2" required></div>
+     <div class="field"><label for="sl-name">Name</label><input id="sl-name" name="name" type="text" autocomplete="name" required data-check></div>
+     <div class="field"><label for="sl-email">Email</label><input id="sl-email" name="email" type="email" autocomplete="email" required data-check></div>
     </div>
     <div class="field-row">
-     <div class="field"><label for="sl-year">Year</label><input id="sl-year" name="year" type="number" inputmode="numeric" min="1980" max="2026" placeholder="e.g. 2021"></div>
-     <div class="field"><label for="sl-size">Frame size</label><input id="sl-size" name="size" type="text" placeholder="e.g. 54cm or M"></div>
+     <div class="field"><label for="sl-make">Make</label><input id="sl-make" name="make" type="text" placeholder="e.g. Giant" required data-check></div>
+     <div class="field"><label for="sl-model">Model</label><input id="sl-model" name="model" type="text" placeholder="e.g. Contend AR 2" required data-check></div>
     </div>
+    <div class="field-row">
+     <div class="field"><label for="sl-year">Year <span class="opt">(optional)</span></label><input id="sl-year" name="year" type="number" inputmode="numeric" min="1900" max="2026" placeholder="e.g. 2021" data-check></div>
+     <div class="field"><label for="sl-size">Frame size <span class="opt">(optional)</span></label><input id="sl-size" name="size" type="text" placeholder="e.g. 54cm or M"></div>
+    </div>
+    <div class="field"><label for="sl-frame">Frame number <span class="opt">(optional)</span></label><input id="sl-frame" name="frame" type="text" autocomplete="off" spellcheck="false" aria-describedby="sl-frame-hint"><p class="field-hint" id="sl-frame-hint">Usually stamped under the bottom bracket. We check it on BikeRegister before we buy.</p></div>
     <div class="field">
      <label for="sl-condition">Condition</label>
-     <select id="sl-condition" name="condition" required>
+     <select id="sl-condition" name="condition" required data-check>
       <option value="">Choose one</option>
       <option>Like new: hardly ridden</option>
       <option>Good: normal wear, rides well</option>
@@ -748,9 +901,11 @@ legend { padding: 0; margin-bottom: 8px; }
      </select>
     </div>
     <div class="field"><label for="sl-notes">Anything else <span class="opt">(optional)</span></label><textarea id="sl-notes" name="notes" rows="3" placeholder="Upgrades, damage, service history"></textarea></div>
-    <button type="submit" class="btn btn-primary">Ask for an offer</button>
-    <div class="form-result" id="sell-result" role="status" hidden></div>
+    <button type="submit" class="btn btn-primary" id="sl-submit">Ask for an offer</button>
+    <p class="form-note">We'll reply by email, usually asking for a few photos. We use these details only to deal with your offer (<a href="#privacy">privacy</a>, <a href="#selling-terms">selling terms</a>).</p>
+    <div class="form-result" id="sell-result" role="status"></div>
    </form>
+   <noscript><p class="form-card">The offer form needs JavaScript. Email [Workshop email] with the make, model, year and condition instead, and a few photos if you can.</p></noscript>
   </div>
  </section>
 
@@ -765,15 +920,15 @@ legend { padding: 0; margin-bottom: 8px; }
      <summary>How do you check a refurbished bike?</summary>
      <div class="answer">
       <p>Every bike goes through a 30-point check in our workshop. We look at the frame and fork for cracks and alignment, then the headset, bottom bracket and hubs, wheels and spoke tension, tyres, brakes, gears, chain wear and every bolt. Then we road test it.</p>
-      <p>Anything worn gets replaced. The ticket on each listing shows what we fitted.</p>
+      <p>Anything worn gets replaced. The ticket on each listing shows what we fitted. We check the frame number on BikeRegister and only buy bikes with proof of ownership and ID.</p>
      </div>
     </details>
     <details>
      <summary>What does the warranty cover?</summary>
      <div class="answer">
-      <p>Three months on parts and labour from the day you collect the bike or it's delivered. If something we fitted or adjusted fails with normal use, we put it right.</p>
+      <p>Three months on the whole bike, parts and labour, from the day you collect it or it's delivered. If something fails with normal use, we put it right.</p>
       <p>It doesn't cover crash damage, punctures or normal wear on tyres and brake pads.</p>
-      <p>The warranty is on top of your legal rights under the Consumer Rights Act, and doesn't affect them.</p>
+      <p>The warranty is on top of your legal rights under the Consumer Rights Act 2015. <a href="#warranty">Warranty and your rights in full</a>.</p>
      </div>
     </details>
     <details>
@@ -781,13 +936,15 @@ legend { padding: 0; margin-bottom: 8px; }
      <div class="answer">
       <p>UK delivery is £39 per bike. We box it 90% built. You fit the pedals and turn the bars straight, and the tools you need are in the box.</p>
       <p>Or collect it from the workshop for free and we'll set the saddle height with you.</p>
+      <p>E-bikes go by a specialist courier, because Royal Mail and Parcelforce don't carry e-bikes: £[e-bike delivery price] per e-bike. <a href="#delivery">Delivery times and the details</a>.</p>
      </div>
     </details>
     <details>
      <summary>Can I return a bike?</summary>
      <div class="answer">
-      <p>Yes. If you bought online, you have 14 days from the day you get the bike, delivered or collected, to change your mind. Tell us, pack it back in its box, and we'll refund the bike and any delivery charge within 14 days of it reaching the workshop.</p>
-      <p>You pay for sending it back. A courier usually charges about the same as our £39 delivery.</p>
+      <p>Yes. If you bought online, by phone or by email, you have 14 days from the day after you get the bike to change your mind, whether we delivered it or you collected it. Tell us, then bring or send it back within 14 days of telling us.</p>
+      <p>Returning it is at your cost: bring it to the workshop, or we can collect it for £39 (e-bikes £[e-bike collection price]). We refund the bike and the delivery charge, to your original payment method, within 14 days of getting it back, or of you showing us you've sent it, if that's sooner. <a href="#cancel">How to cancel, and the cancellation form</a>.</p>
+      <p>Bikes bought in person at the workshop can't be returned just for a change of mind, but your rights for faulty goods still apply.</p>
      </div>
     </details>
     <details>
@@ -799,6 +956,132 @@ legend { padding: 0; margin-bottom: 8px; }
    </div>
   </div>
  </section>
+
+ <section class="section faq small-print" id="small-print" aria-labelledby="small-print-title">
+  <div class="wrap faq-grid">
+   <div>
+    <p class="eyebrow">Terms, warranty, privacy</p>
+    <h2 id="small-print-title">The small print</h2>
+    <p class="lede">What you'd want in writing before you buy a bike, book the workshop or sell us one. Open a section to read it in full.</p>
+    <p class="notice"><strong>Not trading yet.</strong> Chainline Cycles is a preview and can't take orders, bookings or bikes. These terms set out how we'll trade when we open; until then they don't apply to any sale.</p>
+   </div>
+   <div>
+    <details id="terms">
+     <summary>Terms of sale</summary>
+     <div class="answer legal">
+      <p class="updated">Last updated [launch date]</p>
+      <p>These terms apply when you buy a bike from us. The workshop terms and the terms for selling us a bike, further down, apply when you use those services. Nothing in them affects your legal rights as a consumer.</p>
+      <p><strong>1. Who we are.</strong> Chainline Cycles is a trading name of [Company name], a company registered in [England and Wales], company number [Company number], registered office [Registered office address]. Workshop: [Workshop address]. VAT number: [VAT number, if registered]. Email [Workshop email], phone [Phone number].</p>
+      <p><strong>2. Our bikes.</strong> Every bike we sell is used, and each one is a one-off. Before it goes on sale it has our 30-point workshop check, worn parts are replaced, and its frame number is checked on BikeRegister. Its listing gives its make, model, year, size, gears, brakes and condition, and what we fitted or tested, and its workshop ticket comes with the bike. The drawings on this site are illustrations, not pictures of the actual bike: ask us for photos before you buy.</p>
+      <p><strong>3. Ordering online.</strong> Add the bike to your basket, choose collection or delivery and press Checkout. On the secure checkout pages that follow, check the bike and the total price, enter your details and pay. You can change your choice in the basket. You'll see the bike and the total again before you pay; to change anything, go back to the basket. If you spot a mistake after paying, email us straight away. Your payment is an offer to buy. The contract is made when we email to confirm we've accepted your order, which we do within [one working day]. If the bike has already gone, we tell you and refund you in full. The contract is in English only. We keep a record of your order, as our privacy notice explains, and you can email us for a copy. Our confirmation email gives you these terms as they stood on the day you ordered, so please keep it.</p>
+      <p><strong>4. Prices and payment.</strong> Prices are in pounds sterling and include VAT where applicable. Used bikes may be sold under the VAT margin scheme, in which case VAT isn't shown separately on your receipt. Collection is free. UK delivery is £39 per bike (e-bikes £[e-bike delivery price]) and is added in your basket, so you see the total before you pay. We take payment by card through [payment provider]; we never see or store your card details.</p>
+      <p><strong>5. Collection and delivery.</strong> How we deliver, how long it takes and who is responsible for the bike until it arrives are set out in <a href="#delivery">Delivery and returns</a>, which is part of these terms.</p>
+      <p><strong>6. Changing your mind.</strong> If you bought online, by phone or by email, you can cancel for any reason within 14 days, starting the day after you get the bike. <a href="#cancel">Cancelling an order</a> explains how, what returning the bike costs and how we refund you, and has a cancellation form.</p>
+      <p><strong>7. If something's wrong.</strong> A used bike must still be of satisfactory quality, fit for purpose and as described. Our 3-month warranty is on top of your Consumer Rights Act 2015 rights, not instead of them: see <a href="#warranty">Warranty and your legal rights</a>.</p>
+      <p><strong>8. Our workshop.</strong> Servicing and repairs are covered by the <a href="#workshop-terms">workshop terms</a>.</p>
+      <p><strong>9. Selling your bike to us.</strong> Buying bikes from the public is covered by <a href="#selling-terms">Selling us your bike</a>.</p>
+      <p><strong>10. Our liability.</strong> We're responsible for loss or damage you suffer that is a foreseeable result of us breaking these terms or failing to use reasonable care and skill, including while your bike is in our workshop. We don't exclude or limit liability where it would be unlawful to do so, including for death or personal injury caused by our negligence, or for fraud.</p>
+      <p><strong>11. Complaints and the law.</strong> If you're unhappy, please tell us first and we'll do our best to put it right. You can also get free advice from the Citizens Advice consumer helpline on 0808 223 1133. These terms are governed by [the law of England and Wales]. You can bring proceedings in [the courts of England and Wales], or in Scotland or Northern Ireland if you live there.</p>
+     </div>
+    </details>
+    <details id="warranty">
+     <summary>Warranty and your legal rights</summary>
+     <div class="answer legal">
+      <p>This warranty is given by [Company name], trading as Chainline Cycles, [Workshop address] ([Workshop email], [Phone number]). It covers bikes bought from us, applies in the UK, and lasts for 3 months from the day you collect the bike or it's delivered. It's on top of your Consumer Rights Act 2015 rights, not instead of them.</p>
+      <h3>What's covered</h3>
+      <p>The whole bike, parts and labour. If any part stops working properly with normal use within the 3 months, we put it right free. On an e-bike that includes the motor, display, wiring, battery and charger.</p>
+      <h3>What isn't</h3>
+      <p>Crash damage, punctures, and normal wear on tyres and brake pads. Damage from misuse, and loss or theft, aren't covered either. We'll tell you straight if a problem is one of these, and quote before we do any paid work.</p>
+      <h3>How to claim</h3>
+      <p>Email or phone us with your ticket number and what's wrong; photos help. Bring the bike to the workshop if you can. If you can't, tell us: for a fault we're responsible for under the Consumer Rights Act (any fault reported within six months of getting the bike is presumed to be), we pay to collect the bike and bring it back. For other warranty claims, [who pays to collect and return the bike, and what it costs]. We put a covered fault right free of charge.</p>
+      <p>This warranty is extra, and it never limits your Consumer Rights Act rights: within 30 days of getting the bike you can reject it for a full refund, and after that you're entitled to a repair or replacement, and if that doesn't fix the problem, a price reduction or refund.</p>
+      <h3>Your legal rights come first</h3>
+      <p>This warranty doesn't reduce your Consumer Rights Act 2015 rights. A used bike must still be of satisfactory quality (taking into account its age, condition and price), fit for purpose and as described. In short:</p>
+      <ul>
+       <li>Within 30 days of getting it, you can reject a faulty bike for a full refund.</li>
+       <li>After 30 days, we get one chance to repair or replace it. If that doesn't fix it, you can reject it for a refund (which, after six months, may be reduced to reflect the use you've had) or keep it with a price reduction.</li>
+       <li>Within six months of getting it, a fault is assumed to have been there when you got it unless we can show otherwise. After six months, it's for you to show it was.</li>
+       <li>You can make a claim for up to six years after delivery (five years in Scotland).</li>
+      </ul>
+      <p>For impartial advice, contact the Citizens Advice consumer helpline on 0808 223 1133.</p>
+     </div>
+    </details>
+    <details id="delivery">
+     <summary>Delivery and returns</summary>
+     <div class="answer legal">
+      <h3>Delivery</h3>
+      <p>UK delivery is £39 per bike, to UK addresses only [list any areas you don't deliver to, or charge more for]. E-bikes go by a specialist courier, because Royal Mail and Parcelforce don't carry e-bikes or their batteries: £[e-bike delivery price] per e-bike.</p>
+      <p>We send your bike within [3] working days of accepting your order, and it usually arrives [2 to 3] working days later. We always deliver within 30 days unless we agree otherwise with you. We box it 90% built: you fit the pedals and turn the bars straight, and the tools you need are in the box.</p>
+      <p>The bike is our responsibility until it's delivered to you. If it arrives damaged, or hasn't arrived when expected, tell us and we'll put it right.</p>
+      <h3>Collection</h3>
+      <p>Collection from the workshop is free, and we'll set the saddle height with you. We'll tell you when it's ready, usually within [2] working days of accepting your order. The workshop is at [Workshop address], open [Opening hours].</p>
+      <h3>Returns</h3>
+      <p>Changed your mind about a bike you bought online, by phone or by email? See <a href="#cancel">Cancelling an order</a>. If a bike is faulty, see <a href="#warranty">Warranty and your legal rights</a>: you don't pay to return a faulty bike.</p>
+     </div>
+    </details>
+    <details id="cancel">
+     <summary>Cancelling an order (14 days)</summary>
+     <div class="answer legal">
+      <p>If you bought online, by phone or by email, you can cancel for any reason within 14 days, starting the day after you get the bike, whether we delivered it or you collected it. Tell us clearly by email, phone or post (you can use the cancellation form below, but you don't have to). Then bring the bike back, or send it, within 14 days of telling us.</p>
+      <p>A bike is too big to post, so returning it is at your cost. Bring it back to the workshop, or we'll collect it for £39 (e-bikes £[e-bike collection price]), or use your own courier.</p>
+      <p>We refund the price of the bike and the delivery charge you paid, to your original payment method, within 14 days of getting the bike back, or of you showing us you've sent it, if that's sooner.</p>
+      <p>Treat it as you would in a shop: check it over, set the saddle and take it for a short test ride. If it comes back ridden more than that, or with damage that wasn't there when you got it, we may take the loss in value off your refund, as the law allows. We'll show you before we do.</p>
+      <p>Bikes you see and pay for in person at the workshop can't be returned just because you've changed your mind. Your rights if a bike is faulty or not as described still apply, however you bought it.</p>
+      <h3 id="cancel-form">Cancellation form</h3>
+      <p>You don't have to use this form; any clear statement by email is fine. If you prefer, copy it into an email or letter:</p>
+      <p class="form-box">To [Company name] trading as Chainline Cycles, [Workshop address], [Workshop email]:<br>I hereby give notice that I cancel my contract of sale of the following goods: [bike, size, ticket number]<br>Ordered on [date] / received on [date]<br>Name: [your name]<br>Address: [your address]<br>Signature (only if sent on paper):<br>Date: [date]</p>
+     </div>
+    </details>
+    <details id="workshop-terms">
+     <summary>Workshop terms</summary>
+     <div class="answer legal">
+      <p><strong>Booking requests.</strong> The booking form on this page sends a request, not a booking. We phone you to confirm a slot. You don't pay anything online, and nothing is agreed until you drop the bike off: then we agree the work and the price with you and give you a ticket. You can cancel a request at any time.</p>
+      <p><strong>Prices and parts.</strong> Our service prices are for labour and include VAT where applicable. If we find something else that needs doing, or a part needs replacing, we tell you the price and only go ahead if you say yes.</p>
+      <p><strong>Our work.</strong> We do every job with reasonable care and skill. If we don't, tell us and we'll put it right free; if we can't, you can have some or all of your money back. Your bike is our responsibility while it's with us.</p>
+      <p><strong>Collecting your bike.</strong> Please collect it within [14] days of us telling you it's ready. If you don't, we'll write to you, and if it's still not collected [3 months] after that, we may sell it to cover what you owe, as the law allows, and keep the rest for you.</p>
+     </div>
+    </details>
+    <details id="selling-terms">
+     <summary>Selling us your bike</summary>
+     <div class="answer legal">
+      <p>Offers we email are a guide until we've seen the bike. If it matches what you told us, we pay the offer; if it doesn't, we tell you why and make a new offer, which you're free to turn down.</p>
+      <p>When you sell us a bike, you confirm that you own it outright, that you're 18 or over, that it isn't reported lost or stolen, that no finance is owed on it, and that it isn't on a Cycle to Work or other hire agreement.</p>
+      <p>We ask for proof of ownership and photo ID, and check every frame number on BikeRegister. That check shows whether a bike is registered there as stolen; it can't flag a bike that was never registered, which is why we also need proof that it's yours. We keep a record of every bike we buy and who sold it, and may refuse any bike. We never alter, remove or re-stamp a frame number. If a bike is recorded as stolen, we won't buy it and we'll tell the police.</p>
+      <p>We pay by bank transfer, never in cash, [within one working day] once the bike has passed its checks.</p>
+     </div>
+    </details>
+    <details id="privacy">
+     <summary>Privacy and cookies</summary>
+     <div class="answer legal">
+      <p>[Company name], trading as Chainline Cycles ([Workshop address]), is the data controller under UK data protection law (the UK GDPR and the Data Protection Act 2018). ICO registration number: [ICO registration number]. Contact us about privacy at [Workshop email]. In this preview the forms don't send anything.</p>
+      <h3>What we collect</h3>
+      <ul>
+       <li>When you ask for a workshop booking: your name, phone number, your bike, the service and date you want, and anything you tell us about it. When you drop the bike off we may record its frame number.</li>
+       <li>When you buy: your name, email, phone number, delivery address, what you bought and payment confirmation. Card payments are handled by [payment provider]; we never see or store your card details.</li>
+       <li>When you ask for an offer or sell us a bike: your name and email, details of the bike (including its frame number, if you give it) and, if we buy it, proof of ownership, details from your photo ID and your bank details so we can pay you.</li>
+       <li>When you email or phone us: your details and what you tell us.</li>
+      </ul>
+      <h3>Why we use it</h3>
+      <p>To deal with your booking request, order, offer or question (to perform our contract with you, or take steps you've asked for before one). To keep sales, purchase and tax records (legal obligation). To check frame numbers on BikeRegister, keep records of who sold us each bike, and help the police if a bike turns out to be stolen (our legitimate interest in preventing crime, and legal obligations where they apply). We don't send marketing unless you ask us to, and we never sell your information.</p>
+      <h3>Who we share it with</h3>
+      <p>Only the services we need to run the business: our website host, which keeps technical logs including your IP address for up to [30] days for security; our email provider; [payment provider], which processes card payments and also uses your data as an independent controller for fraud prevention; Google Fonts, which receives your IP address when your browser loads our typefaces; the courier delivering your bike; BikeRegister, when we check a frame number (we send the frame number only); our accountant; and the police or other authorities where the law requires or allows it. If a bike offered to us is recorded as stolen, we pass its details and the seller's details to the police. Some of these providers may process data outside the UK, with appropriate safeguards in place.</p>
+      <h3>How long we keep it</h3>
+      <p>Sales and purchase records, including who sold us each bike and their ownership declaration, are kept for six years for tax and crime-prevention purposes. Copies of ID are deleted once we've recorded the details we need. Workshop bookings and general enquiries are deleted within two years.</p>
+      <h3>Your rights</h3>
+      <p>You can ask to see, correct or delete the information we hold about you, to restrict or object to how we use it, or to have it transferred. Email [Workshop email]. If you're unhappy with how we've handled your information, tell us: we'll acknowledge your complaint within 30 days and tell you the outcome. You can also complain to the Information Commission, the UK's data protection regulator, still known as the ICO (ico.org.uk).</p>
+      <h3 id="cookies">Cookies and what this page stores</h3>
+      <p>This site doesn't set any cookies, and we don't use analytics, advertising or tracking tools.</p>
+      <ul>
+       <li>Your basket (the bikes in it and your delivery choice) is saved in your browser, if your browser allows it, so it's still there if you come back. It's never sent to us; remove the bikes to clear it.</li>
+       <li>Where your browser allows it, the shop filters and the size finder's bike type and height are kept in this page's web address, so Back, refresh and a shared link show the same thing. Like any web address, it stays in your browser history and reaches our website host's logs when the page loads. We don't use it for anything else.</li>
+      </ul>
+      <p>Our typefaces are loaded from Google Fonts, so Google receives your IP address, as with any web request; Google Fonts doesn't set cookies. When you pay, checkout runs on [payment provider], which uses its own cookies for security and fraud prevention. If we ever add cookies that aren't strictly necessary, we'll ask for your consent first.</p>
+     </div>
+    </details>
+   </div>
+  </div>
+ </section>
+ <p class="vh" id="announce" role="status" aria-live="polite"></p>
 </main>
 
 <footer class="site-footer">
@@ -810,75 +1093,92 @@ legend { padding: 0; margin-bottom: 8px; }
    </a>
    <p>Checked, refurbished bikes and UK-legal e-bikes, plus a workshop that services any make.</p>
   </div>
-  <div>
+  <div id="contact">
    <h2 class="footer-h">Contact</h2>
-   <p class="contact-line"><span id="contact-email">workshop@chainline.example</span><button type="button" class="link-btn" data-copy="contact-email">Copy</button></p>
-   <p class="contact-line"><span id="contact-phone">0191 000 0003</span><button type="button" class="link-btn" data-copy="contact-phone">Copy</button></p>
+   <p class="contact-line"><a id="contact-email" href="mailto:[Workshop email]">[Workshop email]</a><button type="button" class="link-btn js-only" data-copy="contact-email"><span class="copy-label">Copy</span><span class="vh"> email address</span></button></p>
+   <p class="contact-line"><a id="contact-phone" href="tel:[Phone number]">[Phone number]</a><button type="button" class="link-btn js-only" data-copy="contact-phone"><span class="copy-label">Copy</span><span class="vh"> phone number</span></button></p>
+   <p class="muted">Workshop: [Workshop address]</p>
+   <p class="muted">Open [Opening hours]</p>
   </div>
   <div>
    <h2 class="footer-h">Company details</h2>
-   <p>Company number and workshop address go here before launch.</p>
+   <p class="footer-company">Chainline Cycles is a trading name of [Company name], a company registered in [England and Wales], company number [Company number], registered office [Registered office address]. VAT number: [VAT number, if registered].</p>
   </div>
  </div>
+ <nav class="wrap footer-links" aria-label="The small print">
+  <a href="#terms">Terms of sale</a>
+  <a href="#warranty">Warranty</a>
+  <a href="#delivery">Delivery and returns</a>
+  <a href="#cancel">Cancelling an order</a>
+  <a href="#workshop-terms">Workshop terms</a>
+  <a href="#selling-terms">Selling us your bike</a>
+  <a href="#privacy">Privacy and cookies</a>
+ </nav>
  <div class="wrap footer-base">
   <p>© 2026 Chainline Cycles</p>
-  <p>Prototype: placeholder stock and prices.</p>
+  <p>Prototype: placeholder stock, prices and contact details.</p>
  </div>
 </footer>
 
 <div class="scrim" id="scrim" hidden></div>
-<aside class="drawer" id="basket" role="dialog" aria-modal="true" aria-labelledby="basket-title">
+<div class="drawer" id="basket" role="dialog" aria-modal="true" aria-labelledby="basket-title">
  <div class="drawer-head">
-  <h2 id="basket-title">Basket</h2>
+  <h2 id="basket-title" tabindex="-1">Basket</h2>
   <button type="button" class="icon-btn" id="basket-close" aria-label="Close basket"><svg aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
  </div>
  <div class="drawer-body">
   <ul class="lines" id="basket-lines"></ul>
-  <p class="basket-empty" id="basket-empty">Your basket is empty. Every bike is a one-off, so there's only one of each.</p>
+  <p class="basket-empty" id="basket-empty">Your basket is empty. Every bike is a one-off, so there's only one of each. If your browser allows it, your basket is kept in this browser only, and it's never sent to us.</p>
   <fieldset class="delivery">
    <legend>Delivery</legend>
-   <label class="del-opt" for="del-collect"><input type="radio" name="delivery" id="del-collect" value="collect" checked><span>Collect from the workshop<small>We'll set it up with you</small></span><span class="mono">Free</span></label>
-   <label class="del-opt" for="del-uk"><input type="radio" name="delivery" id="del-uk" value="uk"><span>UK delivery<small>Boxed, 90% built, tools included</small></span><span class="mono">£39 per bike</span></label>
+   <label class="del-opt" for="del-collect"><input type="radio" name="delivery" id="del-collect" value="collect" autocomplete="off" checked><span>Collect from the workshop<small>We'll set it up with you</small></span><span class="mono">Free</span></label>
+   <label class="del-opt" for="del-uk"><input type="radio" name="delivery" id="del-uk" value="uk" autocomplete="off"><span>UK delivery<small>Boxed, 90% built, tools included. E-bikes go by specialist courier.</small></span><span class="mono">£39 per bike</span></label>
   </fieldset>
+  <p class="ebike-note" id="ebike-note" hidden></p>
   <dl class="totals">
    <div><dt>Subtotal</dt><dd id="t-sub">£0</dd></div>
    <div><dt id="t-del-label">Delivery</dt><dd id="t-del">Free</dd></div>
    <div class="grand"><dt>Total</dt><dd id="t-total">£0</dd></div>
   </dl>
+  <p class="basket-note">Prices include VAT where applicable. UK addresses only. We take [payment methods]. You'll check everything, and the total, again before you pay. <a href="#terms">Terms of sale</a></p>
+  <p class="vh" id="basket-live" role="status" aria-live="polite"></p>
  </div>
  <div class="drawer-foot">
   <button type="button" class="btn btn-primary" id="checkout">Checkout</button>
-  <p class="form-result" id="checkout-msg" role="status" hidden><strong>Payments aren't connected yet.</strong>This is a prototype. No order has been placed and nothing has been charged.</p>
+  <p class="form-result" id="checkout-msg" role="status"></p>
  </div>
-</aside>
+</div>
+
+<!-- The bikes: the only place a bike, its details or its price is typed. The script below draws the cards and the basket
+     from it; launch/chainline/sync_bikes.py writes the same cards into the HTML above (for visitors without JavaScript)
+     and the structured data below; build_shopify_csv.py makes the Shopify import from it. After any change here, run
+     sync_bikes.py, then check_site.py. "ebike": null means the e-bike courier price isn't set yet. "heroTicket" is the bike the
+     example workshop ticket at the top describes; its "checked" date and "ticketRows" appear only on that ticket. -->
+<script type="application/json" id="shop-data">
+{"delivery": {"bike": 39, "ebike": null},
+ "heroTicket": "fx2-2021",
+ "bikes": [
+  {"id": "allez-2020", "no": "0398", "make": "Specialized", "model": "Allez", "year": 2020, "type": "road", "size": "54cm", "band": "M", "gears": "2x8", "specs": [["Wheels", "[wheels]"], ["Brakes", "[brakes]"], ["Condition", "[condition notes]"]], "tagLabel": "Fitted", "tag": "New tyres + bar tape", "price": 449},
+  {"id": "contend-2022", "no": "0405", "make": "Giant", "model": "Contend AR 2", "year": 2022, "type": "road", "size": "M", "band": "M", "gears": "2x9", "specs": [["Wheels", "[wheels]"], ["Brakes", "[brakes]"], ["Condition", "[condition notes]"]], "tagLabel": "Fitted", "tag": "New chain + brake pads", "price": 529},
+  {"id": "fx2-2021", "no": "0412", "make": "Trek", "model": "FX 2 Disc", "year": 2021, "type": "hybrid", "size": "M (17.5in)", "band": "M", "gears": "2x9", "specs": [["Wheels", "700c"], ["Brakes", "Hydraulic disc"], ["Condition", "[condition notes]"]], "tagLabel": "Fitted", "tag": "New chain + cassette", "price": 379, "checked": "[check date]", "ticketRows": [["Brakes", "Hydraulic disc, bled"], ["Tyres", "Schwalbe Marathon 700x35c"]]},
+  {"id": "hyb86-2022", "no": "0409", "make": "Boardman", "model": "HYB 8.6", "year": 2022, "type": "hybrid", "size": "L", "band": "L", "gears": "1x10", "specs": [["Wheels", "[wheels]"], ["Brakes", "[brakes]"], ["Condition", "[condition notes]"]], "tagLabel": "Work done", "tag": "Hubs serviced", "price": 349},
+  {"id": "nuroad-2021", "no": "0415", "make": "Cube", "model": "Nuroad", "year": 2021, "type": "gravel", "size": "56cm", "band": "L", "gears": "2x9", "specs": [["Wheels", "[wheels]"], ["Brakes", "[brakes]"], ["Condition", "[condition notes]"]], "tagLabel": "Fitted", "tag": "New tubeless tyres", "price": 649},
+  {"id": "brompton-2022", "no": "0401", "make": "Brompton", "model": "C Line Explore", "year": 2022, "type": "folding", "size": "One size", "band": "ONE", "gears": "6-speed", "specs": [["Wheels", "[wheels]"], ["Brakes", "[brakes]"], ["Condition", "[condition notes]"]], "tagLabel": "Fitted", "tag": "New chain + tyres", "price": 899},
+  {"id": "crossfire-2023", "no": "0417", "make": "Carrera", "model": "Crossfire-E", "year": 2023, "type": "ebike", "size": "M", "band": "M", "gears": "1x9", "specs": [["Wheels", "[wheels]"], ["Brakes", "[brakes]"], ["Motor", "[motor maker and power]"], ["Battery", "[rated Wh], tested [test date]"], ["Charger", "Maker's own"], ["Condition", "[condition notes]"]], "tagLabel": "Tested", "tag": "Battery health 94%", "price": 749},
+  {"id": "motus-2021", "no": "0419", "make": "Raleigh", "model": "Motus Tour", "year": 2021, "type": "ebike", "size": "M", "band": "M", "gears": "8-speed hub", "specs": [["Wheels", "[wheels]"], ["Brakes", "[brakes]"], ["Motor", "[motor maker and power]"], ["Battery", "[rated Wh], tested [test date]"], ["Charger", "Maker's own"], ["Condition", "[condition notes]"]], "tagLabel": "Tested", "tag": "Battery health 88%", "price": 1149},
+  {"id": "frog55-2022", "no": "0411", "make": "Frog", "model": "55", "year": 2022, "type": "kids", "size": "20in wheels", "band": "K20", "gears": "1x8", "specs": [["Brakes", "[brakes]"], ["Condition", "[condition notes]"]], "tagLabel": "Fitted", "tag": "New tyres", "price": 219},
+  {"id": "beinn20-2020", "no": "0414", "make": "Islabikes", "model": "Beinn 20", "year": 2020, "type": "kids", "size": "20in wheels", "band": "K20", "gears": "1x8", "specs": [["Brakes", "[brakes]"], ["Condition", "[condition notes]"]], "tagLabel": "Fitted", "tag": "New brake pads", "price": 249}
+ ]}
+</script>
+<script type="application/ld+json" id="ld-bikes">{"@context":"https://schema.org","@type":"ItemList","name":"Bikes in stock","numberOfItems":10,"itemListElement":[{"@type":"ListItem","position":1,"item":{"@type":"Product","@id":"#bike-motus-2021","name":"Raleigh Motus Tour (2021)","sku":"CL-0419","brand":{"@type":"Brand","name":"Raleigh"},"model":"Motus Tour","category":"Electric bike","size":"M","description":"Used 2021 Raleigh Motus Tour, refurbished in our workshop. Workshop ticket 0419. Tested: Battery health 88%. Size M, 8-speed hub gears.","offers":{"@type":"Offer","price":"1149.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"}}}},{"@type":"ListItem","position":2,"item":{"@type":"Product","@id":"#bike-crossfire-2023","name":"Carrera Crossfire-E (2023)","sku":"CL-0417","brand":{"@type":"Brand","name":"Carrera"},"model":"Crossfire-E","category":"Electric bike","size":"M","description":"Used 2023 Carrera Crossfire-E, refurbished in our workshop. Workshop ticket 0417. Tested: Battery health 94%. Size M, 1x9 gears.","offers":{"@type":"Offer","price":"749.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"}}}},{"@type":"ListItem","position":3,"item":{"@type":"Product","@id":"#bike-nuroad-2021","name":"Cube Nuroad (2021)","sku":"CL-0415","brand":{"@type":"Brand","name":"Cube"},"model":"Nuroad","category":"Gravel bike","size":"56cm","description":"Used 2021 Cube Nuroad, refurbished in our workshop. Workshop ticket 0415. Fitted: New tubeless tyres. Size 56cm, 2x9 gears.","offers":{"@type":"Offer","price":"649.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"},"shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":"39.00","currency":"GBP"},"shippingDestination":{"@type":"DefinedRegion","addressCountry":"GB"}}}}},{"@type":"ListItem","position":4,"item":{"@type":"Product","@id":"#bike-beinn20-2020","name":"Islabikes Beinn 20 (2020)","sku":"CL-0414","brand":{"@type":"Brand","name":"Islabikes"},"model":"Beinn 20","category":"Kids' bike","size":"20in wheels","description":"Used 2020 Islabikes Beinn 20, refurbished in our workshop. Workshop ticket 0414. Fitted: New brake pads. Size 20in wheels, 1x8 gears.","offers":{"@type":"Offer","price":"249.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"},"shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":"39.00","currency":"GBP"},"shippingDestination":{"@type":"DefinedRegion","addressCountry":"GB"}}}}},{"@type":"ListItem","position":5,"item":{"@type":"Product","@id":"#bike-fx2-2021","name":"Trek FX 2 Disc (2021)","sku":"CL-0412","brand":{"@type":"Brand","name":"Trek"},"model":"FX 2 Disc","category":"Hybrid bike","size":"M (17.5in)","description":"Used 2021 Trek FX 2 Disc, refurbished in our workshop. Workshop ticket 0412. Fitted: New chain + cassette. Size M (17.5in), 2x9 gears.","offers":{"@type":"Offer","price":"379.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"},"shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":"39.00","currency":"GBP"},"shippingDestination":{"@type":"DefinedRegion","addressCountry":"GB"}}}}},{"@type":"ListItem","position":6,"item":{"@type":"Product","@id":"#bike-frog55-2022","name":"Frog 55 (2022)","sku":"CL-0411","brand":{"@type":"Brand","name":"Frog"},"model":"55","category":"Kids' bike","size":"20in wheels","description":"Used 2022 Frog 55, refurbished in our workshop. Workshop ticket 0411. Fitted: New tyres. Size 20in wheels, 1x8 gears.","offers":{"@type":"Offer","price":"219.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"},"shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":"39.00","currency":"GBP"},"shippingDestination":{"@type":"DefinedRegion","addressCountry":"GB"}}}}},{"@type":"ListItem","position":7,"item":{"@type":"Product","@id":"#bike-hyb86-2022","name":"Boardman HYB 8.6 (2022)","sku":"CL-0409","brand":{"@type":"Brand","name":"Boardman"},"model":"HYB 8.6","category":"Hybrid bike","size":"L","description":"Used 2022 Boardman HYB 8.6, refurbished in our workshop. Workshop ticket 0409. Work done: Hubs serviced. Size L, 1x10 gears.","offers":{"@type":"Offer","price":"349.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"},"shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":"39.00","currency":"GBP"},"shippingDestination":{"@type":"DefinedRegion","addressCountry":"GB"}}}}},{"@type":"ListItem","position":8,"item":{"@type":"Product","@id":"#bike-contend-2022","name":"Giant Contend AR 2 (2022)","sku":"CL-0405","brand":{"@type":"Brand","name":"Giant"},"model":"Contend AR 2","category":"Road bike","size":"M","description":"Used 2022 Giant Contend AR 2, refurbished in our workshop. Workshop ticket 0405. Fitted: New chain + brake pads. Size M, 2x9 gears.","offers":{"@type":"Offer","price":"529.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"},"shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":"39.00","currency":"GBP"},"shippingDestination":{"@type":"DefinedRegion","addressCountry":"GB"}}}}},{"@type":"ListItem","position":9,"item":{"@type":"Product","@id":"#bike-brompton-2022","name":"Brompton C Line Explore (2022)","sku":"CL-0401","brand":{"@type":"Brand","name":"Brompton"},"model":"C Line Explore","category":"Folding bike","size":"One size","description":"Used 2022 Brompton C Line Explore, refurbished in our workshop. Workshop ticket 0401. Fitted: New chain + tyres. Size One size, 6-speed gears.","offers":{"@type":"Offer","price":"899.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"},"shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":"39.00","currency":"GBP"},"shippingDestination":{"@type":"DefinedRegion","addressCountry":"GB"}}}}},{"@type":"ListItem","position":10,"item":{"@type":"Product","@id":"#bike-allez-2020","name":"Specialized Allez (2020)","sku":"CL-0398","brand":{"@type":"Brand","name":"Specialized"},"model":"Allez","category":"Road bike","size":"54cm","description":"Used 2020 Specialized Allez, refurbished in our workshop. Workshop ticket 0398. Fitted: New tyres + bar tape. Size 54cm, 2x8 gears.","offers":{"@type":"Offer","price":"449.00","priceCurrency":"GBP","itemCondition":"https://schema.org/RefurbishedCondition","availability":"https://schema.org/InStock","inventoryLevel":{"@type":"QuantitativeValue","value":1},"seller":{"@id":"#store"},"shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":"39.00","currency":"GBP"},"shippingDestination":{"@type":"DefinedRegion","addressCountry":"GB"}}}}}]}</script>
 
 <script>
 (function () {
   'use strict';
 
-  var BIKES = [
-    { id: 'allez-2020', no: '0398', make: 'Specialized', model: 'Allez', year: 2020, type: 'road', size: '54cm', band: 'M', gears: '2x8', tagLabel: 'Fitted', tag: 'New tyres + bar tape', price: 449 },
-    { id: 'contend-2022', no: '0405', make: 'Giant', model: 'Contend AR 2', year: 2022, type: 'road', size: 'M', band: 'M', gears: '2x9', tagLabel: 'Fitted', tag: 'New chain + brake pads', price: 529 },
-    { id: 'fx2-2021', no: '0412', make: 'Trek', model: 'FX 2', year: 2021, type: 'hybrid', size: 'M (17.5in)', band: 'M', gears: '2x9', tagLabel: 'Fitted', tag: 'New chain + cassette', price: 379 },
-    { id: 'hyb86-2022', no: '0409', make: 'Boardman', model: 'HYB 8.6', year: 2022, type: 'hybrid', size: 'L', band: 'L', gears: '1x10', tagLabel: 'Work done', tag: 'Hubs serviced', price: 349 },
-    { id: 'nuroad-2021', no: '0415', make: 'Cube', model: 'Nuroad', year: 2021, type: 'gravel', size: '56cm', band: 'L', gears: '2x9', tagLabel: 'Fitted', tag: 'New tubeless tyres', price: 649 },
-    { id: 'brompton-2019', no: '0401', make: 'Brompton', model: 'C Line Explore', year: 2019, type: 'folding', size: 'One size', band: 'ONE', gears: '6-speed', tagLabel: 'Fitted', tag: 'New chain + tyres', price: 899 },
-    { id: 'crossfire-2023', no: '0417', make: 'Carrera', model: 'Crossfire-E', year: 2023, type: 'ebike', size: 'M', band: 'M', gears: '1x9', tagLabel: 'Tested', tag: 'Battery health 94%', price: 749 },
-    { id: 'motus-2021', no: '0419', make: 'Raleigh', model: 'Motus Tour', year: 2021, type: 'ebike', size: 'M', band: 'M', gears: '8-speed hub', tagLabel: 'Tested', tag: 'Battery health 88%', price: 1149 },
-    { id: 'frog55-2022', no: '0411', make: 'Frog', model: '55', year: 2022, type: 'kids', size: '24in wheels', band: 'K24', gears: '1x8', tagLabel: 'Fitted', tag: 'New tyres', price: 219 },
-    { id: 'beinn20-2020', no: '0414', make: 'Islabikes', model: 'Beinn 20', year: 2020, type: 'kids', size: '20in wheels', band: 'K20', gears: '1x8', tagLabel: 'Fitted', tag: 'New brake pads', price: 249 }
-  ];
-  var TYPE_LABEL = { road: 'Road', hybrid: 'Hybrid', gravel: 'Gravel', ebike: 'E-bike', folding: 'Folding', kids: 'Kids' };
-  var DELIVERY_PER_BIKE = 39;
-  var STORE_KEY = 'chainline-basket-v1';
-
-  var money = (function () {
-    var f = null;
-    try { f = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }); } catch (e) { f = null; }
-    return function (n) { return f ? f.format(n) : '£' + n; };
-  })();
   function $(sel, root) { return (root || document).querySelector(sel); }
   function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function has(obj, key) { return Object.prototype.hasOwnProperty.call(obj, key); }
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -887,40 +1187,69 @@ legend { padding: 0; margin-bottom: 8px; }
   function reducedMotion() {
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
+  function behaviour() { return reducedMotion() ? 'auto' : 'smooth'; }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  /* The font stylesheet loads as "print" so it never holds up the page, and its onload switches it on. If a host's
+     content policy blocks that inline handler, switch it on from here instead. */
+  try {
+    var fontLink = $('link[data-fonts]');
+    if (fontLink && fontLink.media !== 'all') {
+      if (fontLink.sheet) fontLink.media = 'all';
+      else fontLink.addEventListener('load', function () { fontLink.media = 'all'; });
+    }
+  } catch (e) { /* fonts are optional: the fallbacks are set */ }
+
+  /* ---------- the bike data (the JSON block above) ---------- */
+  var DATA = null;
+  try { DATA = JSON.parse($('#shop-data').textContent); } catch (e) { DATA = null; }
+  if (!DATA || !Array.isArray(DATA.bikes)) DATA = null;
+  var BIKES = DATA ? DATA.bikes : [];
+  var DELIVERY = (DATA && DATA.delivery) || {};
+  var EBIKE_TBC = '£[e-bike delivery price]';
+  var TYPE_LABEL = { road: 'Road', hybrid: 'Hybrid', gravel: 'Gravel', ebike: 'E-bike', folding: 'Folding', kids: 'Kids' };
+  var TYPE_ORDER = ['road', 'hybrid', 'gravel', 'ebike', 'folding', 'kids'];
+  var BANDS = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'ONE', 'K14', 'K16', 'K20', 'K24', 'K26'];
+  var STORE_KEY = 'chainline-basket-v1';
+
+  var money = (function () {
+    var f = null;
+    try { f = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 }); } catch (e) { f = null; }
+    return function (n) { return f ? f.format(n) : '£' + n; };
+  })();
+  function isNum(n) { return typeof n === 'number' && isFinite(n); }
   function findBike(id) {
     for (var i = 0; i < BIKES.length; i++) if (BIKES[i].id === id) return BIKES[i];
     return null;
   }
-
-  /* Small bike glyphs, one per type */
-  function wheel(x, y, r, w) {
-    return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" stroke-width="' + (w || 2.4) + '"/>' +
-      '<circle cx="' + x + '" cy="' + y + '" r="1.8" fill="currentColor" stroke="none"/>';
+  function ebikeDeliveryText() { return isNum(DELIVERY.ebike) ? money(DELIVERY.ebike) : EBIKE_TBC; }
+  function deliveryNote(b) {
+    return b.type === 'ebike' ? 'Free collection · e-bike courier ' + ebikeDeliveryText()
+      : 'Free collection · ' + money(DELIVERY.bike) + ' UK delivery';
   }
-  var HYBRID = wheel(26, 52, 20) + wheel(94, 52, 20) +
-    '<path d="M54 54L46 24L82 22M54 54L84 31M82 22L84 31Q87 44 94 52M54 54L26 52L47 29M46 24L44 17M38 16.5H51M82 22L86 15M81 14L92 16"/>';
-  var GLYPHS = {
-    road: wheel(26, 52, 20) + wheel(94, 52, 20) +
-      '<path d="M54 54L46 24L82 22M54 54L84 31M82 22L84 31Q87 44 94 52M54 54L26 52L47 29M46 24L44 17M38 16.5H51M82 22L89 20Q96 20 96 26Q96 32 91 32"/>',
-    gravel: wheel(26, 52, 19, 4.2) + wheel(94, 52, 19, 4.2) +
-      '<path d="M54 54L46 26L82 24M54 54L84 33M82 24L84 33Q87 45 94 52M54 54L26 52L47 31M46 26L44 18M38 17.5H51M82 24L89 22Q97 22 97 28Q98 34 92 35"/>',
-    hybrid: HYBRID,
-    ebike: HYBRID +
-      '<rect x="-9" y="-3.2" width="18" height="6.4" rx="1.5" transform="translate(68 43) rotate(-37.5)" fill="currentColor" stroke="none"/>' +
-      '<circle cx="54" cy="54" r="4.6" fill="currentColor" stroke="none"/>',
-    folding: wheel(34, 58, 13) + wheel(90, 58, 13) +
-      '<path d="M52 58L48 24M46 14L48 24M40 13H53M49 40L82 34L84 41L90 58M82 34L80 13M75 13H86M52 58L34 58L48 46"/>' +
-      '<circle cx="66" cy="37" r="2.2" fill="currentColor" stroke="none"/>',
-    kids: wheel(30, 56, 16) + wheel(90, 56, 16) +
-      '<path d="M56 58L50 34L82 32M56 58L84 38M82 30L84 38Q86 48 90 56M56 58L30 56L51 38M50 34L49 28M43 27H55M82 30L84 22M79 21H90"/>'
-  };
+  function byTypeOrder(a, b) { return TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b); }
+
+  /* Card markup. sync_bikes.py writes exactly this into the HTML (with "Add to basket"), so keep the two in step:
+     the launch pack's browser test checks they match. */
   function glyph(type) {
-    return '<svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false">' +
-      '<g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
-      (GLYPHS[type] || GLYPHS.road) + '</g></svg>';
+    return '<svg class="glyph" viewBox="0 0 120 76" aria-hidden="true" focusable="false"><use href="#g-' + (has(TYPE_LABEL, type) ? type : 'road') + '"/></svg>';
+  }
+  function cardHTML(b, inBasket) {
+    var name = b.make + ' ' + b.model;
+    var rows = [['Size', b.size], ['Gears', b.gears]].concat(Array.isArray(b.specs) ? b.specs : []);
+    return '<li class="card" id="bike-' + esc(b.id) + '">' +
+      '<div class="card-top">' + glyph(b.type) + '<span class="card-no">Ticket ' + esc(b.no) + '</span></div>' +
+      '<div><h3>' + esc(name) + '</h3><p class="card-meta">' + esc(b.year) + ' · ' + esc(TYPE_LABEL[b.type] || '') + ' · 3-month warranty</p></div>' +
+      '<dl class="specs">' + rows.map(function (r) { return '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl>' +
+      '<p class="fit"><b>' + esc(b.tagLabel) + '</b><span>' + esc(b.tag) + '</span></p>' +
+      '<div class="card-foot"><p class="price-wrap"><span class="price">' + money(b.price) + '</span><small>' + esc(deliveryNote(b)) + '</small></p>' +
+      (inBasket
+        ? '<button type="button" class="btn btn-sm btn-ghost js-only" data-add="' + esc(b.id) + '" aria-label="In basket: ' + esc(name) + '. Open basket">In basket</button>'
+        : '<button type="button" class="btn btn-sm btn-primary js-only" data-add="' + esc(b.id) + '" aria-label="Add to basket: ' + esc(name) + '">Add to basket</button>') +
+      '</div></li>';
   }
 
-  /* Basket storage: optional, page works without it */
+  /* ---------- basket storage: optional, the page works without it ---------- */
   function loadSaved() {
     try {
       var raw = window.localStorage.getItem(STORE_KEY);
@@ -932,116 +1261,201 @@ legend { padding: 0; margin-bottom: 8px; }
   function persist() {
     try {
       window.localStorage.setItem(STORE_KEY, JSON.stringify({ items: state.basket, delivery: state.delivery }));
-    } catch (e) { /* storage unavailable: basket lasts for this visit only */ }
+    } catch (e) { /* storage unavailable: the basket lasts for this visit only */ }
   }
 
   var state = { types: [], size: 'all', sort: 'featured', basket: [], delivery: 'collect' };
-  var saved = loadSaved();
-  if (saved) {
+  function loadBasket() {
+    var saved = loadSaved();
+    if (!saved) return;
     if (Array.isArray(saved.items)) {
-      state.basket = saved.items.filter(function (id, i, arr) { return findBike(id) && arr.indexOf(id) === i; });
+      state.basket = saved.items.filter(function (id, i, arr) { return typeof id === 'string' && findBike(id) && arr.indexOf(id) === i; });
     }
-    if (saved.delivery === 'uk') state.delivery = 'uk';
+    state.delivery = saved.delivery === 'uk' ? 'uk' : 'collect';
+  }
+  function inBasket(id) { return state.basket.indexOf(id) !== -1; }
+
+  /* ---------- the page address: filters and finder choices live in it, so Back, refresh and a shared link all show
+     the same thing. Only known values are taken; anything else is dropped. ---------- */
+  function parseSize(v) {
+    if (typeof v !== 'string' || !v) return null;
+    var parts = v.split('|');
+    if (parts.length > 3) return null;
+    for (var i = 0; i < parts.length; i++) {
+      if (BANDS.indexOf(parts[i]) === -1 || parts.indexOf(parts[i]) !== i) return null;
+    }
+    return parts.join('|');
+  }
+  function sizeLabel(v) {
+    var kids = [], adult = [];
+    v.split('|').forEach(function (p) {
+      if (/^K\d+$/.test(p)) kids.push(p.slice(1) + 'in'); else adult.push(p === 'ONE' ? 'one size' : p);
+    });
+    var s = kids.length ? kids.join(' or ') + ' wheels' : '';
+    if (adult.length) s += (s ? ', or adult ' : '') + adult.join(' or ');
+    return s;
+  }
+  function readURL() {
+    var out = {};
+    try {
+      var q = new URLSearchParams(location.search);
+      var t = q.get('type');
+      if (t) out.types = t.split(',').filter(function (x, i, a) { return has(TYPE_LABEL, x) && a.indexOf(x) === i; }).sort(byTypeOrder);
+      var s = parseSize(q.get('size'));
+      if (s) out.size = s;
+      var so = q.get('sort');
+      if (so === 'low' || so === 'high') out.sort = so;
+      var f = q.get('fit');
+      if (f === 'road' || f === 'hybrid' || f === 'kids') out.fit = f;
+      if (q.get('unit') === 'ft') out.unit = 'ft';
+      var h = q.get('h');
+      if (h && /^\d{2,3}$/.test(h) && +h >= 80 && +h <= 230) out.h = +h;
+    } catch (e) { /* no URLSearchParams or no usable address: start from the defaults */ }
+    return out;
+  }
+  function syncURL() {
+    try {
+      var q = new URLSearchParams(location.search);
+      ['type', 'size', 'sort', 'fit', 'unit', 'h'].forEach(function (k) { q.delete(k); });
+      if (state.types.length) q.set('type', state.types.join(','));
+      if (state.size !== 'all') q.set('size', state.size);
+      if (state.sort !== 'featured') q.set('sort', state.sort);
+      if (finderType() !== 'hybrid') q.set('fit', finderType());
+      if (finderUnit() === 'ft') q.set('unit', 'ft');
+      if (lastGoodH !== DEFAULT_H) q.set('h', String(lastGoodH));
+      var qs = q.toString();
+      var url = location.pathname + (qs ? '?' + qs : '') + location.hash;
+      if (url !== location.pathname + location.search + location.hash) history.replaceState(history.state, '', url);
+    } catch (e) { /* sandboxed frame or old browser: everything still works, the address just doesn't follow it */ }
   }
 
-  /* Shop */
+  /* ---------- shop ---------- */
   var grid = $('#bike-grid');
   var countEl = $('#result-count');
   var emptyEl = $('#shop-empty');
   var clearBtn = $('#clear-filters');
+  var anySizeBtn = $('#empty-any-size');
   var sizeSel = $('#filter-size');
   var sortSel = $('#sort');
   var chips = $all('.chip');
 
+  function matches(b, types, bands) {
+    return (!types.length || types.indexOf(b.type) !== -1) && (!bands || bands.indexOf(b.band) !== -1);
+  }
+  function countBikes(types, size) {
+    var bands = size === 'all' ? null : size.split('|');
+    return BIKES.filter(function (b) { return matches(b, types, bands); }).length;
+  }
   function visibleBikes() {
     var bands = state.size === 'all' ? null : state.size.split('|');
-    var list = BIKES.filter(function (b) {
-      var typeOk = !state.types.length || state.types.indexOf(b.type) !== -1;
-      var sizeOk = !bands || bands.indexOf(b.band) !== -1;
-      return typeOk && sizeOk;
-    });
+    var list = BIKES.filter(function (b) { return matches(b, state.types, bands); });
+    if (state.sort === 'featured') list = list.slice().sort(function (a, b) { return Number(b.no) - Number(a.no); });
     if (state.sort === 'low') list = list.slice().sort(function (a, b) { return a.price - b.price; });
     if (state.sort === 'high') list = list.slice().sort(function (a, b) { return b.price - a.price; });
     return list;
   }
 
-  function cardHTML(b) {
-    var inBasket = state.basket.indexOf(b.id) !== -1;
-    var name = b.make + ' ' + b.model;
-    return '<li class="card">' +
-      '<div class="card-top">' + glyph(b.type) + '<span class="card-no">Ticket ' + esc(b.no) + '</span></div>' +
-      '<div><h3>' + esc(name) + '</h3><p class="card-meta">' + b.year + ' · ' + TYPE_LABEL[b.type] + '</p></div>' +
-      '<dl class="specs"><div><dt>Size</dt><dd>' + esc(b.size) + '</dd></div><div><dt>Gears</dt><dd>' + esc(b.gears) + '</dd></div></dl>' +
-      '<p class="fit"><b>' + esc(b.tagLabel) + '</b><span>' + esc(b.tag) + '</span></p>' +
-      '<div class="card-foot"><span class="price">' + money(b.price) + '</span>' +
-      '<button type="button" class="btn btn-sm ' + (inBasket ? 'btn-ghost' : 'btn-primary') + '" data-add="' + b.id + '" aria-label="' +
-      (inBasket ? esc(name) + ' is in your basket. Open basket' : 'Add ' + esc(name) + ' to basket') + '">' +
-      (inBasket ? 'In basket' : 'Add to basket') + '</button></div>' +
-      '</li>';
-  }
-
-  function ensureSizeOption(value, text) {
+  function ensureSizeOption(value) {
     if (value === 'all') return;
+    // Keep only the latest combined size the finder or an address asked for ("14in or 16in wheels"), not every one tried.
+    $all('option[data-finder]', sizeSel).forEach(function (o) { if (o.value !== value) o.remove(); });
     var exists = $all('option', sizeSel).some(function (o) { return o.value === value; });
     if (!exists) {
       var opt = document.createElement('option');
       opt.value = value;
-      opt.textContent = text || value;
-      $('#kids-sizes').appendChild(opt);
+      opt.textContent = sizeLabel(value);
+      opt.setAttribute('data-finder', '');
+      (/K\d/.test(value) ? $('#kids-sizes') : $('#adult-sizes')).appendChild(opt);
     }
   }
 
   function renderShop() {
+    if (!DATA) return; // no data: leave the cards that are in the HTML
     var list = visibleBikes();
-    grid.innerHTML = list.map(cardHTML).join('');
+    var filtered = state.types.length > 0 || state.size !== 'all';
+    grid.innerHTML = list.map(function (b) { return cardHTML(b, inBasket(b.id)); }).join('');
     emptyEl.hidden = list.length > 0;
-    countEl.textContent = list.length + (list.length === 1 ? ' bike' : ' bikes') +
-      (state.types.length || state.size !== 'all' ? ' match your filters' : ' in stock');
-    clearBtn.hidden = !(state.types.length || state.size !== 'all');
+    anySizeBtn.hidden = !(state.types.length && state.size !== 'all');
+    countEl.textContent = plural(list.length, 'bike', 'bikes') +
+      (filtered ? (list.length === 1 ? ' matches your filters' : ' match your filters') : ' in stock');
+    clearBtn.hidden = !filtered;
     chips.forEach(function (chip) {
       var t = chip.getAttribute('data-type');
       var on = t === 'all' ? state.types.length === 0 : state.types.indexOf(t) !== -1;
       chip.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
+    ensureSizeOption(state.size);
     sizeSel.value = state.size;
     sortSel.value = state.sort;
+    syncURL();
   }
 
-  function clearFilters() {
+  function clearFilters(focusEl) {
     state.types = [];
     state.size = 'all';
     renderShop();
+    if (focusEl) focusEl.focus();
   }
 
+  // The type buttons each switch one type on or off; "All" clears them.
   chips.forEach(function (chip) {
     chip.addEventListener('click', function () {
       var t = chip.getAttribute('data-type');
-      state.types = t === 'all' ? [] : [t];
+      if (t === 'all') state.types = [];
+      else {
+        var i = state.types.indexOf(t);
+        if (i === -1) state.types = state.types.concat([t]).sort(byTypeOrder);
+        else state.types = state.types.filter(function (x) { return x !== t; });
+      }
       renderShop();
     });
   });
-  sizeSel.addEventListener('change', function () { state.size = sizeSel.value; renderShop(); });
-  sortSel.addEventListener('change', function () { state.sort = sortSel.value; renderShop(); });
-  clearBtn.addEventListener('click', clearFilters);
-  $('#empty-clear').addEventListener('click', clearFilters);
+  sizeSel.addEventListener('change', function () { state.size = parseSize(sizeSel.value) || 'all'; renderShop(); });
+  sortSel.addEventListener('change', function () { state.sort = sortSel.value === 'low' || sortSel.value === 'high' ? sortSel.value : 'featured'; renderShop(); });
+  clearBtn.addEventListener('click', function () { clearFilters($('#chip-all')); });
+  $('#empty-clear').addEventListener('click', function () { clearFilters($('#chip-all')); });
+  anySizeBtn.addEventListener('click', function () { state.size = 'all'; renderShop(); sizeSel.focus(); });
 
   grid.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-add]');
     if (!btn) return;
     var id = btn.getAttribute('data-add');
-    if (state.basket.indexOf(id) === -1) {
+    var b = findBike(id);
+    if (!b) return;
+    if (!inBasket(id)) {
       state.basket.push(id);
       persist();
       renderShop();
       renderBasket();
       var again = grid.querySelector('[data-add="' + id + '"]');
       if (again) again.focus();
+      say($('#announce'), b.make + ' ' + b.model + ' added to your basket. Basket: ' + plural(state.basket.length, 'bike', 'bikes') + '.');
     } else {
       openBasket(btn);
     }
   });
 
-  /* Basket drawer */
+  /* The example ticket's link goes to the bike's card, even when the filters hide it. */
+  $('#ticket-link').addEventListener('click', function (e) {
+    var id = (this.getAttribute('href') || '').slice(1);
+    if (!DATA || !id) return;
+    e.preventDefault();
+    if (!document.getElementById(id)) clearFilters(null);
+    var card = document.getElementById(id);
+    if (!card) return;
+    card.setAttribute('tabindex', '-1');
+    card.scrollIntoView({ behavior: behaviour(), block: 'start' });
+    card.focus({ preventScroll: true });
+  });
+
+  /* ---------- announcements for screen readers ---------- */
+  function say(region, text) {
+    if (!region) return;
+    region.textContent = '';
+    window.setTimeout(function () { region.textContent = text; }, 60);
+  }
+
+  /* ---------- basket drawer ---------- */
   var drawer = $('#basket');
   var scrim = $('#scrim');
   var openBtn = $('#basket-open');
@@ -1054,71 +1468,108 @@ legend { padding: 0; margin-bottom: 8px; }
     linesEl.innerHTML = items.map(function (b) {
       return '<li class="line">' + glyph(b.type) +
         '<div><p class="line-title">' + esc(b.make + ' ' + b.model) + '</p>' +
-        '<p class="line-meta">' + b.year + ' · ' + esc(b.size) + ' · Ticket ' + esc(b.no) + '</p></div>' +
+        '<p class="line-meta">' + esc(b.year) + ' · ' + esc(b.size) + ' · Ticket ' + esc(b.no) + '</p></div>' +
         '<div class="line-side"><span class="price">' + money(b.price) + '</span>' +
-        '<button type="button" class="link-btn" data-remove="' + b.id + '" aria-label="Remove ' + esc(b.make + ' ' + b.model) + '">Remove</button></div></li>';
+        '<button type="button" class="link-btn" data-remove="' + esc(b.id) + '" aria-label="Remove ' + esc(b.make + ' ' + b.model) + '">Remove</button></div></li>';
     }).join('');
     $('#basket-empty').hidden = items.length > 0;
     var sub = items.reduce(function (s, b) { return s + b.price; }, 0);
-    var del = state.delivery === 'uk' ? DELIVERY_PER_BIKE * items.length : 0;
+    var ebikes = items.filter(function (b) { return b.type === 'ebike'; }).length;
+    var others = items.length - ebikes;
+    var uk = state.delivery === 'uk';
+    var ebikeKnown = isNum(DELIVERY.ebike);
+    var del = uk ? others * DELIVERY.bike + (ebikeKnown ? ebikes * DELIVERY.ebike : 0) : 0;
+    var delText = 'Free';
+    var totalText = money(sub + del);
+    if (uk) {
+      if (ebikes && !ebikeKnown) {
+        // The e-bike courier price isn't set yet, so say so rather than show a total that leaves it out.
+        var parts = [];
+        if (others) parts.push(money(others * DELIVERY.bike));
+        parts.push(EBIKE_TBC + (ebikes > 1 ? ' × ' + ebikes : ''));
+        delText = parts.join(' + ');
+        totalText = money(sub + del) + ' + e-bike courier';
+      } else {
+        delText = money(del);
+      }
+    }
     $('#t-sub').textContent = money(sub);
-    $('#t-del-label').textContent = state.delivery === 'uk'
-      ? 'UK delivery' + (items.length ? ' (' + items.length + (items.length === 1 ? ' bike)' : ' bikes)') : '')
+    $('#t-del-label').textContent = uk
+      ? 'UK delivery' + (items.length ? ' (' + plural(items.length, 'bike', 'bikes') + ')' : '')
       : 'Collect from workshop';
-    $('#t-del').textContent = state.delivery === 'uk' ? money(del) : 'Free';
-    $('#t-total').textContent = money(sub + del);
-    $('#del-collect').checked = state.delivery === 'collect';
-    $('#del-uk').checked = state.delivery === 'uk';
+    $('#t-del').textContent = delText;
+    $('#t-total').textContent = totalText;
+    var note = $('#ebike-note');
+    note.hidden = !(uk && ebikes);
+    note.textContent = uk && ebikes
+      ? 'E-bikes go by specialist courier, because Royal Mail and Parcelforce don\'t carry them: ' + ebikeDeliveryText() + ' per e-bike.'
+      : '';
+    $('#del-collect').checked = !uk;
+    $('#del-uk').checked = uk;
     badge.textContent = String(items.length);
-    openBtn.setAttribute('aria-label', 'Basket, ' + items.length + (items.length === 1 ? ' bike' : ' bikes'));
+    $('#basket-count-word').textContent = items.length === 1 ? ' bike' : ' bikes';
     $('#checkout').disabled = items.length === 0;
-    $('#checkout-msg').hidden = true;
+    $('#checkout-msg').textContent = '';
   }
 
   function focusables() {
+    // Only the checked radio in a group can take focus with Tab.
     return $all('button:not([disabled]), input:not([disabled]), a[href]', drawer).filter(function (el) {
-      return el.offsetParent !== null;
+      return el.offsetParent !== null && (el.type !== 'radio' || el.checked);
     });
   }
   function openBasket(from) {
+    setMenu(false);
     lastFocus = from || document.activeElement;
+    document.documentElement.classList.add('locked');
     scrim.hidden = false;
     drawer.classList.add('open');
     drawer.removeAttribute('aria-hidden');
     openBtn.setAttribute('aria-expanded', 'true');
-    window.setTimeout(function () { $('#basket-close').focus(); }, 30);
+    // The drawer is fixed, so moving focus in and out of it should never scroll the page.
+    window.setTimeout(function () { $('#basket-close').focus({ preventScroll: true }); }, 30);
   }
-  function closeBasket() {
+  function closeBasket(keepFocus) {
+    document.documentElement.classList.remove('locked');
     drawer.classList.remove('open');
     drawer.setAttribute('aria-hidden', 'true');
     scrim.hidden = true;
     openBtn.setAttribute('aria-expanded', 'false');
-    if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
-    else openBtn.focus();
+    if (keepFocus) return;
+    if (lastFocus && document.contains(lastFocus)) lastFocus.focus({ preventScroll: true });
+    else openBtn.focus({ preventScroll: true });
   }
   drawer.setAttribute('aria-hidden', 'true');
   openBtn.setAttribute('aria-expanded', 'false');
   openBtn.addEventListener('click', function () { openBasket(openBtn); });
-  $('#basket-close').addEventListener('click', closeBasket);
-  scrim.addEventListener('click', closeBasket);
-  drawer.addEventListener('keydown', function (e) {
+  $('#basket-close').addEventListener('click', function () { closeBasket(); });
+  scrim.addEventListener('click', function () { closeBasket(); });
+  document.addEventListener('keydown', function (e) {
+    if (!drawer.classList.contains('open')) return;
     if (e.key === 'Escape') { closeBasket(); return; }
     if (e.key !== 'Tab') return;
     var f = focusables();
     if (!f.length) return;
     var first = f[0], last = f[f.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    if (f.indexOf(document.activeElement) === -1) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
   });
   linesEl.addEventListener('click', function (e) {
     var btn = e.target.closest('[data-remove]');
     if (!btn) return;
     var id = btn.getAttribute('data-remove');
+    var b = findBike(id);
+    var at = $all('[data-remove]', linesEl).indexOf(btn);
     state.basket = state.basket.filter(function (x) { return x !== id; });
     persist();
     renderBasket();
     renderShop();
-    $('#basket-close').focus();
+    // Focus the next Remove button (or the one before it); with nothing left, the basket's heading.
+    var rest = $all('[data-remove]', linesEl);
+    var next = rest[Math.min(at, rest.length - 1)];
+    (next || $('#basket-title')).focus({ preventScroll: true });
+    say($('#basket-live'), (b ? b.make + ' ' + b.model + ' removed. ' : '') + 'Basket: ' + plural(state.basket.length, 'bike', 'bikes') + '.');
   });
   $all('input[name="delivery"]').forEach(function (r) {
     r.addEventListener('change', function () {
@@ -1127,10 +1578,11 @@ legend { padding: 0; margin-bottom: 8px; }
   });
   $('#checkout').addEventListener('click', function () {
     var msg = $('#checkout-msg');
-    msg.hidden = false;
+    msg.innerHTML = "<strong>Payments aren't connected yet.</strong>This is a prototype. No order has been placed and nothing has been charged.";
+    msg.scrollIntoView({ block: 'nearest', behavior: behaviour() });
   });
 
-  /* Mobile menu */
+  /* ---------- mobile menu ---------- */
   var menuBtn = $('#menu-toggle');
   var nav = $('#site-nav');
   function setMenu(open) {
@@ -1143,11 +1595,26 @@ legend { padding: 0; margin-bottom: 8px; }
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && nav.classList.contains('open')) { setMenu(false); menuBtn.focus(); }
   });
+  // Close it on a click outside it, when focus moves out of it, and when the screen gets wide enough for the full menu.
+  document.addEventListener('click', function (e) {
+    if (!nav.classList.contains('open') || nav.contains(e.target) || menuBtn.contains(e.target)) return;
+    setMenu(false);
+  });
+  nav.addEventListener('focusout', function (e) {
+    var to = e.relatedTarget;
+    if (!nav.classList.contains('open') || !to || nav.contains(to) || to === menuBtn) return;
+    setMenu(false);
+  });
+  try {
+    var wide = window.matchMedia('(min-width: 1001px)');
+    var onWide = function () { if (wide.matches) setMenu(false); };
+    if (wide.addEventListener) wide.addEventListener('change', onWide); else if (wide.addListener) wide.addListener(onWide);
+  } catch (e) { /* no matchMedia: the menu still closes on Escape, a click outside or a link */ }
 
-  /* Size finder */
+  /* ---------- size finder ---------- */
   var CHARTS = {
     road: {
-      name: 'road and gravel', caption: 'Road and gravel chart', col: 'Frame', types: ['road', 'gravel'],
+      name: 'road and gravel', caption: 'Road and gravel chart', col: 'Frame', types: ['road', 'gravel'], words: 'road and gravel bikes',
       rows: [
         { max: 160, range: 'Under 160cm', size: 'XS', detail: '47–50cm frame', band: 'XS' },
         { max: 168, range: '160–167cm', size: 'S', detail: '51–53cm frame', band: 'S' },
@@ -1158,7 +1625,7 @@ legend { padding: 0; margin-bottom: 8px; }
       ]
     },
     hybrid: {
-      name: 'hybrid and e-bike', caption: 'Hybrid and e-bike chart', col: 'Frame', types: ['hybrid', 'ebike'],
+      name: 'hybrid and e-bike', caption: 'Hybrid and e-bike chart', col: 'Frame', types: ['hybrid', 'ebike'], words: 'hybrids and e-bikes',
       rows: [
         { max: 165, range: 'Under 165cm', size: 'S', detail: '15–16in frame', band: 'S' },
         { max: 178, range: '165–177cm', size: 'M', detail: '17–18in frame', band: 'M' },
@@ -1167,67 +1634,101 @@ legend { padding: 0; margin-bottom: 8px; }
       ]
     },
     kids: {
-      name: 'kids', caption: 'Kids chart (overlaps are normal)', col: 'Wheels', types: ['kids'],
+      name: 'kids', caption: 'Kids chart (overlaps are normal)', col: 'Wheels', types: ['kids'], words: "kids' bikes",
       rows: [
         { min: 95, max: 110, range: '95–110cm', size: '14in', detail: '14in wheels', band: 'K14' },
         { min: 105, max: 120, range: '105–120cm', size: '16in', detail: '16in wheels', band: 'K16' },
         { min: 115, max: 135, range: '115–135cm', size: '20in', detail: '20in wheels', band: 'K20' },
         { min: 130, max: 150, range: '130–150cm', size: '24in', detail: '24in wheels', band: 'K24' },
-        { min: 145, max: Infinity, range: '145cm and over', size: '26in', detail: '26in wheels or adult XS', band: 'K26|XS' }
+        { min: 145, max: 160, range: '145–160cm', size: '26in', detail: '26in wheels or adult XS', band: 'K26|XS' }
       ]
     }
   };
 
   var sfSize = $('#sf-size'), sfDetail = $('#sf-detail'), sfReason = $('#sf-reason'), sfShow = $('#sf-show');
+  var sfNone = $('#sf-none'), sfNoneText = $('#sf-none-text'), sfNoneAll = $('#sf-none-all'), sfAnnounce = $('#sf-announce');
   var sfCm = $('#sf-cm'), sfFt = $('#sf-ft'), sfIn = $('#sf-in');
+  var DEFAULT_H = parseInt(sfCm.defaultValue, 10) || 172;
+  var lastGoodH = DEFAULT_H;   // the last height that gave a size; it's the one kept in the address
   var lastSuggestion = null;
+  var fromCm = null; // the cm value the ft/in fields were last filled from, so a round trip doesn't drift
+  var announceTimer = null;
 
-  function finderType() { var r = $('input[name="sf-type"]:checked'); return r ? r.value : 'hybrid'; }
-  function finderUnit() { var r = $('input[name="sf-unit"]:checked'); return r ? r.value : 'cm'; }
-  function heightCm() {
-    if (finderUnit() === 'cm') {
-      var v = parseFloat(sfCm.value);
-      return isFinite(v) ? Math.round(v) : NaN;
-    }
+  function finderType() { var r = $('input[name="sf-type"]:checked'); return r && has(CHARTS, r.value) ? r.value : 'hybrid'; }
+  function finderUnit() { var r = $('input[name="sf-unit"]:checked'); return r && r.value === 'ft' ? 'ft' : 'cm'; }
+  function setRadio(name, value) { $all('input[name="' + name + '"]').forEach(function (r) { r.checked = r.value === value; }); }
+  function fillFt(cm) {
+    var totalIn = Math.round(cm / 2.54);
+    sfFt.value = String(Math.floor(totalIn / 12));
+    sfIn.value = String(totalIn % 12);
+    fromCm = { cm: Math.round(cm), ft: sfFt.value, inch: sfIn.value };
+  }
+  function showUnitFields() {
+    var ft = finderUnit() === 'ft';
+    $('#sf-cm-wrap').hidden = ft;
+    $('#sf-ft-wrap').hidden = !ft;
+  }
+  function ftInCm() {
+    if (fromCm && sfFt.value === fromCm.ft && sfIn.value === fromCm.inch) return fromCm.cm;
     var ft = parseFloat(sfFt.value), inch = parseFloat(sfIn.value || '0');
     if (!isFinite(ft)) return NaN;
     if (!isFinite(inch)) inch = 0;
     return Math.round((ft * 12 + inch) * 2.54);
   }
+  function inchValueBad() {
+    var inch = parseFloat(sfIn.value || '0');
+    return isFinite(inch) && (inch < 0 || inch > 11);
+  }
+  function inchesBad() { return finderUnit() === 'ft' && inchValueBad(); }
+  function heightCm() {
+    if (finderUnit() === 'cm') {
+      var v = parseFloat(sfCm.value);
+      return isFinite(v) ? Math.round(v) : NaN;
+    }
+    return ftInCm();
+  }
 
   function suggest(type, h) {
     var chart = CHARTS[type];
     if (!isFinite(h) || h < 80 || h > 230) {
-      return { error: 'Enter a height between 80 and 230cm (2ft 8in to 7ft 6in).' };
+      return { error: 'Enter a height between 80 and 230cm (2ft 8in to 7ft 6in).', invalid: true };
     }
     if (type === 'kids') {
       if (h < 95) return { error: 'Under 95cm, a balance bike is usually the best first bike.', hits: [] };
+      if (h > 160) return { error: "Over 160cm, an adult bike will fit better. Switch the bike type to Road / gravel or Hybrid / e-bike.", hits: [] };
       var hits = chart.rows.filter(function (r) { return h >= r.min && h <= r.max; });
       if (hits.length === 1) {
         var k = hits[0];
-        return { size: k.size, detail: k.detail, bands: k.band, hits: [k],
+        return { size: k.size, detail: k.detail, label: k.detail, bands: k.band, hits: [k],
           reason: h + 'cm falls in the ' + k.range + ' range for ' + k.detail + '.' };
       }
       var a = hits[0], b = hits[1];
+      var both = a.size + ' or ' + b.size + ' wheels' + (b.band.indexOf('XS') !== -1 ? ', or adult XS' : '');
       return {
-        size: a.size.replace('in', '') + '/' + b.size, detail: a.size + ' or ' + b.size + ' wheels',
-        bands: a.band + '|' + b.band, hits: hits, combo: true,
+        size: a.size.replace('in', '') + '/' + b.size, detail: both, label: both,
+        bands: a.band + '|' + b.band, hits: hits,
         reason: h + 'cm sits where two sizes overlap. Pick the one they can stand over with both feet flat on the ground.'
       };
     }
     if (h < 140) {
-      return { error: 'At ' + h + 'cm a kids’ bike will fit better. Switch the bike type to Kids.', hits: [] };
+      return { error: 'At ' + h + "cm a kids' bike will fit better. Switch the bike type to Kids.", hits: [] };
     }
     var row = null, prevMax = 0;
     for (var i = 0; i < chart.rows.length; i++) {
       if (h < chart.rows[i].max) { row = chart.rows[i]; break; }
       prevMax = chart.rows[i].max;
     }
-    var nearEdge = (isFinite(row.max) && row.max - h <= 1) || (prevMax && h - prevMax <= 1);
+    var at = chart.rows.indexOf(row);
+    var above = isFinite(row.max) && row.max - h <= 1 ? chart.rows[at + 1] : null;
+    var below = prevMax && h - prevMax <= 1 ? chart.rows[at - 1] : null;
+    var pair = below ? [below, row] : above ? [row, above] : null;
     return {
-      size: row.size, detail: row.detail, bands: row.band, hits: [row],
+      size: row.size, detail: row.detail, hits: [row],
+      // On an edge, "Show bikes in my size" shows both sizes.
+      bands: pair ? pair[0].band + '|' + pair[1].band : row.band,
+      label: pair ? pair[0].size + ' or ' + pair[1].size : row.size,
       reason: h + 'cm falls in the ' + row.range.toLowerCase() + ' band for ' + chart.name + ' frames.' +
-        (nearEdge ? ' You’re on the edge of the next size, so try both.' : '')
+        (pair ? " You're on the edge between " + pair[0].size + ' and ' + pair[1].size + ', so try both.' : '')
     };
   }
 
@@ -1241,82 +1742,204 @@ legend { padding: 0; margin-bottom: 8px; }
     }).join('');
   }
 
-  function runFinder() {
+  function runFinder(announce) {
     var type = finderType();
     var h = heightCm();
-    var s = suggest(type, h);
-    lastSuggestion = s.error ? null : { types: CHARTS[type].types, bands: s.bands, detail: s.detail };
+    var s = inchesBad() ? { error: 'Inches go from 0 to 11.', invalid: true, inches: true } : suggest(type, h);
+    lastSuggestion = s.error ? null : {
+      // "26in wheels or adult XS" has to show adult XS bikes too, so it can't stay on the Kids type.
+      types: type === 'kids' && s.bands.split('|').indexOf('XS') !== -1 ? [] : CHARTS[type].types,
+      bands: s.bands, label: s.label, words: type === 'kids' && s.bands.indexOf('XS') !== -1 ? 'bikes' : CHARTS[type].words
+    };
+    if (!s.error) {
+      lastGoodH = h;
+      // keep the hidden boxes in step with the one in use, so the page reads the same however it was reached
+      if (finderUnit() === 'ft') sfCm.value = String(h); else fillFt(h);
+    }
+    // The height box says when what's in it can't be used, and points at the reason.
+    var bad = !s.invalid ? [] : s.inches ? [sfIn] : finderUnit() === 'cm' ? [sfCm] : [sfFt, sfIn];
+    [sfCm, sfFt, sfIn].forEach(function (el) {
+      if (bad.indexOf(el) !== -1) { el.setAttribute('aria-invalid', 'true'); el.setAttribute('aria-describedby', 'sf-reason'); }
+      else { el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); }
+    });
     if (s.error) {
       sfSize.textContent = '–';
       sfDetail.textContent = '';
       sfReason.textContent = s.error;
-      sfShow.hidden = true;
     } else {
       sfSize.textContent = s.size;
       sfDetail.textContent = s.detail;
       sfReason.textContent = s.reason;
-      sfShow.hidden = false;
+    }
+    // Say up front how many bikes the button will show, and offer a way on when there are none.
+    var n = lastSuggestion ? countBikes(lastSuggestion.types, lastSuggestion.bands) : 0;
+    sfShow.hidden = !lastSuggestion || n === 0;
+    sfNone.hidden = !lastSuggestion || n > 0;
+    if (lastSuggestion && n) sfShow.textContent = 'Show ' + plural(n, 'bike', 'bikes') + ' in ' + lastSuggestion.label;
+    if (lastSuggestion && !n) {
+      sfNoneText.textContent = 'No ' + lastSuggestion.words + ' in ' + lastSuggestion.label + ' in stock right now.';
+      sfNoneAll.textContent = 'Show all ' + lastSuggestion.words;
     }
     renderChart(type, s.hits || []);
+    syncURL();
+    if (announce) {
+      // Wait until typing pauses, so "1", "18" and "185" aren't each read out.
+      window.clearTimeout(announceTimer);
+      var text = s.error ? s.error : 'Suggested size ' + s.size + ', ' + s.detail + '. ' + s.reason +
+        (lastSuggestion ? (n ? ' ' + plural(n, 'bike', 'bikes') + ' in stock.' : ' None in stock right now.') : '');
+      announceTimer = window.setTimeout(function () { sfAnnounce.textContent = text; }, 700);
+    }
   }
 
-  $all('input[name="sf-type"]').forEach(function (r) { r.addEventListener('change', runFinder); });
+  $all('input[name="sf-type"]').forEach(function (r) { r.addEventListener('change', function () { runFinder(true); }); });
   $all('input[name="sf-unit"]').forEach(function (r) {
     r.addEventListener('change', function () {
-      var unit = finderUnit();
-      var cmWrap = $('#sf-cm-wrap'), ftWrap = $('#sf-ft-wrap');
-      if (unit === 'ft') {
+      if (finderUnit() === 'ft') {
         var cm = parseFloat(sfCm.value);
-        if (isFinite(cm)) {
-          var totalIn = Math.round(cm / 2.54);
-          sfFt.value = String(Math.floor(totalIn / 12));
-          sfIn.value = String(totalIn % 12);
-        }
-        cmWrap.hidden = true; ftWrap.hidden = false;
+        if (isFinite(cm)) fillFt(cm);
       } else {
-        var h = heightCm();
+        var h = inchValueBad() ? NaN : ftInCm();
         if (isFinite(h)) sfCm.value = String(h);
-        ftWrap.hidden = true; cmWrap.hidden = false;
       }
-      runFinder();
+      showUnitFields();
+      runFinder(true);
     });
   });
-  [sfCm, sfFt, sfIn].forEach(function (el) { el.addEventListener('input', runFinder); });
-  $('#finder-form').addEventListener('submit', function (e) { e.preventDefault(); runFinder(); });
+  [sfCm, sfFt, sfIn].forEach(function (el) {
+    el.addEventListener('input', function () { runFinder(true); });
+    // Enter would try to submit the finder form, which a sandboxed frame blocks with a console error.
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); runFinder(true); } });
+  });
+  $('#finder-form').addEventListener('submit', function (e) { e.preventDefault(); runFinder(true); });
 
+  function goToShop() {
+    renderShop();
+    $('#shop').scrollIntoView({ behavior: behaviour(), block: 'start' });
+    $('#shop-title').focus({ preventScroll: true });
+  }
   sfShow.addEventListener('click', function () {
     if (!lastSuggestion) return;
     state.types = lastSuggestion.types.slice();
     state.size = lastSuggestion.bands;
-    ensureSizeOption(lastSuggestion.bands, lastSuggestion.detail);
-    renderShop();
-    var head = $('#shop');
-    head.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
-    $('#shop-title').focus({ preventScroll: true });
+    goToShop();
+  });
+  sfNoneAll.addEventListener('click', function () {
+    if (!lastSuggestion) return;
+    state.types = lastSuggestion.types.slice();
+    state.size = 'all';
+    goToShop();
   });
 
-  /* Forms */
-  function todayISO() {
-    var d = new Date();
-    var m = String(d.getMonth() + 1).padStart(2, '0');
-    var day = String(d.getDate()).padStart(2, '0');
-    return d.getFullYear() + '-' + m + '-' + day;
-  }
+  /* ---------- forms: nothing is sent anywhere ---------- */
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function isoDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  var THIS_YEAR = new Date().getFullYear();
   var bookForm = $('#book');
   var bkDate = $('#bk-date');
-  bkDate.min = todayISO();
+  var latest = new Date();
+  latest.setDate(latest.getDate() + 56);
+  bkDate.min = isoDate(new Date());
+  bkDate.max = isoDate(latest);
+  $('#sl-year').max = String(THIS_YEAR);
+
+  // What's wrong with a field, in words, or '' if nothing is.
+  function problem(el) {
+    var v = (el.value || '').trim();
+    switch (el.id) {
+      case 'bk-name': case 'sl-name': return v ? '' : 'Enter your name.';
+      case 'bk-phone':
+        if (!v) return 'Enter your phone number, like 07700 900000.';
+        var digits = v.replace(/\D/g, '').length;
+        return /^[0-9 +()\-]+$/.test(v) && digits >= 10 && digits <= 13 ? '' : 'Enter a phone number with 10 to 13 digits, like 07700 900000.';
+      case 'bk-bike': return v ? '' : 'Enter the make and model, like Trek FX 2.';
+      case 'bk-service': return v ? '' : 'Choose a service.';
+      case 'bk-date':
+        if (el.validity && el.validity.badInput) return 'Enter the whole date: day, month and year.';
+        if (!v) return 'Choose the date you\'d like to bring the bike in.';
+        if (v < el.min) return 'Choose a date from today onwards.';
+        if (v > el.max) return 'Choose a date within the next 8 weeks.';
+        return '';
+      case 'sl-email':
+        if (!v) return 'Enter your email address.';
+        return /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(v) ? '' : 'Enter an email address like name@example.co.uk.';
+      case 'sl-make': return v ? '' : 'Enter the make, like Giant.';
+      case 'sl-model': return v ? '' : 'Enter the model, like Contend AR 2.';
+      case 'sl-year':
+        if (el.validity && el.validity.badInput) return 'Enter the year as four digits, or leave it blank.';
+        if (!v) return '';
+        return /^\d{4}$/.test(v) && +v >= 1900 && +v <= THIS_YEAR ? '' : 'Enter a year between 1900 and ' + THIS_YEAR + ', or leave it blank.';
+      case 'sl-condition': return v ? '' : 'Choose the condition.';
+    }
+    return '';
+  }
+  function describedBy(el, id, on) {
+    var ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(function (x) { return x && x !== id; });
+    if (on) ids.unshift(id);
+    if (ids.length) el.setAttribute('aria-describedby', ids.join(' ')); else el.removeAttribute('aria-describedby');
+  }
+  function showProblem(el, msg) {
+    var id = el.id + '-error';
+    var p = document.getElementById(id);
+    if (msg) {
+      if (!p) {
+        p = document.createElement('p');
+        p.className = 'field-error';
+        p.id = id;
+        el.parentNode.insertBefore(p, el);
+      }
+      p.textContent = msg;
+      el.setAttribute('aria-invalid', 'true');
+      describedBy(el, id, true);
+    } else {
+      if (p) p.remove();
+      el.removeAttribute('aria-invalid');
+      describedBy(el, id, false);
+    }
+  }
+  function checkForm(form) {
+    var first = null;
+    $all('[data-check]', form).forEach(function (el) {
+      var msg = problem(el);
+      showProblem(el, msg);
+      if (msg && !first) first = el;
+    });
+    if (first) first.focus();
+    return !first;
+  }
+  // Once a field has been flagged, its message updates as it's corrected.
+  function watchFixes(form) {
+    ['input', 'change'].forEach(function (type) {
+      form.addEventListener(type, function (e) {
+        var el = e.target;
+        if (el && el.hasAttribute && el.hasAttribute('data-check') && el.getAttribute('aria-invalid') === 'true') showProblem(el, problem(el));
+      });
+    });
+  }
+  // Forms are handled on the submit button's click (Enter in a field clicks it too), not only on submit:
+  // in a sandboxed frame without allow-forms, a submit is blocked before any submit handler runs.
+  function onSend(form, button, send) {
+    watchFixes(form);
+    button.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (checkForm(form)) send();
+    });
+    form.addEventListener('submit', function (e) { e.preventDefault(); if (checkForm(form)) send(); });
+  }
+  function showResult(out, html) {
+    out.innerHTML = html;
+    out.scrollIntoView({ block: 'nearest', behavior: behaviour() });
+  }
 
   $all('.svc-book').forEach(function (btn) {
     btn.addEventListener('click', function () {
       $('#bk-service').value = btn.getAttribute('data-service');
-      bookForm.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      if ($('#bk-service').getAttribute('aria-invalid') === 'true') showProblem($('#bk-service'), '');
+      bookForm.scrollIntoView({ behavior: behaviour(), block: 'start' });
       $('#bk-name').focus({ preventScroll: true });
     });
   });
 
-  bookForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (!bookForm.checkValidity()) { bookForm.reportValidity(); return; }
+  onSend(bookForm, $('#bk-submit'), function () {
     var sel = $('#bk-service');
     var service = sel.options[sel.selectedIndex].text.replace(/\s*\(.*\)$/, '');
     var when = bkDate.value;
@@ -1324,29 +1947,36 @@ legend { padding: 0; margin-bottom: 8px; }
     try {
       nice = new Date(when + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
     } catch (err) { nice = when; }
-    var out = $('#book-result');
-    out.innerHTML = '<strong>Prototype: bookings aren’t sent anywhere yet.</strong>' +
-      'Nothing has been booked. You asked for: ' + esc(service) + ' on ' + esc($('#bk-bike').value) + ', ' + esc(nice) + '.';
-    out.hidden = false;
+    showResult($('#book-result'), "<strong>Prototype: requests aren't sent anywhere yet.</strong>" +
+      'Nothing has been booked. You asked for: ' + esc(service) + ' on ' + esc($('#bk-bike').value) + ', ' + esc(nice) + '.');
   });
 
-  var sellForm = $('#sell-form');
-  sellForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (!sellForm.checkValidity()) { sellForm.reportValidity(); return; }
-    var out = $('#sell-result');
-    out.innerHTML = '<strong>Prototype: offers aren’t sent yet.</strong>' +
-      'Normally we reply with an offer within 2 working days. Your bike: ' +
-      esc(($('#sl-year').value ? $('#sl-year').value + ' ' : '') + $('#sl-make').value + ' ' + $('#sl-model').value) + '.';
-    out.hidden = false;
+  onSend($('#sell-form'), $('#sl-submit'), function () {
+    showResult($('#sell-result'), "<strong>Prototype: offers aren't sent yet.</strong>" +
+      "Normally we email you an offer within 2 working days. It's a guide until we've seen the bike. Your bike: " +
+      esc(($('#sl-year').value ? $('#sl-year').value + ' ' : '') + $('#sl-make').value + ' ' + $('#sl-model').value) + '.');
   });
 
-  /* Copy contact details */
+  /* ---------- copy contact details ---------- */
+  function clipboardAllowed() {
+    try {
+      var policy = document.permissionsPolicy || document.featurePolicy;
+      if (policy && typeof policy.allowsFeature === 'function') return policy.allowsFeature('clipboard-write');
+    } catch (e) { /* can't tell: try it */ }
+    return true;
+  }
   $all('[data-copy]').forEach(function (btn) {
+    var label = $('.copy-label', btn);
+    var what = btn.getAttribute('data-copy') === 'contact-email' ? 'Email address' : 'Phone number';
     btn.addEventListener('click', function () {
       var target = document.getElementById(btn.getAttribute('data-copy'));
       if (!target) return;
       var text = target.textContent;
+      function done(word, message) {
+        label.textContent = word;
+        say($('#announce'), message);
+        window.setTimeout(function () { label.textContent = 'Copy'; }, 2000);
+      }
       function selectIt() {
         try {
           var range = document.createRange();
@@ -1354,20 +1984,87 @@ legend { padding: 0; margin-bottom: 8px; }
           var s = window.getSelection();
           s.removeAllRanges();
           s.addRange(range);
-          btn.textContent = 'Selected';
-        } catch (err) { /* leave as plain text */ }
+          done('Selected', what + ' selected. Copy it with Ctrl+C, or Cmd+C on a Mac.');
+        } catch (err) { /* leave it as plain text to copy by hand */ }
       }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function () { btn.textContent = 'Copied'; }, selectIt);
+      if (navigator.clipboard && navigator.clipboard.writeText && clipboardAllowed()) {
+        try {
+          navigator.clipboard.writeText(text).then(function () { done('Copied', what + ' copied.'); }, selectIt);
+        } catch (err) { selectIt(); }
       } else {
         selectIt();
       }
-      window.setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
     });
   });
 
-  renderShop();
-  renderBasket();
-  runFinder();
+  /* ---------- links into the small print open the section they point at ---------- */
+  function openFor(id) {
+    var el = null;
+    try { el = id ? document.getElementById(decodeURIComponent(id)) : null; } catch (e) { el = null; }
+    if (!el) return null;
+    for (var p = el; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
+    return el;
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if (!a || a.id === 'ticket-link') return;
+    var el = openFor(a.getAttribute('href').slice(1));
+    if (el && drawer.contains(a)) {
+      // From inside the basket: close it, then go to the section and put focus on it.
+      e.preventDefault();
+      closeBasket(true);
+      el.scrollIntoView({ behavior: behaviour(), block: 'start' });
+      var target = el.tagName === 'DETAILS' ? $('summary', el) : el;
+      if (target) target.focus({ preventScroll: true });
+    }
+  });
+  window.addEventListener('hashchange', function () { openFor(location.hash.slice(1)); });
+
+  /* ---------- start, and again whenever the page is shown (Back, Forward, a restored tab) ---------- */
+  function applyURL() {
+    var u = readURL();
+    state.types = u.types || [];
+    state.size = u.size || 'all';
+    state.sort = u.sort || 'featured';
+    setRadio('sf-type', u.fit || 'hybrid');
+    setRadio('sf-unit', u.unit || 'cm');
+    var h = u.h || DEFAULT_H;
+    sfCm.value = String(h);
+    fillFt(h);
+    showUnitFields();
+    lastGoodH = h;
+  }
+  function start() {
+    loadBasket();
+    applyURL();
+    renderShop();
+    renderBasket();
+    runFinder(false);
+  }
+  start();
+  if (location.hash) {
+    var hashTarget = openFor(location.hash.slice(1));
+    // The fonts load after the browser has scrolled to the link's target, and the reflow can move it under the header.
+    // Put it back each time fonts finish loading, until the visitor scrolls, types or taps themselves.
+    if (hashTarget) {
+      var moved = false;
+      var stop = function () { moved = true; };
+      ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(function (t) { window.addEventListener(t, stop, { once: true, passive: true }); });
+      var settle = function () { if (!moved) hashTarget.scrollIntoView({ block: 'start' }); };
+      try {
+        if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', settle);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
+      } catch (e) { /* no font loading API: the browser's own scroll stands */ }
+      window.addEventListener('load', settle);
+      window.setTimeout(function () { moved = true; }, 15000);
+    }
+  }
+  // Back or Forward can restore this page from the browser's back/forward cache, as it was. Redraw it from the address
+  // then (the address is the record). Never on a first load: pageshow also fires at the load event, which a slow
+  // font server can hold up, and redrawing then would throw away what the visitor has started doing. The controls
+  // have autocomplete="off", so a normal reload or Back doesn't put old values back into them.
+  window.addEventListener('pageshow', function (e) { if (e.persisted) start(); });
 })();
 </script>
+</body>
+</html>
