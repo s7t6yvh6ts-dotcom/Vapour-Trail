@@ -35,4 +35,5 @@
 # Tools
 
 - `tools/margin.py` and `tools/reorder.py`: margin per order and the reorder planner. See `PLAYBOOK.md`.
+- `shopify/`: UK policies and the launch checklist for putting Full Bars or Chainline on Shopify.
 - Connected on claude.ai: Gmail, Google Calendar, Google Drive, monday.com (Vapour Trail HQ board), Shopify, Canva, Figma, Linear.
