@@ -1,0 +1,478 @@
+{
+  "_readme": [
+    "The one place Full Bars writes down each phone's specs. check_site_facts.py fails if any page says otherwise;",
+    "build_shopify_csv.py takes the handset weights from here. Populated from the product pages on 13 October 2026.",
+    "To change a fact: edit it here, run python3 launch/full-bars/check_site_facts.py, fix every page it lists.",
+    "weight_g: handset only, grams (the CSV adds packing). screen_in: diagonal in inches as a string (\"6.1\").",
+    "chip: as the spec row names it. port: \"Lightning\" or \"USB-C\". battery_hours: maker's figure when new,",
+    "measured as battery_basis. year: launch year. main_camera_mp: main rear camera. updates_until: when major",
+    "updates are expected to end (iPhones: our estimate; Galaxy/Pixel: the maker's promise; for the Galaxy this is",
+    "the security-update end, android_until the last Android version). ip_rating: rating when new.",
+    "apple_intelligence, promotion: true/false. max_refresh_hz: 120 or 60. telephoto_x: optical zoom of the",
+    "telephoto camera, 0 if it has none. aliases: other names the site uses for the phone."
+  ],
+  "as_of": "2026-10-13",
+  "conflicts": [],
+  "conflicts_note": "Pages that disagree with each other are listed in \"conflicts\" with the value the product page uses. None on 13 October 2026: check_site_facts.py found 0 conflicts across all 56 pages.",
+  "sources": {
+    "_all_other_fields": "Each product page's own spec rows (Display, Chip, Rear cameras, Connector, Battery when new, Water resistance, Highlights, Released, Software updates) as published on 13 October 2026. launch_month: the Galaxy S23 and Pixel 8 pages' update text. Nothing was re-researched.",
+    "iphone-12": {
+      "weight_g": "stated on the site: products/iphone-12-pro.html FAQ"
+    },
+    "iphone-12-pro": {
+      "weight_g": "stated on the site: products/iphone-12-pro.html FAQ"
+    },
+    "iphone-13-mini": {
+      "weight_g": "stated on the site: products/iphone-13-mini.html"
+    },
+    "iphone-13": {
+      "weight_g": "stated on the site: products/iphone-13-mini.html"
+    },
+    "iphone-13-pro": {
+      "weight_g": "the site only implies it (\"Pro Max models ... weigh about 28 to 36g more\", collections/pro-models.html); maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-13-pro-max": {
+      "weight_g": "stated on the site: products/iphone-13-pro-max.html FAQ"
+    },
+    "iphone-14": {
+      "weight_g": "the site only implies it (\"At 203g it's 31g heavier than the iPhone 14\", products/iphone-14-plus.html FAQ); maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-14-plus": {
+      "weight_g": "stated on the site: products/iphone-14-plus.html FAQ, products/iphone-13-pro-max.html FAQ"
+    },
+    "iphone-14-pro": {
+      "weight_g": "not stated on the site; maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-14-pro-max": {
+      "weight_g": "not stated on the site; maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-15": {
+      "weight_g": "not stated on the site; maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-15-plus": {
+      "weight_g": "stated on the site: products/iphone-15-plus.html FAQ, products/iphone-13-pro-max.html FAQ"
+    },
+    "iphone-15-pro": {
+      "weight_g": "the site only implies it (\"19g lighter\" than the iPhone 14 Pro, products/iphone-15-pro.html); maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-15-pro-max": {
+      "weight_g": "not stated on the site; maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-16": {
+      "weight_g": "not stated on the site; maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-16-pro": {
+      "weight_g": "not stated on the site; maker's figure, carried over from the table build_shopify_csv.py used before"
+    },
+    "iphone-16-pro-max": {
+      "weight_g": "stated on the site: products/iphone-16-pro-max.html FAQ"
+    },
+    "galaxy-s23": {
+      "weight_g": "stated on the site: products/galaxy-s23.html, collections/samsung-galaxy.html"
+    },
+    "pixel-8": {
+      "weight_g": "stated on the site: products/galaxy-s23.html"
+    }
+  },
+  "models": {
+    "iphone-12": {
+      "name": "iPhone 12",
+      "aliases": [],
+      "weight_g": 164,
+      "screen_in": "6.1",
+      "chip": "A14 Bionic",
+      "port": "Lightning",
+      "battery_hours": 17,
+      "battery_basis": "video playback",
+      "year": 2020,
+      "main_camera_mp": 12,
+      "updates_until": "2026–2027",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 0
+    },
+    "iphone-12-pro": {
+      "name": "iPhone 12 Pro",
+      "aliases": [
+        "12 Pro"
+      ],
+      "weight_g": 189,
+      "screen_in": "6.1",
+      "chip": "A14 Bionic",
+      "port": "Lightning",
+      "battery_hours": 17,
+      "battery_basis": "video playback",
+      "year": 2020,
+      "main_camera_mp": 12,
+      "updates_until": "2026–2027",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 2
+    },
+    "iphone-13-mini": {
+      "name": "iPhone 13 mini",
+      "aliases": [
+        "13 mini"
+      ],
+      "weight_g": 141,
+      "screen_in": "5.4",
+      "chip": "A15 Bionic",
+      "port": "Lightning",
+      "battery_hours": 17,
+      "battery_basis": "video playback",
+      "year": 2021,
+      "main_camera_mp": 12,
+      "updates_until": "2027–2028",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 0
+    },
+    "iphone-13": {
+      "name": "iPhone 13",
+      "aliases": [],
+      "weight_g": 174,
+      "screen_in": "6.1",
+      "chip": "A15 Bionic",
+      "port": "Lightning",
+      "battery_hours": 19,
+      "battery_basis": "video playback",
+      "year": 2021,
+      "main_camera_mp": 12,
+      "updates_until": "2027–2028",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 0
+    },
+    "iphone-13-pro": {
+      "name": "iPhone 13 Pro",
+      "aliases": [
+        "13 Pro"
+      ],
+      "weight_g": 204,
+      "screen_in": "6.1",
+      "chip": "A15 Bionic",
+      "port": "Lightning",
+      "battery_hours": 22,
+      "battery_basis": "video playback",
+      "year": 2021,
+      "main_camera_mp": 12,
+      "updates_until": "2027–2028",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": true,
+      "max_refresh_hz": 120,
+      "telephoto_x": 3
+    },
+    "iphone-13-pro-max": {
+      "name": "iPhone 13 Pro Max",
+      "aliases": [
+        "13 Pro Max"
+      ],
+      "weight_g": 240,
+      "screen_in": "6.7",
+      "chip": "A15 Bionic",
+      "port": "Lightning",
+      "battery_hours": 28,
+      "battery_basis": "video playback",
+      "year": 2021,
+      "main_camera_mp": 12,
+      "updates_until": "2027–2028",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": true,
+      "max_refresh_hz": 120,
+      "telephoto_x": 3
+    },
+    "iphone-14": {
+      "name": "iPhone 14",
+      "aliases": [],
+      "weight_g": 172,
+      "screen_in": "6.1",
+      "chip": "A15 Bionic",
+      "port": "Lightning",
+      "battery_hours": 20,
+      "battery_basis": "video playback",
+      "year": 2022,
+      "main_camera_mp": 12,
+      "updates_until": "2028–2029",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 0
+    },
+    "iphone-14-plus": {
+      "name": "iPhone 14 Plus",
+      "aliases": [
+        "14 Plus"
+      ],
+      "weight_g": 203,
+      "screen_in": "6.7",
+      "chip": "A15 Bionic",
+      "port": "Lightning",
+      "battery_hours": 26,
+      "battery_basis": "video playback",
+      "year": 2022,
+      "main_camera_mp": 12,
+      "updates_until": "2028–2029",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 0
+    },
+    "iphone-14-pro": {
+      "name": "iPhone 14 Pro",
+      "aliases": [
+        "14 Pro"
+      ],
+      "weight_g": 206,
+      "screen_in": "6.1",
+      "chip": "A16 Bionic",
+      "port": "Lightning",
+      "battery_hours": 23,
+      "battery_basis": "video playback",
+      "year": 2022,
+      "main_camera_mp": 48,
+      "updates_until": "2028–2029",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": true,
+      "max_refresh_hz": 120,
+      "telephoto_x": 3
+    },
+    "iphone-14-pro-max": {
+      "name": "iPhone 14 Pro Max",
+      "aliases": [
+        "14 Pro Max"
+      ],
+      "weight_g": 240,
+      "screen_in": "6.7",
+      "chip": "A16 Bionic",
+      "port": "Lightning",
+      "battery_hours": 29,
+      "battery_basis": "video playback",
+      "year": 2022,
+      "main_camera_mp": 48,
+      "updates_until": "2028–2029",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": true,
+      "max_refresh_hz": 120,
+      "telephoto_x": 3
+    },
+    "iphone-15": {
+      "name": "iPhone 15",
+      "aliases": [],
+      "weight_g": 171,
+      "screen_in": "6.1",
+      "chip": "A16 Bionic",
+      "port": "USB-C",
+      "battery_hours": 20,
+      "battery_basis": "video playback",
+      "year": 2023,
+      "main_camera_mp": 48,
+      "updates_until": "2029–2030",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 0
+    },
+    "iphone-15-plus": {
+      "name": "iPhone 15 Plus",
+      "aliases": [
+        "15 Plus"
+      ],
+      "weight_g": 201,
+      "screen_in": "6.7",
+      "chip": "A16 Bionic",
+      "port": "USB-C",
+      "battery_hours": 26,
+      "battery_basis": "video playback",
+      "year": 2023,
+      "main_camera_mp": 48,
+      "updates_until": "2029–2030",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 0
+    },
+    "iphone-15-pro": {
+      "name": "iPhone 15 Pro",
+      "aliases": [
+        "15 Pro"
+      ],
+      "weight_g": 187,
+      "screen_in": "6.1",
+      "chip": "A17 Pro",
+      "port": "USB-C",
+      "battery_hours": 23,
+      "battery_basis": "video playback",
+      "year": 2023,
+      "main_camera_mp": 48,
+      "updates_until": "2029–2030",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": true,
+      "promotion": true,
+      "max_refresh_hz": 120,
+      "telephoto_x": 3
+    },
+    "iphone-15-pro-max": {
+      "name": "iPhone 15 Pro Max",
+      "aliases": [
+        "15 Pro Max"
+      ],
+      "weight_g": 221,
+      "screen_in": "6.7",
+      "chip": "A17 Pro",
+      "port": "USB-C",
+      "battery_hours": 29,
+      "battery_basis": "video playback",
+      "year": 2023,
+      "main_camera_mp": 48,
+      "updates_until": "2029–2030",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": true,
+      "promotion": true,
+      "max_refresh_hz": 120,
+      "telephoto_x": 5
+    },
+    "iphone-16": {
+      "name": "iPhone 16",
+      "aliases": [],
+      "weight_g": 170,
+      "screen_in": "6.1",
+      "chip": "A18",
+      "port": "USB-C",
+      "battery_hours": 22,
+      "battery_basis": "video playback",
+      "year": 2024,
+      "main_camera_mp": 48,
+      "updates_until": "2030–2031",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": true,
+      "promotion": false,
+      "max_refresh_hz": 60,
+      "telephoto_x": 0
+    },
+    "iphone-16-pro": {
+      "name": "iPhone 16 Pro",
+      "aliases": [
+        "16 Pro"
+      ],
+      "weight_g": 199,
+      "screen_in": "6.3",
+      "chip": "A18 Pro",
+      "port": "USB-C",
+      "battery_hours": 27,
+      "battery_basis": "video playback",
+      "year": 2024,
+      "main_camera_mp": 48,
+      "updates_until": "2030–2031",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": true,
+      "promotion": true,
+      "max_refresh_hz": 120,
+      "telephoto_x": 5
+    },
+    "iphone-16-pro-max": {
+      "name": "iPhone 16 Pro Max",
+      "aliases": [
+        "16 Pro Max"
+      ],
+      "weight_g": 227,
+      "screen_in": "6.9",
+      "chip": "A18 Pro",
+      "port": "USB-C",
+      "battery_hours": 33,
+      "battery_basis": "video playback",
+      "year": 2024,
+      "main_camera_mp": 48,
+      "updates_until": "2030–2031",
+      "updates_basis": "our estimate (Apple doesn't publish end dates)",
+      "ip_rating": "IP68",
+      "apple_intelligence": true,
+      "promotion": true,
+      "max_refresh_hz": 120,
+      "telephoto_x": 5
+    },
+    "galaxy-s23": {
+      "name": "Galaxy S23",
+      "aliases": [
+        "Samsung Galaxy S23",
+        "Galaxy S23",
+        "S23",
+        "Galaxy"
+      ],
+      "weight_g": 168,
+      "screen_in": "6.1",
+      "chip": "Snapdragon 8 Gen 2 for Galaxy",
+      "port": "USB-C",
+      "battery_hours": 22,
+      "battery_basis": "video playback",
+      "year": 2023,
+      "main_camera_mp": 50,
+      "updates_until": "early 2028",
+      "updates_basis": "Samsung's promise",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 120,
+      "telephoto_x": 3,
+      "battery_mah": 3900,
+      "android_until": 17,
+      "launch_month": "February"
+    },
+    "pixel-8": {
+      "name": "Pixel 8",
+      "aliases": [
+        "Google Pixel 8",
+        "Pixel 8",
+        "Pixel"
+      ],
+      "weight_g": 187,
+      "screen_in": "6.2",
+      "chip": "Google Tensor G3",
+      "port": "USB-C",
+      "battery_hours": 24,
+      "battery_basis": "typical use",
+      "year": 2023,
+      "main_camera_mp": 50,
+      "updates_until": "October 2030",
+      "updates_basis": "Google's promise",
+      "ip_rating": "IP68",
+      "apple_intelligence": false,
+      "promotion": false,
+      "max_refresh_hz": 120,
+      "telephoto_x": 0,
+      "battery_mah": 4575,
+      "launch_month": "October"
+    }
+  }
+}
