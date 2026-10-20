@@ -78,12 +78,30 @@ Run it every Monday. Anything marked `LATE - ORDER NOW` or `ORDER THIS WEEK` get
 
 The big pouch brands (ZYN, Velo, Pablo, Killa) are made in Europe or the US, so there's no reason for them to be stuck behind a Chinese holiday. E-liquid is the same: from 1 October, buy it duty-stamped from UK wholesalers. UK trade wholesalers deliver next day:
 
-- [Wholesale Nicotine Pouches](https://www.wholesalenicotinepouches.co.uk/): free trade account (ZYN, Velo, Pablo, Killa)
-- [SnusBlast Wholesale](https://snusblast.co.uk/wholesale/): trade accounts need approval
-- [Nico Distribution](https://nicodistribution.com/): takes newer retailers
-- [Vape UK Wholesale](https://vapeukwholesale.co.uk/collections/wholesale-nicotine-pouches): Manchester, also sells compliant vapes. Check the minimum order and delivery charge
+- [Wholesale Nicotine Pouches](https://www.wholesalenicotinepouches.co.uk/): free trade account (ZYN, Velo, Pablo, Killa). info@wholesalenicotinepouches.co.uk, 0121 751 3353 (Mon–Fri 9–5), or the site's sign-up page
+- [SnusBlast Wholesale](https://snusblast.co.uk/wholesale/): trade accounts need approval. Next day if ordered by 1pm. info@snusblast.co.uk, WhatsApp +44 7459 481933
+- [Nico Distribution](https://nicodistribution.com/): takes newer retailers. **£350 minimum order, before VAT** (about £432 with VAT and delivery if you're not VAT-registered), next day if ordered by 3pm, delivery about £10. Register on their website. No VAT number or documents are needed, and they ring you once you've signed up. Trade prices show once the account is approved. info@nicodistribution.com, 07904 858 487
+- [Vape UK Wholesale](https://vapeukwholesale.co.uk/collections/wholesale-nicotine-pouches): Manchester, next day, £200 minimum (also sells compliant vapes). Check the delivery charge
 
 Unit cost is higher than buying direct from China. But you restock in 24 hours, the products are genuine branded and UK-legal, and you never sit on dead stock waiting for a holiday to end. Run both prices through `tools/margin.py` before deciding, adding `--imported` for the China price if you pay import VAT at the border. Check any wholesaler (company number, reviews) before your first order.
+
+**Nico Distribution check (14 Oct 2026):** probably genuine. It's the trade arm of First Line Pods / Pouchline (Sheffield, trading since 2019, 4.5★ from 319 reviews on Trustpilot). The company named on the site has only filed dormant accounts and had a strike-off notice in January 2026 that was later withdrawn. **Pay by card at checkout**, which their own terms say they take. If they ask for a bank transfer, ring 07904 858 487 to confirm the details, and only pay if your bank's name check matches a company name rather than a person.
+
+### What pouches cost and sell for (UK, October 2026)
+
+Per can. Trade prices are ex VAT, from wholesale sites that show prices publicly. If you're not VAT-registered, add 20%: that's what you actually pay. Online prices are from Haypp, Northerner, Electric Tobacconist and others.
+
+| Brand | Trade price | Online, 1 can | Online, 10-pack | Shop / RRP |
+|---|---|---|---|---|
+| Killa (13 mg) | £1.60–1.88 | £3.99 | £3.49 | none found |
+| Pablo Silver (10 mg) | £1.90–2.34 | £3.89 | £3.39 | none found |
+| VELO (6/10 mg) | £2.20–2.94 | £4.99 | £3.29 | £6.50 |
+| ZYN (6/11 mg) | ~£2.84 | £4.49 | £2.99 | £6.50 |
+
+- **Best profit per can: VELO and Killa** (about £2 profit per can sold at the single price).
+- **ZYN is the weakest.** Haypp sells ZYN 10-packs for £2.99 a can, which is less than you pay for it. Stock only enough for regulars who ask for it.
+- **Selling single cans by post loses money** once postage comes off. Post a minimum of 3 cans, and keep single cans for local collection.
+- Wholesalers with lower minimum orders that show their prices: Vape UK Supplier (£150 ex VAT minimum; Killa £1.88, Pablo £1.90) and Vape Forest (£250 minimum). Check them out before ordering.
 
 ## 1 October 2026: vaping duty starts
 
@@ -118,7 +136,11 @@ Plugins for WooCommerce: [AgeChecked](https://www.agechecked.com/woocommerce-plu
 
 ## Taking payments
 
-For online vape and nicotine sales, don't use Stripe, PayPal, Square or Shopify Payments. Stripe restricts them, PayPal bans them without prior written approval, Square only takes them in person, and Shopify Payments bans them. You need a **high-risk merchant account** that approves vape/nicotine in writing. UK brokers include [We Tranxact](https://www.wetranxact.co.uk/e-cig-and-vape-merchant-account/) (Birmingham) and [Merchant Advice Service](https://www.merchantadviceservice.co.uk/high-risk-merchant-accounts/electronic-cigarette-merchant-accounts/). Brokers quote around 3–6% plus a rolling reserve; get real quotes. Put the fee % into `tools/margin.py --fee`.
+For online vape and nicotine sales, don't use Stripe, PayPal, Square or Shopify Payments. Stripe restricts them, PayPal bans them without prior written approval, Square only takes them in person, and Shopify Payments bans them. You need a **high-risk merchant account** that approves vape/nicotine in writing. UK brokers include [We Tranxact](https://www.wetranxact.co.uk/e-cig-and-vape-merchant-account/) (Birmingham; info@wetranxact.co.uk, 0121 792 5367) and [Merchant Advice Service](https://www.merchantadviceservice.co.uk/high-risk-merchant-accounts/electronic-cigarette-merchant-accounts/). Brokers quote around 3–6% plus a rolling reserve; get real quotes. Put the fee % into `tools/margin.py --fee`.
+
+Approval can take weeks, and part of your takings is often held back for months as a reserve. Apply now, not when the shop is finished. Until it's approved, take payment by bank transfer (order number as the reference, dispatch once it lands) and cash on local collection.
+
+Don't run vape or pouch sales through the Stripe account you started in September. When Stripe finds restricted products it can close the account and hold the balance.
 
 ## What can shut the business down
 
