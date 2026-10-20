@@ -1,0 +1,6 @@
+# Preview: Full Bars isn't trading yet and the site is full of [placeholders].
+# At launch, change Disallow to Allow and the robots meta tags on every page from noindex to index,follow.
+User-agent: *
+Disallow: /
+
+Sitemap: https://www.fullbars.co.uk/sitemap.xml
