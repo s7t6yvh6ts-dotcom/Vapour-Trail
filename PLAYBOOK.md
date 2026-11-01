@@ -20,7 +20,7 @@ Shopify told US merchants on 23–24 June 2026 to remove all e-cigarettes, e-liq
 | 1–7 Oct | Golden Week (National Day). Factories and most sales reps are off | Sell what's in stock (below). Reps often still read WeChat, so chase anything unconfirmed |
 | 8–10 Oct | Back to work (Sat 10 Oct is a make-up workday) | Chase for dispatch dates and tracking on the 8th |
 | ~12–20 Oct | Backlog clears and orders ship | Air freight means UK arrival around late October. Anything with e-liquid in it and no UK duty stamp gets seized |
-| **29 Oct** | UK law: nicotine pouches become 18+ only. Free samples and big promotional discounts on vapes and pouches become offences | Proper online age checks live before this date |
+| **29 Oct (passed)** | UK law: nicotine pouches became 18+ only. Free samples and big promotional discounts on vapes and pouches became offences | Proper online age checks must be live. If they aren't, stop taking pouch orders until they are |
 | **by 1 Dec** | Last safe date for the Chinese New Year order | Order enough to get through to March |
 | 30 Jan – 21 Feb 2027 | Chinese New Year (Sat 6 Feb). Official holiday dates come out around November; this window allows for factories closing early and reopening late | Nothing moves. If you don't already have stock, you won't get any |
 | **31 Mar 2027** | Last day to sell unstamped vaping stock made or imported before 1 Oct | Sell it through before then |
@@ -125,7 +125,7 @@ The **Tobacco and Vapes Act 2026** got Royal Assent on 29 April 2026. From **29 
 
 Source: [DHSC, selling vaping and nicotine products](https://www.gov.uk/guidance/selling-vaping-and-nicotine-products).
 
-**Online age checks that actually count:** an "Are you 18?" box on its own isn't enough. You need a real check against an independent source (Yoti facial age estimation, AgeChecked, or a credit-reference check) before dispatch, and "18+, ID on delivery" on the parcel. Never deliver to parcel lockers. Get this live **before 29 October**. If you're based in Scotland, check the Scottish retailer register rules too.
+**Online age checks that actually count:** an "Are you 18?" box on its own isn't enough. You need a real check against an independent source (Yoti facial age estimation, AgeChecked, or a credit-reference check) before dispatch, and "18+, ID on delivery" on the parcel. Never deliver to parcel lockers. This has been the law since **29 October**, so get it live before you take any pouch order. If you're based in Scotland, check the Scottish retailer register rules too.
 
 Plugins for WooCommerce: [AgeChecked](https://www.agechecked.com/woocommerce-plugin/) (UK-built; the plugin is free and you pay per check), [Yoti](https://developers.yoti.com/age-verification/woocommerce-integration) (selfie age estimation), and [Token of Trust](https://en-gb.wordpress.org/plugins/token-of-trust/).
 
