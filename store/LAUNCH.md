@@ -36,7 +36,9 @@ Pages → Add New, once for each file in `pages/`. Paste the text in and replace
 - Settings → Reading → set **Home page** to the home page.
 - Add the four policy pages to the footer menu (Appearance → Menus).
 
-## 5. Age verification (10 min) — legally required for pouches from 29 Oct 2026
+## 5. Age verification (10 min) — required by law for pouches since 29 Oct 2026
+
+The 29 Oct date has passed, so this is already the law. Don't take any pouch or vape order until this step is live and you've placed a test order that fails the check.
 
 1. Plugins → Add New → search **AgeChecked** (or **Token of Trust** / **Yoti**) → install → activate.
 2. Create an account with them and paste your API key into the plugin.
